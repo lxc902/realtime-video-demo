@@ -188,12 +188,13 @@ async def auth_login(request: Request, state: Optional[str] = None):
     response = RedirectResponse(url=auth_url, status_code=302)
 
     # Store state in cookie for validation in callback
+    # Note: samesite="none" is required for iframe/cross-site contexts
     if not state:  # Only set cookie if state wasn't provided
         response.set_cookie(
             key="hf_oauth_state",
             value=oauth_state,
             httponly=True,
-            samesite="lax",
+            samesite="none",  # Required for iframe/third-party context
             secure=True,
             max_age=300,  # 5 minutes
             path="/"
