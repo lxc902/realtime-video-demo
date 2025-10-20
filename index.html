@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-time Video Generation</title>
+    <title>KREA Realtime Video</title>
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&family=Roboto+Mono&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -12,55 +13,75 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f172a, #1e3a8a, #312e81);
-            color: #e2e8f0;
+            font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fafaf9;
+            color: #1c1917;
             min-height: 100vh;
-            padding: 20px;
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
+            padding: 20px;
         }
 
-        /* Login Screen */
-        .login-container {
-            max-width: 500px;
-            margin: 100px auto;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            padding: 40px;
-            text-align: center;
+        /* Login Strip */
+        .login-strip {
+            background: #fef3c7;
+            border-bottom: 2px solid #f59e0b;
+            padding: 15px 20px;
+            box-shadow: 0 3px 0 0 #d97706;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        .login-container h2 {
-            margin-bottom: 20px;
-            color: #e2e8f0;
+        .login-strip-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .login-message {
+            color: #78350f;
+            font-weight: 500;
+        }
+
+        .app-grayed {
+            opacity: 0.4;
+            pointer-events: none;
+            filter: grayscale(50%);
         }
 
         .btn {
-            padding: 12px 24px;
+            padding: 10px 20px;
             border: none;
             border-radius: 6px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.1s;
             text-decoration: none;
             display: inline-block;
+            font-family: 'Ubuntu', sans-serif;
+            border-width: 0px;
         }
 
         .btn-primary {
-            background: #10b981;
-            color: white;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-            font-size: 1rem;
+            background: #f59e0b;
+            color: #78350f;
+            box-shadow: 0px 3px 0px 0px #d97706;
         }
 
         .btn-primary:hover {
-            background: #059669;
+            box-shadow: 0px 5px 0px 0px #d97706;
+            transform: translateY(-2px);
+        }
+
+        .btn-primary:active {
+            box-shadow: 0px 2px 0px 0px #d97706;
+            transform: translateY(1px);
         }
 
         .btn-primary:disabled {
@@ -68,14 +89,36 @@
             cursor: not-allowed;
         }
 
+        .btn-secondary {
+            background: #fbbf24;
+            color: #78350f;
+            box-shadow: 0px 3px 0px 0px #f59e0b;
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0px 5px 0px 0px #f59e0b;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary:active {
+            box-shadow: 0px 2px 0px 0px #f59e0b;
+            transform: translateY(1px);
+        }
+
         .btn-danger {
             background: #ef4444;
             color: white;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            box-shadow: 0px 3px 0px 0px #dc2626;
         }
 
         .btn-danger:hover {
-            background: #dc2626;
+            box-shadow: 0px 5px 0px 0px #dc2626;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger:active {
+            box-shadow: 0px 2px 0px 0px #dc2626;
+            transform: translateY(1px);
         }
 
         .info-box, .error-box, .warning-box {
@@ -83,37 +126,39 @@
             padding: 12px;
             margin-top: 15px;
             font-size: 0.85rem;
+            border-width: 1px;
+            border-style: solid;
         }
 
         .info-box {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            color: #93c5fd;
+            background: #fef3c7;
+            border-color: #fbbf24;
+            color: #78350f;
         }
 
         .error-box {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #fca5a5;
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: #7f1d1d;
         }
 
         .warning-box {
-            background: rgba(251, 191, 36, 0.1);
-            border: 1px solid rgba(251, 191, 36, 0.3);
-            color: #fcd34d;
+            background: #fef3c7;
+            border-color: #fbbf24;
+            color: #78350f;
         }
 
         /* User Bar */
         .user-bar {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            border: 1px solid rgba(148, 163, 184, 0.2);
+            background: #fafaf9;
+            border-radius: 8px;
+            border: 1px solid #d6d3d1;
             padding: 15px 20px;
             margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0px 3px 0px 0px #d6d3d1;
         }
 
         .user-info {
@@ -126,7 +171,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            border: 2px solid #3b82f6;
+            border: 2px solid #f59e0b;
         }
 
         .user-badge {
@@ -139,19 +184,19 @@
         }
 
         .badge-pro {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
+            background: #f59e0b;
             color: white;
         }
 
         .badge-free {
-            background: #475569;
-            color: #94a3b8;
+            background: #78716c;
+            color: #e7e5e4;
         }
 
         .btn-logout {
             padding: 8px 16px;
-            background: #475569;
-            color: #e2e8f0;
+            background: #78716c;
+            color: #fafaf9;
             border: none;
             border-radius: 6px;
             cursor: pointer;
@@ -159,7 +204,7 @@
         }
 
         .btn-logout:hover {
-            background: #64748b;
+            background: #57534e;
         }
 
         /* Main App Layout */
@@ -169,31 +214,56 @@
         }
 
         h1 {
-            font-size: 2rem;
+            font-size: 2.5rem;
             margin-bottom: 10px;
-            background: linear-gradient(to right, #22d3ee, #3b82f6, #a855f7);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+            color: #1c1917;
+            font-weight: 700;
+        }
+
+        .header-links {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .header-link {
+            color: #f59e0b;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .header-link:hover {
+            text-decoration: underline;
         }
 
         .subtitle {
-            color: #94a3b8;
+            color: #78716c;
             font-size: 0.9rem;
+            margin-top: 5px;
         }
 
-        .grid {
+        /* Video Grid */
+        .video-grid {
             display: grid;
-            grid-template-columns: 2fr 1fr;
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
+            margin-bottom: 20px;
         }
 
         .panel {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
-            border: 1px solid rgba(148, 163, 184, 0.2);
+            background: #fafaf9;
+            border-radius: 8px;
+            border: 1px solid #d6d3d1;
             padding: 20px;
+            box-shadow: 0px 3px 0px 0px #d6d3d1;
+        }
+
+        .panel h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #1c1917;
         }
 
         .video-container {
@@ -205,17 +275,19 @@
             justify-content: center;
             position: relative;
             overflow: hidden;
+            box-shadow: 0px -1px 0px 0px #d6d3d1;
         }
 
-        #outputCanvas {
+        #outputCanvas, #webcamVideo {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
+            border-radius: 6px;
         }
 
         .placeholder {
             text-align: center;
-            color: #475569;
+            color: #78716c;
         }
 
         .status-bar {
@@ -224,7 +296,7 @@
             align-items: center;
             margin-top: 15px;
             padding-top: 15px;
-            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            border-top: 1px solid #d6d3d1;
             font-size: 0.85rem;
         }
 
@@ -236,13 +308,13 @@
         }
 
         .status-connected {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10b981;
+            background: #dcfce7;
+            color: #15803d;
         }
 
         .status-disconnected {
-            background: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
+            background: #fee2e2;
+            color: #991b1b;
         }
 
         .mode-toggle {
@@ -254,22 +326,25 @@
         .mode-btn {
             flex: 1;
             padding: 10px;
-            border: none;
+            border: 1px solid #d6d3d1;
             border-radius: 6px;
-            background: #334155;
-            color: #e2e8f0;
+            background: #fafaf9;
+            color: #57534e;
             cursor: pointer;
             transition: all 0.2s;
             font-size: 0.85rem;
+            font-weight: 500;
         }
 
         .mode-btn:hover:not(:disabled) {
-            background: #475569;
+            background: #fef3c7;
         }
 
         .mode-btn.active {
-            background: #3b82f6;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            background: #fbbf24;
+            color: #78350f;
+            box-shadow: 0px 3px 0px 0px #f59e0b;
+            border-color: #f59e0b;
         }
 
         .mode-btn:disabled {
@@ -284,8 +359,9 @@
         label {
             display: block;
             font-size: 0.85rem;
-            color: #94a3b8;
+            color: #57534e;
             margin-bottom: 5px;
+            font-weight: 500;
         }
 
         input[type="text"],
@@ -295,49 +371,73 @@
         select {
             width: 100%;
             padding: 8px 12px;
-            background: rgba(51, 65, 85, 0.5);
-            border: 1px solid #475569;
+            background: #fafaf9;
+            border: 1px solid #d6d3d1;
             border-radius: 6px;
-            color: #e2e8f0;
+            color: #1c1917;
             font-size: 0.9rem;
+            box-shadow: 0px -1px 0px 0px #d6d3d1;
+            font-family: 'Ubuntu', sans-serif;
         }
 
-        input:focus, textarea:focus {
+        input:focus, textarea:focus, select:focus {
             outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border-color: #f59e0b;
+            box-shadow: 0px -1px 0px 0px #f59e0b;
+            background: #fef3c7;
         }
 
         textarea {
             min-height: 80px;
             resize: vertical;
-            font-family: inherit;
+            font-family: 'Ubuntu', sans-serif;
         }
 
         input[type="range"] {
             width: 100%;
             height: 4px;
-            background: #334155;
+            background: #d6d3d1;
             border-radius: 2px;
             outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #f59e0b;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #f59e0b;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
         }
 
         .range-value {
             display: inline-block;
             margin-left: 10px;
             font-weight: 500;
+            color: #f59e0b;
         }
 
         .hint {
             font-size: 0.75rem;
-            color: #64748b;
+            color: #78716c;
             margin-top: 4px;
         }
 
         .progress-bar {
             width: 100%;
             height: 6px;
-            background: #334155;
+            background: #e7e5e4;
             border-radius: 3px;
             margin-top: 10px;
             overflow: hidden;
@@ -345,7 +445,7 @@
 
         .progress-fill {
             height: 100%;
-            background: linear-gradient(to right, #22d3ee, #3b82f6);
+            background: #f59e0b;
             transition: width 0.3s ease;
             width: 0%;
         }
@@ -361,32 +461,74 @@
         }
 
         .limit-warning {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 12px;
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
             text-align: center;
         }
 
         .upgrade-link {
-            color: #3b82f6;
+            color: #f59e0b;
             text-decoration: none;
             font-weight: 500;
         }
 
-        #webcamVideo {
-            width: 100%;
-            border: 1px solid #475569;
-            border-radius: 6px;
-            background: #000;
+        .upgrade-link:hover {
+            text-decoration: underline;
         }
 
-        @media (max-width: 768px) {
-            .grid {
+        /* Accordion */
+        .accordion {
+            margin-top: 15px;
+        }
+
+        .accordion-header {
+            background: #e7e5e4;
+            padding: 12px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            color: #1c1917;
+            border: 1px solid #d6d3d1;
+        }
+
+        .accordion-header:hover {
+            background: #d6d3d1;
+        }
+
+        .accordion-icon {
+            transition: transform 0.2s;
+        }
+
+        .accordion-icon.open {
+            transform: rotate(180deg);
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .accordion-content.open {
+            max-height: 1000px;
+        }
+
+        .accordion-body {
+            padding: 15px 0;
+        }
+
+        @media (max-width: 1024px) {
+            .video-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .user-bar {
                 flex-direction: column;
                 gap: 15px;
@@ -397,31 +539,26 @@
 <body>
     <div class="container">
         {% if not authenticated %}
-        <!-- Login Screen -->
-        <div class="login-container">
-            <h2>🤗 Sign in with Hugging Face</h2>
-            <p style="color: #94a3b8; margin-bottom: 30px;">Authenticate with your Hugging Face account to start generating videos</p>
-            
-            <a href="https://huggingface.co/oauth/authorize?response_type=code&client_id={{ oauth_client_id }}&redirect_uri=https://{{ space_host }}/oauth/callback&scope=openid%20profile&state={{ range(10000, 99999) | random }}" 
-               class="btn btn-primary"
-               target="_blank">
-                Sign in with Hugging Face
-            </a>
-
-            {% if error %}
-            <div class="error-box">{{ error }}</div>
-            {% endif %}
-            
-            <div class="info-box" style="text-align: left;">
-                <strong>📊 Usage Limits:</strong><br>
-                • <strong>Free Users:</strong> 1 generation per day<br>
-                • <strong>PRO Users:</strong> 15 generations per day<br><br>
-                <small>Limits reset daily at midnight UTC</small>
+        <!-- Login Strip -->
+        <div class="login-strip">
+            <div class="login-strip-content">
+                <div class="login-message">
+                    Sign in with Hugging Face to start generating videos
+                </div>
+                <a href="https://huggingface.co/oauth/authorize?response_type=code&client_id={{ oauth_client_id }}&redirect_uri=https://{{ space_host }}/oauth/callback&scope=openid%20profile&state={{ range(10000, 99999) | random }}"
+                   class="btn btn-primary"
+                   target="_blank">
+                    Sign in with Hugging Face
+                </a>
             </div>
         </div>
-        {% else %}
-        
+
+        <!-- Grayed Out App -->
+        <div class="app-grayed">
+        {% endif %}
+
         <!-- Authenticated App -->
+        {% if authenticated %}
         <div class="user-bar">
             <div class="user-info">
                 {% if user.avatar %}
@@ -435,38 +572,57 @@
                 </div>
             </div>
             <div style="text-align: right;">
-                <div style="font-size: 0.85rem; color: #94a3b8;">Generations: {{ sessions_used }}/{{ sessions_limit }} today</div>
+                <div class="usage-info" style="font-size: 0.85rem; color: #78716c;">Generations: {{ sessions_used }}/{{ sessions_limit }} today</div>
                 <button class="btn-logout" onclick="logout()">Logout</button>
             </div>
         </div>
 
         {% if not can_start %}
         <div class="limit-warning">
-            <h3 style="color: #fca5a5; margin-bottom: 10px;">⚠️ Daily Limit Reached</h3>
-            <p style="color: #94a3b8; font-size: 0.9rem;">You've used all {{ sessions_limit }} generations for today. Come back tomorrow!</p>
+            <h3 style="color: #991b1b; margin-bottom: 10px;">Daily Limit Reached</h3>
+            <p style="color: #78716c; font-size: 0.9rem;">You've used all {{ sessions_limit }} generations for today. Come back tomorrow!</p>
             {% if not user.is_pro %}
-            <p style="margin-top: 10px; color: #94a3b8; font-size: 0.9rem;">
+            <p style="margin-top: 10px; color: #78716c; font-size: 0.9rem;">
                 Upgrade to <a href="https://huggingface.co/pricing" target="_blank" class="upgrade-link">Hugging Face PRO</a> for 15 generations per day!
             </p>
             {% endif %}
         </div>
         {% endif %}
+        {% endif %}
 
         <header>
-            <h1>Real-time Video Generation</h1>
+            <h1>KREA Realtime Video</h1>
+            <div class="header-links">
+                <a href="https://huggingface.co/krea/krea-realtime-video" target="_blank" class="header-link">Model on Hugging Face</a>
+                <span style="color: #d6d3d1;">•</span>
+                <a href="https://github.com/krea-ai/realtime-video" target="_blank" class="header-link">GitHub Repository</a>
+            </div>
             <p class="subtitle">Self-Forcing Diffusion with Dynamic Prompt Rewriting • 832×480 Fixed Resolution</p>
         </header>
 
-        <div class="grid">
+        <!-- Video Grid: Webcam Left, Output Right -->
+        <div class="video-grid">
+            <!-- Webcam Panel -->
+            <div class="panel">
+                <h2>Webcam Input</h2>
+                <div class="video-container">
+                    <video id="webcamVideo" autoplay playsinline muted></video>
+                    <div id="webcamPlaceholder" class="placeholder">
+                        <p>{% if can_start %}Webcam will appear here{% else %}Sign in to use webcam{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Video Output Panel -->
             <div class="panel">
+                <h2>Generated Video</h2>
                 <div class="video-container">
                     <canvas id="outputCanvas"></canvas>
                     <div id="placeholder" class="placeholder">
                         <p>{% if can_start %}Configure settings and click Start{% else %}Daily limit reached{% endif %}</p>
                     </div>
                 </div>
-                
+
                 <div class="status-bar">
                     <div>
                         <span id="statusPill" class="status-pill status-disconnected">Disconnected</span>
@@ -478,89 +634,96 @@
                         <span class="range-value" id="playbackFpsValue">12 fps</span>
                     </div>
                 </div>
-                
+
                 <div class="progress-bar">
                     <div id="progressFill" class="progress-fill"></div>
                 </div>
             </div>
+        </div>
 
-            <!-- Controls Panel -->
-            <div class="panel">
-                <h2 style="margin-bottom: 20px;">Controls</h2>
-                
-                <!-- Mode Selection -->
-                <div class="mode-toggle">
-                    <button id="textModeBtn" class="mode-btn active" {% if not can_start %}disabled{% endif %}>Text-to-Video</button>
-                    <button id="videoModeBtn" class="mode-btn" {% if not can_start %}disabled{% endif %}>Video-to-Video</button>
-                    <button id="webcamModeBtn" class="mode-btn" {% if not can_start %}disabled{% endif %}>Webcam-to-Video</button>
-                </div>
+        <!-- Controls Panel -->
+        <div class="panel">
+            <h2 style="margin-bottom: 20px;">Controls</h2>
 
-                <!-- Prompt -->
-                <div class="form-group">
-                    <label>Prompt <span style="color: #10b981; font-size: 0.75rem;">(updates sent every 2 seconds)</span></label>
-                    <textarea id="prompt" {% if not can_start %}disabled{% endif %}>A cat riding a skateboard through a neon city at night</textarea>
-                    <div class="hint">💡 Detailed prompts work better</div>
-                </div>
-
-                <!-- Video Upload (V2V mode) -->
-                <div id="videoControls" class="hidden">
-                    <div class="form-group">
-                        <label>Upload Video</label>
-                        <input type="file" id="videoFile" accept="video/*" class="hidden">
-                        <button class="btn btn-primary" style="width: 100%;" onclick="document.getElementById('videoFile').click()">
-                            Select Video File
-                        </button>
-                        <div id="videoInfo" style="margin-top: 10px; font-size: 0.85rem; color: #94a3b8;"></div>
-                    </div>
-                </div>
-
-                <!-- Webcam Preview -->
-                <div id="webcamControls" class="hidden">
-                    <div class="form-group">
-                        <label>Webcam Preview (832×480 center crop)</label>
-                        <video id="webcamVideo" autoplay playsinline muted></video>
-                    </div>
-                </div>
-
-                <!-- Input Controls (V2V and Webcam modes) -->
-                <div id="inputControls" class="hidden">
-                    <div class="form-group">
-                        <label>Input Frame Rate: <span class="range-value" id="inputFpsValue">12</span> fps</label>
-                        <input type="range" id="inputFps" min="10" max="14" value="12">
-                        <div class="hint">Recommended: 10-14 fps</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Transformation Strength: <span class="range-value" id="strengthValue">0.45</span></label>
-                        <input type="range" id="strength" min="0.1" max="0.6" step="0.05" value="0.45">
-                        <div class="hint">Keep low (&lt;0.5-0.6) to avoid artifacts</div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Max Frames (Blocks): <span class="range-value" id="numBlocksValue">20</span> → ~<span id="estimatedFrames">234</span> frames</label>
-                    <input type="range" id="numBlocks" min="10" max="50" step="5" value="20" {% if not can_start %}disabled{% endif %}>
-                    <div class="hint">Each block generates ~12 frames</div>
-                </div>
-
-                <div class="form-group">
-                    <label>Seed (optional)</label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <input type="number" id="seed" placeholder="random" {% if not can_start %}disabled{% endif %}>
-                        <button class="btn" onclick="app.randomizeSeed()" {% if not can_start %}disabled{% endif %}>Random</button>
-                    </div>
-                </div>
-
-                <div class="action-buttons">
-                    <button id="startStopBtn" class="btn btn-primary" onclick="app.toggleGeneration()" {% if not can_start %}disabled{% endif %}>
-                        {% if can_start %}Start Generation{% else %}Limit Reached{% endif %}
-                    </button>
-                    <button class="btn" onclick="app.downloadVideo()">Download</button>
-                </div>
-
-                <div id="errorBox" class="error-box hidden"></div>
-                <div id="infoBox" class="info-box hidden"></div>
+            <!-- Mode Selection -->
+            <div class="mode-toggle">
+                <button id="textModeBtn" class="mode-btn" {% if not can_start %}disabled{% endif %}>Text-to-Video</button>
+                <button id="videoModeBtn" class="mode-btn" {% if not can_start %}disabled{% endif %}>Video-to-Video</button>
+                <button id="webcamModeBtn" class="mode-btn active" {% if not can_start %}disabled{% endif %}>Webcam-to-Video</button>
             </div>
+
+            <!-- Prompt (Main Setting) -->
+            <div class="form-group">
+                <label>Prompt <span style="color: #15803d; font-size: 0.75rem;">(updates sent every 2 seconds)</span></label>
+                <textarea id="prompt" {% if not can_start %}disabled{% endif %}>A cat riding a skateboard through a neon city at night</textarea>
+                <div class="hint">Detailed prompts work better</div>
+            </div>
+
+            <!-- Video Upload (V2V mode) -->
+            <div id="videoControls" class="hidden">
+                <div class="form-group">
+                    <label>Upload Video</label>
+                    <input type="file" id="videoFile" accept="video/*" class="hidden">
+                    <button class="btn btn-secondary" style="width: 100%;" onclick="document.getElementById('videoFile').click()">
+                        Select Video File
+                    </button>
+                    <div id="videoInfo" style="margin-top: 10px; font-size: 0.85rem; color: #78716c;"></div>
+                </div>
+            </div>
+
+            <!-- Action Buttons (Outside Accordion) -->
+            <div class="action-buttons">
+                <button id="startStopBtn" class="btn btn-primary" onclick="app.toggleGeneration()" style="flex: 1;" {% if not can_start %}disabled{% endif %}>
+                    {% if can_start %}Start Generation{% else %}Limit Reached{% endif %}
+                </button>
+                <button class="btn btn-secondary" onclick="app.downloadVideo()">Download</button>
+            </div>
+
+            <!-- Advanced Settings Accordion -->
+            <div class="accordion">
+                <div class="accordion-header" onclick="app.toggleAccordion()">
+                    <span>Advanced Settings</span>
+                    <span class="accordion-icon" id="accordionIcon">▼</span>
+                </div>
+                <div class="accordion-content" id="accordionContent">
+                    <div class="accordion-body">
+                        <!-- Input Controls (V2V and Webcam modes) -->
+                        <div id="inputControls">
+                            <div class="form-group">
+                                <label>Input Frame Rate: <span class="range-value" id="inputFpsValue">12</span> fps</label>
+                                <input type="range" id="inputFps" min="10" max="14" value="12" {% if not can_start %}disabled{% endif %}>
+                                <div class="hint">Recommended: 10-14 fps</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Transformation Strength: <span class="range-value" id="strengthValue">0.45</span></label>
+                                <input type="range" id="strength" min="0.1" max="0.6" step="0.05" value="0.45" {% if not can_start %}disabled{% endif %}>
+                                <div class="hint">Keep low (&lt;0.5-0.6) to avoid artifacts</div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Max Frames (Blocks): <span class="range-value" id="numBlocksValue">20</span> → ~<span id="estimatedFrames">234</span> frames</label>
+                            <input type="range" id="numBlocks" min="10" max="50" step="5" value="20" {% if not can_start %}disabled{% endif %}>
+                            <div class="hint">Each block generates ~12 frames</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Seed (optional)</label>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <input type="number" id="seed" placeholder="random" {% if not can_start %}disabled{% endif %}>
+                                <button class="btn btn-secondary" onclick="app.randomizeSeed()" {% if not can_start %}disabled{% endif %}>Random</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="errorBox" class="error-box hidden"></div>
+            <div id="infoBox" class="info-box hidden"></div>
+        </div>
+
+        {% if not authenticated %}
         </div>
         {% endif %}
     </div>
@@ -573,7 +736,7 @@
         {% if not authenticated %}
         // Not authenticated - no app logic needed
         {% else %}
-        
+
         async function logout() {
             await fetch('/api/logout', {method: 'POST'});
             window.location.reload();
@@ -707,7 +870,7 @@
 
         // Main App (simplified - add full video generation logic here)
         const app = {
-            mode: 'text',
+            mode: 'webcam',
             isGenerating: false,
             frameCount: 0,
             maxFrames: 234,
@@ -726,23 +889,32 @@
             init() {
                 this.setupEventListeners();
                 this.updateEstimatedFrames();
+                // Auto-start webcam since it's the default mode
+                this.setMode('webcam');
+            },
+
+            toggleAccordion() {
+                const content = document.getElementById('accordionContent');
+                const icon = document.getElementById('accordionIcon');
+                content.classList.toggle('open');
+                icon.classList.toggle('open');
             },
 
             setupEventListeners() {
                 document.getElementById('textModeBtn').addEventListener('click', () => this.setMode('text'));
                 document.getElementById('videoModeBtn').addEventListener('click', () => this.setMode('video'));
                 document.getElementById('webcamModeBtn').addEventListener('click', () => this.setMode('webcam'));
-                
+
                 // Video file upload
                 document.getElementById('videoFile').addEventListener('change', (e) => this.handleVideoUpload(e));
-                
+
                 document.getElementById('playbackFps').addEventListener('input', (e) => {
                     document.getElementById('playbackFpsValue').textContent = e.target.value + ' fps';
                     if (this.playbackInterval) {
                         this.startPlaybackLoop();
                     }
                 });
-                
+
                 document.getElementById('inputFps').addEventListener('input', (e) => {
                     document.getElementById('inputFpsValue').textContent = e.target.value;
                     if (this.isGenerating && (this.mode === 'video' || this.mode === 'webcam')) {
@@ -750,11 +922,11 @@
                         this.startFrameExtraction();
                     }
                 });
-                
+
                 document.getElementById('strength').addEventListener('input', (e) => {
                     document.getElementById('strengthValue').textContent = parseFloat(e.target.value).toFixed(2);
                 });
-                
+
                 document.getElementById('numBlocks').addEventListener('input', (e) => {
                     document.getElementById('numBlocksValue').textContent = e.target.value;
                     this.updateEstimatedFrames();
@@ -762,7 +934,7 @@
                         this.queuePromptUpdate();
                     }
                 });
-                
+
                 // Prompt changes for live updates
                 document.getElementById('prompt').addEventListener('input', () => {
                     if (this.isGenerating && (this.mode === 'text' || this.mode === 'webcam')) {
@@ -778,9 +950,15 @@
                 document.getElementById('videoModeBtn').classList.toggle('active', mode === 'video');
                 document.getElementById('webcamModeBtn').classList.toggle('active', mode === 'webcam');
                 document.getElementById('videoControls').classList.toggle('hidden', mode !== 'video');
-                document.getElementById('webcamControls').classList.toggle('hidden', mode !== 'webcam');
-                document.getElementById('inputControls').classList.toggle('hidden', !(mode === 'video' || mode === 'webcam'));
-                
+
+                // Input controls always visible in accordion for webcam/video modes
+                const inputControls = document.getElementById('inputControls');
+                if (mode === 'text') {
+                    inputControls.style.display = 'none';
+                } else {
+                    inputControls.style.display = 'block';
+                }
+
                 // Start/stop webcam based on mode
                 if (mode === 'webcam') {
                     this.startWebcam();
@@ -798,9 +976,10 @@
                         },
                         audio: false
                     });
-                    
+
                     const video = document.getElementById('webcamVideo');
                     video.srcObject = this.webcamStream;
+                    document.getElementById('webcamPlaceholder').style.display = 'none';
                     this.showInfo('Webcam started successfully');
                 } catch (error) {
                     this.showError(`Failed to access webcam: ${error.message}`);
@@ -816,6 +995,7 @@
                     this.webcamStream = null;
                     const video = document.getElementById('webcamVideo');
                     video.srcObject = null;
+                    document.getElementById('webcamPlaceholder').style.display = 'flex';
                 }
             },
 
@@ -853,44 +1033,44 @@
                         this.showError('Failed to start session');
                         return;
                     }
-                    
+
                     const prompt = document.getElementById('prompt').value.trim();
                     if (!prompt) {
                         this.showError('Please enter a prompt');
                         return;
                     }
-                    
+
                     if (this.mode === 'video' && !this.currentVideoFile) {
                         this.showError('Please upload a video file');
                         return;
                     }
-                    
+
                     if (this.mode === 'webcam' && !this.webcamStream) {
                         this.showError('Webcam not started');
                         return;
                     }
-                    
+
                     this.isGenerating = true;
                     this.frameCount = 0;
                     document.getElementById('frameCount').textContent = '0';
                     this.frameBuffer = [];
                     this.updateUI();
-                    
+
                     // Start recording
                     this.startRecording();
-                    
+
                     // Connect to backend WebSocket proxy
                     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                     const wsUrl = `${protocol}//${window.location.host}/ws/video-gen`;
-                    
+
                     try {
                         this.ws = new WebSocket(wsUrl);
                         this.ws.binaryType = 'arraybuffer';
-                        
+
                         this.ws.onopen = () => {
                             this.showInfo('Connected! Waiting for ready signal...');
                         };
-                        
+
                         this.ws.onmessage = async (event) => {
                             if (typeof event.data === 'string') {
                                 try {
@@ -909,24 +1089,24 @@
                                 await this.displayFrame(event.data);
                             }
                         };
-                        
+
                         this.ws.onerror = (error) => {
                             this.showError('WebSocket connection error');
                             console.error('WebSocket error:', error);
                         };
-                        
+
                         this.ws.onclose = (event) => {
                             console.log('WebSocket closed:', event.reason);
-                            
+
                             // Force state reset
                             this.isGenerating = false;
                             this.ws = null;
-                            
+
                             // Stop all processes
                             this.stopFrameExtraction();
                             this.stopRecording();
                             this.stopPlaybackLoop();
-                            
+
                             // Update UI immediately
                             const btn = document.getElementById('startStopBtn');
                             if (btn) {
@@ -934,23 +1114,23 @@
                                 btn.className = 'btn btn-primary';
                                 btn.disabled = false;
                             }
-                            
+
                             // Update status
                             const statusPill = document.getElementById('statusPill');
                             if (statusPill) {
                                 statusPill.className = 'status-pill status-disconnected';
                                 statusPill.textContent = 'Disconnected';
                             }
-                            
+
                             // Re-enable mode buttons
                             ['textModeBtn', 'videoModeBtn', 'webcamModeBtn'].forEach(id => {
                                 const btn = document.getElementById(id);
                                 if (btn) btn.disabled = false;
                             });
-                            
+
                             this.showInfo(`Disconnected: ${event.reason || 'Generation complete'}`);
                         };
-                        
+
                     } catch (error) {
                         this.showError('Failed to connect: ' + error.message);
                         this.isGenerating = false;
@@ -968,7 +1148,7 @@
                     width: 832,
                     height: 480
                 };
-                
+
                 // Add start_frame for video and webcam modes
                 if (this.mode === 'video' && this.currentVideoFile) {
                     try {
@@ -1000,19 +1180,19 @@
                         return;
                     }
                 }
-                
+
                 const seedValue = document.getElementById('seed').value;
                 if (seedValue && seedValue.trim() !== '') {
                     payload.seed = parseInt(seedValue);
                 } else {
                     payload.seed = Math.floor(Math.random() * (1 << 24));
                 }
-                
+
                 try {
                     const encoded = createMsgpackEncoder(payload);
                     this.ws.send(encoded);
                     this.showInfo('Generation started!');
-                    
+
                     // Start frame extraction for v2v and webcam modes
                     if (this.mode === 'video' || this.mode === 'webcam') {
                         setTimeout(() => this.startFrameExtraction(), 500);
@@ -1025,16 +1205,16 @@
             async displayFrame(imageData) {
                 const blob = new Blob([imageData], { type: 'image/jpeg' });
                 const bitmap = await createImageBitmap(blob);
-                
+
                 this.frameBuffer.push(bitmap);
                 this.frameCount++;
                 document.getElementById('frameCount').textContent = this.frameCount;
-                
+
                 if (this.frameCount === 1) {
                     document.getElementById('placeholder').style.display = 'none';
                     this.startPlaybackLoop();
                 }
-                
+
                 // Update progress
                 const progress = Math.min(100, (this.frameCount / this.maxFrames) * 100);
                 document.getElementById('progressFill').style.width = progress + '%';
@@ -1042,16 +1222,16 @@
 
             drawNextFrame() {
                 if (this.frameBuffer.length === 0) return;
-                
+
                 const canvas = document.getElementById('outputCanvas');
                 const bitmap = this.frameBuffer.shift();
-                
+
                 canvas.width = bitmap.width;
                 canvas.height = bitmap.height;
-                
+
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(bitmap, 0, 0);
-                
+
                 if (typeof bitmap.close === 'function') {
                     bitmap.close();
                 }
@@ -1061,10 +1241,17 @@
                 if (this.playbackInterval) {
                     clearInterval(this.playbackInterval);
                 }
-                
+
                 const fps = parseInt(document.getElementById('playbackFps').value);
                 const intervalMs = Math.max(10, Math.floor(1000 / fps));
                 this.playbackInterval = setInterval(() => this.drawNextFrame(), intervalMs);
+            },
+
+            stopPlaybackLoop() {
+                if (this.playbackInterval) {
+                    clearInterval(this.playbackInterval);
+                    this.playbackInterval = null;
+                }
             },
 
             async handleVideoUpload(event) {
@@ -1082,12 +1269,12 @@
                             width: video.videoWidth,
                             height: video.videoHeight
                         };
-                        
+
                         document.getElementById('videoInfo').innerHTML = `
                             ${file.name}<br>
                             ${this.videoMetadata.width}×${this.videoMetadata.height} • ${this.videoMetadata.duration.toFixed(1)}s
                         `;
-                        
+
                         this.showInfo('Video loaded successfully');
                         resolve();
                     };
@@ -1105,20 +1292,20 @@
             async extractVideoFrameBytes() {
                 const video = document.getElementById('hiddenVideo');
                 const canvas = document.getElementById('extractionCanvas');
-                
+
                 if (!video || !canvas) return null;
-                
+
                 const ctx = canvas.getContext('2d');
                 canvas.width = 832;
                 canvas.height = 480;
-                
+
                 // Scale and crop to 832x480
                 const scale = Math.max(832 / video.videoWidth, 480 / video.videoHeight);
                 const scaledWidth = video.videoWidth * scale;
                 const scaledHeight = video.videoHeight * scale;
                 const offsetX = (832 - scaledWidth) / 2;
                 const offsetY = (480 - scaledHeight) / 2;
-                
+
                 ctx.clearRect(0, 0, 832, 480);
                 ctx.drawImage(video, offsetX, offsetY, scaledWidth, scaledHeight);
 
@@ -1143,22 +1330,22 @@
             async extractWebcamBytes() {
                 const video = document.getElementById('webcamVideo');
                 const canvas = document.getElementById('extractionCanvas');
-                
+
                 if (!video || !canvas || !video.videoWidth) return null;
-                
+
                 const ctx = canvas.getContext('2d');
                 const targetWidth = 832;
                 const targetHeight = 480;
                 canvas.width = targetWidth;
                 canvas.height = targetHeight;
-                
+
                 const videoWidth = video.videoWidth;
                 const videoHeight = video.videoHeight;
                 const sourceAspect = videoWidth / videoHeight;
                 const targetAspect = targetWidth / targetHeight;
-                
+
                 let sx, sy, sWidth, sHeight;
-                
+
                 if (sourceAspect > targetAspect) {
                     sHeight = videoHeight;
                     sWidth = videoHeight * targetAspect;
@@ -1170,7 +1357,7 @@
                     sx = 0;
                     sy = (videoHeight - sHeight) / 2;
                 }
-                
+
                 ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
 
                 return new Promise((resolve) => {
@@ -1195,11 +1382,11 @@
                 const inputFps = parseInt(document.getElementById('inputFps').value);
                 const intervalMs = Math.floor(1000 / inputFps);
                 const video = document.getElementById('hiddenVideo');
-                
+
                 if (this.mode === 'video') {
                     video.play();
                 }
-                
+
                 this.frameExtractionInterval = setInterval(async () => {
                     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
                         this.stopFrameExtraction();
@@ -1221,20 +1408,20 @@
                         console.warn('Empty frame, skipping');
                         return;
                     }
-                    
+
                     const strengthValue = parseFloat(document.getElementById('strength').value);
                     const message = {
                         image: frameBytes,
                         strength: strengthValue,
                         timestamp: Date.now()
                     };
-                    
+
                     // For webcam mode, include prompt and num_blocks
                     if (this.mode === 'webcam') {
                         message.prompt = document.getElementById('prompt').value;
                         message.num_blocks = parseInt(document.getElementById('numBlocks').value);
                     }
-                    
+
                     const encoded = createMsgpackEncoder(message);
                     this.ws.send(encoded);
                 }, intervalMs);
@@ -1245,7 +1432,7 @@
                     clearInterval(this.frameExtractionInterval);
                     this.frameExtractionInterval = null;
                 }
-                
+
                 const video = document.getElementById('hiddenVideo');
                 video.pause();
                 video.currentTime = 0;
@@ -1276,20 +1463,20 @@
                 const canvas = document.getElementById('outputCanvas');
                 const fps = parseInt(document.getElementById('playbackFps').value);
                 const stream = canvas.captureStream(fps);
-                
+
                 this.recordedChunks = [];
                 this.mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') 
-                        ? 'video/webm;codecs=vp9' 
+                    mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+                        ? 'video/webm;codecs=vp9'
                         : 'video/webm'
                 });
-                
+
                 this.mediaRecorder.ondataavailable = (event) => {
                     if (event.data && event.data.size > 0) {
                         this.recordedChunks.push(event.data);
                     }
                 };
-                
+
                 this.mediaRecorder.start();
             },
 
@@ -1314,7 +1501,6 @@
                 }
                 this.pendingPromptUpdate = null;
                 this.stopFrameExtraction();
-                this.stopWebcam();
                 this.stopRecording();
                 this.isGenerating = false;
                 this.updateUI();
@@ -1325,7 +1511,7 @@
                     this.showError('No video data to download');
                     return;
                 }
-                
+
                 const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -1340,12 +1526,12 @@
                 const btn = document.getElementById('startStopBtn');
                 btn.textContent = this.isGenerating ? 'Stop Generation' : 'Start Generation';
                 btn.className = this.isGenerating ? 'btn btn-danger' : 'btn btn-primary';
-                
+
                 // Update mode buttons
                 const textBtn = document.getElementById('textModeBtn');
                 const videoBtn = document.getElementById('videoModeBtn');
                 const webcamBtn = document.getElementById('webcamModeBtn');
-                
+
                 if (textBtn && videoBtn && webcamBtn) {
                     textBtn.disabled = this.isGenerating;
                     videoBtn.disabled = this.isGenerating;
@@ -1355,14 +1541,14 @@
 
             showError(message) {
                 const box = document.getElementById('errorBox');
-                box.textContent = '❌ ' + message;
+                box.textContent = message;
                 box.classList.remove('hidden');
                 setTimeout(() => box.classList.add('hidden'), 5000);
             },
 
             showInfo(message) {
                 const box = document.getElementById('infoBox');
-                box.textContent = '✓ ' + message;
+                box.textContent = message;
                 box.classList.remove('hidden');
                 setTimeout(() => box.classList.add('hidden'), 3000);
             }
