@@ -305,6 +305,20 @@
             color: #78716c;
         }
 
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e7e5e4;
+            border-top: 4px solid #f59e0b;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         .status-bar {
             display: flex;
             justify-content: space-between;
@@ -330,6 +344,11 @@
         .status-disconnected {
             background: #fee2e2;
             color: #991b1b;
+        }
+
+        .status-finished {
+            background: #dbeafe;
+            color: #1e40af;
         }
 
         .mode-toggle {
@@ -719,6 +738,7 @@
                     <h2>Generated Video</h2>
                     <div class="video-container">
                         <canvas id="outputCanvas"></canvas>
+                        <div id="spinner" class="spinner hidden"></div>
                         <div id="placeholder" class="placeholder">
                             <p>Configure settings and click Start</p>
                         </div>
@@ -728,6 +748,12 @@
                         <div>
                             <span id="statusPill" class="status-pill status-disconnected">Disconnected</span>
                             <span style="margin-left: 15px;">Frames: <strong id="frameCount">0</strong> / <strong id="maxFrames">234</strong></span>
+                            <button id="replayBtn" class="btn btn-secondary hidden" onclick="app.replayVideo()" style="margin-left: 15px; padding: 4px 12px; font-size: 0.75rem;">
+                                Replay
+                            </button>
+                            <button id="downloadBtn" class="btn btn-secondary hidden" onclick="app.downloadVideo()" style="margin-left: 10px; padding: 4px 12px; font-size: 0.75rem;">
+                                Download
+                            </button>
                         </div>
                         <div>
                             <label style="display: inline; margin: 0;">Playback:</label>
@@ -756,7 +782,6 @@
                     <button id="startStopBtn" class="btn btn-primary" onclick="app.toggleGeneration()" style="flex: 1;">
                         Start Generation
                     </button>
-                    <button class="btn btn-secondary" onclick="app.downloadVideo()">Download</button>
                 </div>
 
                 <!-- Advanced Settings Accordion -->
@@ -1165,6 +1190,7 @@
             maxFrames: 234,
             ws: null,
             frameBuffer: [],
+            allFrames: [], // Store all frames for replay
             playbackInterval: null,
             frameExtractionInterval: null,
             webcamStream: null,
@@ -1174,6 +1200,7 @@
             recordedChunks: [],
             promptUpdateTimer: null,
             pendingPromptUpdate: null,
+            generationFinished: false,
 
             init() {
                 this.setupEventListeners();
@@ -1383,9 +1410,17 @@
 
                     this.isGenerating = true;
                     this.frameCount = 0;
+                    this.generationFinished = false;
                     document.getElementById('frameCount').textContent = '0';
                     this.frameBuffer = [];
+                    this.allFrames = [];
                     this.updateUI();
+
+                    // Show spinner, hide placeholder, replay and download buttons
+                    document.getElementById('spinner').classList.remove('hidden');
+                    document.getElementById('placeholder').style.display = 'none';
+                    document.getElementById('replayBtn').classList.add('hidden');
+                    document.getElementById('downloadBtn').classList.add('hidden');
 
                     // Start recording
                     this.startRecording();
@@ -1462,11 +1497,14 @@
                                 btn.disabled = !auth.canStart;
                             }
 
-                            // Update status
-                            const statusPill = document.getElementById('statusPill');
-                            if (statusPill) {
-                                statusPill.className = 'status-pill status-disconnected';
-                                statusPill.textContent = 'Disconnected';
+                            // Update status - only if not already finished
+                            if (!this.generationFinished) {
+                                const statusPill = document.getElementById('statusPill');
+                                if (statusPill) {
+                                    statusPill.className = 'status-pill status-disconnected';
+                                    statusPill.textContent = 'Disconnected';
+                                }
+                                this.showInfo(`Disconnected: ${event.reason || 'Connection closed'}`);
                             }
 
                             // Re-enable mode buttons
@@ -1474,8 +1512,6 @@
                                 const btn = document.getElementById(id);
                                 if (btn) btn.disabled = false;
                             });
-
-                            this.showInfo(`Disconnected: ${event.reason || 'Generation complete'}`);
                         };
 
                     } catch (error) {
@@ -1554,11 +1590,12 @@
                 const bitmap = await createImageBitmap(blob);
 
                 this.frameBuffer.push(bitmap);
+                this.allFrames.push(imageData); // Store raw data for replay
                 this.frameCount++;
                 document.getElementById('frameCount').textContent = this.frameCount;
 
                 if (this.frameCount === 1) {
-                    document.getElementById('placeholder').style.display = 'none';
+                    document.getElementById('spinner').classList.add('hidden');
                     this.startPlaybackLoop();
                 }
 
@@ -1569,9 +1606,22 @@
                 // Check if generation is complete
                 if (this.frameCount >= this.maxFrames) {
                     this.isGenerating = false;
+                    this.generationFinished = true;
                     this.stopFrameExtraction();
                     this.stopRecording();
                     this.updateUI();
+
+                    // Update status to Finished
+                    const statusPill = document.getElementById('statusPill');
+                    statusPill.className = 'status-pill status-finished';
+                    statusPill.textContent = 'Finished';
+
+                    // Show replay and download buttons
+                    document.getElementById('replayBtn').classList.remove('hidden');
+                    if (this.recordedChunks.length > 0) {
+                        document.getElementById('downloadBtn').classList.remove('hidden');
+                    }
+
                     this.showInfo('Generation complete!');
                 }
             },
@@ -1867,7 +1917,45 @@
                 this.stopFrameExtraction();
                 this.stopRecording();
                 this.isGenerating = false;
+
+                // Hide spinner, show placeholder if no frames
+                document.getElementById('spinner').classList.add('hidden');
+                if (this.frameCount === 0) {
+                    document.getElementById('placeholder').style.display = 'flex';
+                }
+
+                // Update status pill - only show "Disconnected" if manually stopped or error
+                if (!this.generationFinished) {
+                    const statusPill = document.getElementById('statusPill');
+                    if (statusPill) {
+                        statusPill.className = 'status-pill status-disconnected';
+                        statusPill.textContent = 'Disconnected';
+                    }
+                }
+
                 this.updateUI();
+            },
+
+            async replayVideo() {
+                if (this.allFrames.length === 0) {
+                    this.showError('No frames to replay');
+                    return;
+                }
+
+                // Stop current playback
+                this.stopPlaybackLoop();
+
+                // Recreate frameBuffer from stored frames
+                this.frameBuffer = [];
+                for (const imageData of this.allFrames) {
+                    const blob = new Blob([imageData], { type: 'image/jpeg' });
+                    const bitmap = await createImageBitmap(blob);
+                    this.frameBuffer.push(bitmap);
+                }
+
+                // Restart playback
+                this.startPlaybackLoop();
+                this.showInfo('Replaying video');
             },
 
             downloadVideo() {
