@@ -20,27 +20,8 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        h1 {
-            font-size: 2rem;
-            margin-bottom: 10px;
-            background: linear-gradient(to right, #22d3ee, #3b82f6, #a855f7);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-
-        .subtitle {
-            color: #94a3b8;
-            font-size: 0.9rem;
         }
 
         /* Login Screen */
@@ -58,11 +39,6 @@
         .login-container h2 {
             margin-bottom: 20px;
             color: #e2e8f0;
-        }
-
-        .login-container p {
-            color: #94a3b8;
-            margin-bottom: 30px;
         }
 
         .btn {
@@ -87,25 +63,44 @@
             background: #059669;
         }
 
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .info-box, .error-box, .warning-box {
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+        }
+
         .info-box {
             background: rgba(59, 130, 246, 0.1);
             border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 6px;
-            padding: 15px;
-            margin-top: 30px;
-            font-size: 0.85rem;
             color: #93c5fd;
-            text-align: left;
         }
 
         .error-box {
             background: rgba(239, 68, 68, 0.1);
             border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 6px;
-            padding: 12px;
-            margin-top: 15px;
-            font-size: 0.85rem;
             color: #fca5a5;
+        }
+
+        .warning-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fcd34d;
         }
 
         /* User Bar */
@@ -134,11 +129,6 @@
             border: 2px solid #3b82f6;
         }
 
-        .user-details h3 {
-            font-size: 1rem;
-            margin-bottom: 3px;
-        }
-
         .user-badge {
             display: inline-block;
             padding: 2px 8px;
@@ -158,11 +148,6 @@
             color: #94a3b8;
         }
 
-        .usage-info {
-            font-size: 0.85rem;
-            color: #94a3b8;
-        }
-
         .btn-logout {
             padding: 8px 16px;
             background: #475569;
@@ -177,6 +162,204 @@
             background: #64748b;
         }
 
+        /* Main App Layout */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #22d3ee, #3b82f6, #a855f7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            padding: 20px;
+        }
+
+        .video-container {
+            background: #000;
+            border-radius: 8px;
+            aspect-ratio: 832/480;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #outputCanvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .placeholder {
+            text-align: center;
+            color: #475569;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            font-size: 0.85rem;
+        }
+
+        .status-pill {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-connected {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .status-disconnected {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            background: #334155;
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+
+        .mode-btn:hover:not(:disabled) {
+            background: #475569;
+        }
+
+        .mode-btn.active {
+            background: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .mode-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="password"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(51, 65, 85, 0.5);
+            border: 1px solid #475569;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: #334155;
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .range-value {
+            display: inline-block;
+            margin-left: 10px;
+            font-weight: 500;
+        }
+
+        .hint {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #334155;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(to right, #22d3ee, #3b82f6);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
         .limit-warning {
             background: rgba(239, 68, 68, 0.1);
             border: 1px solid rgba(239, 68, 68, 0.3);
@@ -186,26 +369,24 @@
             text-align: center;
         }
 
-        .limit-warning h3 {
-            color: #fca5a5;
-            margin-bottom: 10px;
-        }
-
         .upgrade-link {
             color: #3b82f6;
             text-decoration: none;
             font-weight: 500;
         }
 
-        .upgrade-link:hover {
-            text-decoration: underline;
-        }
-
-        .hidden {
-            display: none;
+        #webcamVideo {
+            width: 100%;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            background: #000;
         }
 
         @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
             .user-bar {
                 flex-direction: column;
                 gap: 15px;
@@ -219,7 +400,7 @@
         <!-- Login Screen -->
         <div class="login-container">
             <h2>🤗 Sign in with Hugging Face</h2>
-            <p>Authenticate with your Hugging Face account to start generating videos</p>
+            <p style="color: #94a3b8; margin-bottom: 30px;">Authenticate with your Hugging Face account to start generating videos</p>
             
             <a href="https://huggingface.co/oauth/authorize?response_type=code&client_id={{ oauth_client_id }}&redirect_uri=https://{{ space_host }}/oauth/callback&scope=openid%20profile&state={{ range(10000, 99999) | random }}" 
                class="btn btn-primary"
@@ -231,7 +412,7 @@
             <div class="error-box">{{ error }}</div>
             {% endif %}
             
-            <div class="info-box">
+            <div class="info-box" style="text-align: left;">
                 <strong>📊 Usage Limits:</strong><br>
                 • <strong>Free Users:</strong> 1 session per day<br>
                 • <strong>PRO Users:</strong> 15 sessions per day<br><br>
@@ -247,24 +428,24 @@
                 <img src="{{ user.avatar }}" alt="Avatar" class="user-avatar">
                 {% endif %}
                 <div class="user-details">
-                    <h3>{{ user.fullname }}</h3>
+                    <h3 style="font-size: 1rem; margin-bottom: 3px;">{{ user.fullname }}</h3>
                     <span class="user-badge {% if user.is_pro %}badge-pro{% else %}badge-free{% endif %}">
                         {% if user.is_pro %}PRO{% else %}FREE{% endif %}
                     </span>
                 </div>
             </div>
             <div style="text-align: right;">
-                <div class="usage-info">Sessions: {{ sessions_used }}/{{ sessions_limit }} today</div>
+                <div style="font-size: 0.85rem; color: #94a3b8;">Sessions: {{ sessions_used }}/{{ sessions_limit }} today</div>
                 <button class="btn-logout" onclick="logout()">Logout</button>
             </div>
         </div>
 
         {% if not can_start %}
         <div class="limit-warning">
-            <h3>⚠️ Daily Limit Reached</h3>
-            <p>You've used all {{ sessions_limit }} sessions for today. Come back tomorrow!</p>
+            <h3 style="color: #fca5a5; margin-bottom: 10px;">⚠️ Daily Limit Reached</h3>
+            <p style="color: #94a3b8; font-size: 0.9rem;">You've used all {{ sessions_limit }} sessions for today. Come back tomorrow!</p>
             {% if not user.is_pro %}
-            <p style="margin-top: 10px;">
+            <p style="margin-top: 10px; color: #94a3b8; font-size: 0.9rem;">
                 Upgrade to <a href="https://huggingface.co/pricing" target="_blank" class="upgrade-link">Hugging Face PRO</a> for 15 sessions per day!
             </p>
             {% endif %}
@@ -273,58 +454,512 @@
 
         <header>
             <h1>Real-time Video Generation</h1>
-            <p class="subtitle">Self-Forcing Diffusion • 832×480 Resolution</p>
+            <p class="subtitle">Self-Forcing Diffusion with Dynamic Prompt Rewriting • 832×480 Fixed Resolution</p>
         </header>
 
-        <div style="text-align: center; padding: 40px;">
-            <h2>🚧 Video Generation Interface Coming Soon</h2>
-            <p style="color: #94a3b8; margin-top: 10px;">
-                The full video generation interface will be integrated here.
-            </p>
-            
-            {% if can_start %}
-            <button class="btn btn-primary" onclick="startSession()" id="testBtn" style="margin-top: 20px;">
-                Test Start Session
-            </button>
-            {% endif %}
-            
-            <div id="statusMessage" style="margin-top: 20px;"></div>
+        <div class="grid">
+            <!-- Video Output Panel -->
+            <div class="panel">
+                <div class="video-container">
+                    <canvas id="outputCanvas"></canvas>
+                    <div id="placeholder" class="placeholder">
+                        <p>{% if can_start %}Configure settings and click Start{% else %}Daily limit reached{% endif %}</p>
+                    </div>
+                </div>
+                
+                <div class="status-bar">
+                    <div>
+                        <span id="statusPill" class="status-pill status-disconnected">Disconnected</span>
+                        <span style="margin-left: 15px;">Frames: <strong id="frameCount">0</strong> / <strong id="maxFrames">234</strong></span>
+                    </div>
+                    <div>
+                        <label style="display: inline; margin: 0;">Playback:</label>
+                        <input type="range" id="playbackFps" min="8" max="20" value="12" style="width: 100px;">
+                        <span class="range-value" id="playbackFpsValue">12 fps</span>
+                    </div>
+                </div>
+                
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+            </div>
+
+            <!-- Controls Panel -->
+            <div class="panel">
+                <h2 style="margin-bottom: 20px;">Controls</h2>
+                
+                <!-- Mode Selection -->
+                <div class="mode-toggle">
+                    <button id="textModeBtn" class="mode-btn active" {% if not can_start %}disabled{% endif %}>Text-to-Video</button>
+                    <button id="videoModeBtn" class="mode-btn" {% if not can_start %}disabled{% endif %}>Video-to-Video</button>
+                    <button id="webcamModeBtn" class="mode-btn" {% if not can_start %}disabled{% endif %}>Webcam-to-Video</button>
+                </div>
+
+                <!-- Prompt -->
+                <div class="form-group">
+                    <label>Prompt <span style="color: #10b981; font-size: 0.75rem;">(updates sent every 2 seconds)</span></label>
+                    <textarea id="prompt" {% if not can_start %}disabled{% endif %}>A cat riding a skateboard through a neon city at night</textarea>
+                    <div class="hint">💡 Detailed prompts work better</div>
+                </div>
+
+                <!-- Video Upload (V2V mode) -->
+                <div id="videoControls" class="hidden">
+                    <div class="form-group">
+                        <label>Upload Video</label>
+                        <input type="file" id="videoFile" accept="video/*" class="hidden">
+                        <button class="btn btn-primary" style="width: 100%;" onclick="document.getElementById('videoFile').click()">
+                            Select Video File
+                        </button>
+                        <div id="videoInfo" style="margin-top: 10px; font-size: 0.85rem; color: #94a3b8;"></div>
+                    </div>
+                </div>
+
+                <!-- Webcam Preview -->
+                <div id="webcamControls" class="hidden">
+                    <div class="form-group">
+                        <label>Webcam Preview (832×480 center crop)</label>
+                        <video id="webcamVideo" autoplay playsinline muted></video>
+                    </div>
+                </div>
+
+                <!-- Input Controls (V2V and Webcam modes) -->
+                <div id="inputControls" class="hidden">
+                    <div class="form-group">
+                        <label>Input Frame Rate: <span class="range-value" id="inputFpsValue">12</span> fps</label>
+                        <input type="range" id="inputFps" min="10" max="14" value="12">
+                        <div class="hint">Recommended: 10-14 fps</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Transformation Strength: <span class="range-value" id="strengthValue">0.45</span></label>
+                        <input type="range" id="strength" min="0.1" max="0.6" step="0.05" value="0.45">
+                        <div class="hint">Keep low (&lt;0.5-0.6) to avoid artifacts</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Max Frames (Blocks): <span class="range-value" id="numBlocksValue">20</span> → ~<span id="estimatedFrames">234</span> frames</label>
+                    <input type="range" id="numBlocks" min="10" max="50" step="5" value="20" {% if not can_start %}disabled{% endif %}>
+                    <div class="hint">Each block generates ~12 frames</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Seed (optional)</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <input type="number" id="seed" placeholder="random" {% if not can_start %}disabled{% endif %}>
+                        <button class="btn" onclick="app.randomizeSeed()" {% if not can_start %}disabled{% endif %}>Random</button>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="startStopBtn" class="btn btn-primary" onclick="app.toggleGeneration()" {% if not can_start %}disabled{% endif %}>
+                        {% if can_start %}Start Generation{% else %}Limit Reached{% endif %}
+                    </button>
+                    <button class="btn" onclick="app.downloadVideo()">Download</button>
+                </div>
+
+                <div id="errorBox" class="error-box hidden"></div>
+                <div id="infoBox" class="info-box hidden"></div>
+            </div>
         </div>
         {% endif %}
     </div>
 
+    <!-- Hidden elements for video processing -->
+    <video id="hiddenVideo" style="display: none;" muted playsinline></video>
+    <canvas id="extractionCanvas" style="display: none;"></canvas>
+
     <script>
-        {% if authenticated %}
+        {% if not authenticated %}
+        // Not authenticated - no app logic needed
+        {% else %}
+        
         async function logout() {
             await fetch('/api/logout', {method: 'POST'});
             window.location.reload();
         }
 
-        async function startSession() {
-            const btn = document.getElementById('testBtn');
-            const msg = document.getElementById('statusMessage');
-            
-            btn.disabled = true;
-            btn.textContent = 'Starting...';
-
-            try {
-                const response = await fetch('/api/start-session', {method: 'POST'});
-                const data = await response.json();
-
-                if (response.ok) {
-                    msg.innerHTML = `<div class="info-box">✓ Session started! (${data.sessions_used}/${data.sessions_limit} used today)</div>`;
-                    btn.textContent = 'Session Active';
+        // MsgPack Encoder (abbreviated for space - full version from original)
+        const createMsgpackEncoder = (() => {
+            const textEncoder = new TextEncoder();
+            const ensureUint8Array = (value) => (value instanceof Uint8Array ? value : new Uint8Array(value));
+            const writeUInt8 = (buffer, value) => buffer.push(value & 0xff);
+            const writeUInt16 = (buffer, value) => {
+                buffer.push((value >>> 8) & 0xff, value & 0xff);
+            };
+            const writeUInt32 = (buffer, value) => {
+                buffer.push((value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff);
+            };
+            const writeFloat64 = (buffer, value) => {
+                const array = new ArrayBuffer(8);
+                new DataView(array).setFloat64(0, value);
+                buffer.push(...new Uint8Array(array));
+            };
+            const encodeString = (buffer, value) => {
+                const utf8 = ensureUint8Array(textEncoder.encode(value));
+                const length = utf8.length;
+                if (length <= 31) {
+                    writeUInt8(buffer, 0xa0 | length);
+                } else if (length <= 0xff) {
+                    writeUInt8(buffer, 0xd9);
+                    writeUInt8(buffer, length);
+                } else if (length <= 0xffff) {
+                    writeUInt8(buffer, 0xda);
+                    writeUInt16(buffer, length);
                 } else {
-                    msg.innerHTML = `<div class="error-box">${data.detail || 'Failed to start session'}</div>`;
-                    btn.disabled = false;
-                    btn.textContent = 'Test Start Session';
+                    writeUInt8(buffer, 0xdb);
+                    writeUInt32(buffer, length);
                 }
-            } catch (error) {
-                msg.innerHTML = `<div class="error-box">Network error. Please try again.</div>`;
-                btn.disabled = false;
-                btn.textContent = 'Test Start Session';
+                buffer.push(...utf8);
+            };
+            const encodeNumber = (buffer, value) => {
+                if (Number.isInteger(value)) {
+                    if (value >= 0 && value <= 0x7f) {
+                        writeUInt8(buffer, value);
+                    } else if (value < 0 && value >= -32) {
+                        buffer.push(value & 0xff);
+                    } else if (value >= 0 && value <= 0xff) {
+                        writeUInt8(buffer, 0xcc);
+                        writeUInt8(buffer, value);
+                    } else if (value >= 0 && value <= 0xffff) {
+                        writeUInt8(buffer, 0xcd);
+                        writeUInt16(buffer, value);
+                    } else if (value >= 0 && value <= 0xffffffff) {
+                        writeUInt8(buffer, 0xce);
+                        writeUInt32(buffer, value);
+                    } else {
+                        writeUInt8(buffer, 0xcb);
+                        writeFloat64(buffer, value);
+                    }
+                } else {
+                    writeUInt8(buffer, 0xcb);
+                    writeFloat64(buffer, value);
+                }
+            };
+            const encodeArray = (buffer, value) => {
+                const length = value.length;
+                if (length < 16) {
+                    writeUInt8(buffer, 0x90 | length);
+                } else if (length <= 0xffff) {
+                    writeUInt8(buffer, 0xdc);
+                    writeUInt16(buffer, length);
+                } else {
+                    writeUInt8(buffer, 0xdd);
+                    writeUInt32(buffer, length);
+                }
+                value.forEach((item) => encodeValue(buffer, item));
+            };
+            const encodeObject = (buffer, value) => {
+                const entries = Object.entries(value).filter(([, v]) => v !== undefined);
+                const length = entries.length;
+                if (length < 16) {
+                    writeUInt8(buffer, 0x80 | length);
+                } else if (length <= 0xffff) {
+                    writeUInt8(buffer, 0xde);
+                    writeUInt16(buffer, length);
+                } else {
+                    writeUInt8(buffer, 0xdf);
+                    writeUInt32(buffer, length);
+                }
+                for (const [key, entryValue] of entries) {
+                    encodeString(buffer, key);
+                    encodeValue(buffer, entryValue);
+                }
+            };
+            function encodeValue(buffer, value) {
+                if (value === null) {
+                    writeUInt8(buffer, 0xc0);
+                } else if (value === false) {
+                    writeUInt8(buffer, 0xc2);
+                } else if (value === true) {
+                    writeUInt8(buffer, 0xc3);
+                } else if (typeof value === "number") {
+                    encodeNumber(buffer, value);
+                } else if (typeof value === "string") {
+                    encodeString(buffer, value);
+                } else if (Array.isArray(value)) {
+                    encodeArray(buffer, value);
+                } else if (value instanceof Uint8Array) {
+                    const length = value.length;
+                    if (length <= 0xff) {
+                        writeUInt8(buffer, 0xc4);
+                        writeUInt8(buffer, length);
+                    } else if (length <= 0xffff) {
+                        writeUInt8(buffer, 0xc5);
+                        writeUInt16(buffer, length);
+                    } else {
+                        writeUInt8(buffer, 0xc6);
+                        writeUInt32(buffer, length);
+                    }
+                    buffer.push(...value);
+                } else if (value && typeof value === "object") {
+                    encodeObject(buffer, value);
+                } else {
+                    throw new Error("Unsupported type for MsgPack encoding");
+                }
             }
-        }
+            return (input) => {
+                const buffer = [];
+                encodeValue(buffer, input);
+                return new Uint8Array(buffer);
+            };
+        })();
+
+        // Main App (simplified - add full video generation logic here)
+        const app = {
+            mode: 'text',
+            isGenerating: false,
+            frameCount: 0,
+            maxFrames: 234,
+            ws: null,
+            frameBuffer: [],
+            playbackInterval: null,
+            sessionStarted: false,
+
+            init() {
+                this.setupEventListeners();
+                this.updateEstimatedFrames();
+            },
+
+            setupEventListeners() {
+                document.getElementById('textModeBtn').addEventListener('click', () => this.setMode('text'));
+                document.getElementById('videoModeBtn').addEventListener('click', () => this.setMode('video'));
+                document.getElementById('webcamModeBtn').addEventListener('click', () => this.setMode('webcam'));
+                
+                document.getElementById('playbackFps').addEventListener('input', (e) => {
+                    document.getElementById('playbackFpsValue').textContent = e.target.value + ' fps';
+                });
+                
+                document.getElementById('inputFps').addEventListener('input', (e) => {
+                    document.getElementById('inputFpsValue').textContent = e.target.value;
+                });
+                
+                document.getElementById('strength').addEventListener('input', (e) => {
+                    document.getElementById('strengthValue').textContent = parseFloat(e.target.value).toFixed(2);
+                });
+                
+                document.getElementById('numBlocks').addEventListener('input', (e) => {
+                    document.getElementById('numBlocksValue').textContent = e.target.value;
+                    this.updateEstimatedFrames();
+                });
+            },
+
+            setMode(mode) {
+                if (this.isGenerating) return;
+                this.mode = mode;
+                document.getElementById('textModeBtn').classList.toggle('active', mode === 'text');
+                document.getElementById('videoModeBtn').classList.toggle('active', mode === 'video');
+                document.getElementById('webcamModeBtn').classList.toggle('active', mode === 'webcam');
+                document.getElementById('videoControls').classList.toggle('hidden', mode !== 'video');
+                document.getElementById('webcamControls').classList.toggle('hidden', mode !== 'webcam');
+                document.getElementById('inputControls').classList.toggle('hidden', !(mode === 'video' || mode === 'webcam'));
+            },
+
+            updateEstimatedFrames() {
+                const numBlocks = parseInt(document.getElementById('numBlocks').value);
+                const estimatedFrames = (12 * numBlocks) - 6;
+                this.maxFrames = estimatedFrames;
+                document.getElementById('estimatedFrames').textContent = estimatedFrames;
+                document.getElementById('maxFrames').textContent = estimatedFrames;
+            },
+
+            randomizeSeed() {
+                document.getElementById('seed').value = Math.floor(Math.random() * (1 << 24));
+            },
+
+            async toggleGeneration() {
+                if (this.isGenerating) {
+                    this.disconnect();
+                } else {
+                    // Record session start
+                    if (!this.sessionStarted) {
+                        try {
+                            const response = await fetch('/api/start-session', {method: 'POST'});
+                            if (!response.ok) {
+                                const data = await response.json();
+                                this.showError(data.detail || 'Failed to start session');
+                                return;
+                            }
+                            this.sessionStarted = true;
+                        } catch (error) {
+                            this.showError('Failed to start session');
+                            return;
+                        }
+                    }
+                    
+                    const prompt = document.getElementById('prompt').value.trim();
+                    if (!prompt) {
+                        this.showError('Please enter a prompt');
+                        return;
+                    }
+                    
+                    this.isGenerating = true;
+                    this.updateUI();
+                    
+                    // Connect to backend WebSocket proxy (keeps API key secure)
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${protocol}//${window.location.host}/ws/video-gen`;
+                    
+                    try {
+                        this.ws = new WebSocket(wsUrl);
+                        this.ws.binaryType = 'arraybuffer';
+                        
+                        this.ws.onopen = () => {
+                            this.showInfo('Connected! Waiting for ready signal...');
+                        };
+                        
+                        this.ws.onmessage = async (event) => {
+                            if (typeof event.data === 'string') {
+                                try {
+                                    const data = JSON.parse(event.data);
+                                    if (data.status === 'ready') {
+                                        this.showInfo('Ready - sending parameters...');
+                                        await this.sendInitialParams();
+                                    } else if (data.error) {
+                                        this.showError(`Server error: ${JSON.stringify(data.error)}`);
+                                        this.disconnect();
+                                    }
+                                } catch (e) {
+                                    console.log('Text message:', event.data);
+                                }
+                            } else if (event.data instanceof ArrayBuffer) {
+                                await this.displayFrame(event.data);
+                            }
+                        };
+                        
+                        this.ws.onerror = (error) => {
+                            this.showError('WebSocket connection error');
+                            console.error('WebSocket error:', error);
+                        };
+                        
+                        this.ws.onclose = (event) => {
+                            this.showInfo(`Disconnected: ${event.reason || 'Connection closed'}`);
+                            this.isGenerating = false;
+                            this.updateUI();
+                        };
+                        
+                    } catch (error) {
+                        this.showError('Failed to connect: ' + error.message);
+                        this.isGenerating = false;
+                        this.updateUI();
+                    }
+                }
+            },
+
+            async sendInitialParams() {
+                const payload = {
+                    prompt: document.getElementById('prompt').value,
+                    num_blocks: parseInt(document.getElementById('numBlocks').value),
+                    num_denoising_steps: 4,
+                    strength: parseFloat(document.getElementById('strength').value) || 0.45,
+                    width: 832,
+                    height: 480
+                };
+                
+                const seedValue = document.getElementById('seed').value;
+                if (seedValue && seedValue.trim() !== '') {
+                    payload.seed = parseInt(seedValue);
+                } else {
+                    payload.seed = Math.floor(Math.random() * (1 << 24));
+                }
+                
+                try {
+                    const encoded = createMsgpackEncoder(payload);
+                    this.ws.send(encoded);
+                    this.showInfo('Generation started!');
+                } catch (error) {
+                    this.showError('Failed to send parameters: ' + error.message);
+                }
+            },
+
+            async displayFrame(imageData) {
+                const blob = new Blob([imageData], { type: 'image/jpeg' });
+                const bitmap = await createImageBitmap(blob);
+                
+                this.frameBuffer.push(bitmap);
+                this.frameCount++;
+                document.getElementById('frameCount').textContent = this.frameCount;
+                
+                if (this.frameCount === 1) {
+                    document.getElementById('placeholder').style.display = 'none';
+                    this.startPlaybackLoop();
+                }
+                
+                // Update progress
+                const progress = Math.min(100, (this.frameCount / this.maxFrames) * 100);
+                document.getElementById('progressFill').style.width = progress + '%';
+            },
+
+            drawNextFrame() {
+                if (this.frameBuffer.length === 0) return;
+                
+                const canvas = document.getElementById('outputCanvas');
+                const bitmap = this.frameBuffer.shift();
+                
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(bitmap, 0, 0);
+                
+                if (typeof bitmap.close === 'function') {
+                    bitmap.close();
+                }
+            },
+
+            startPlaybackLoop() {
+                if (this.playbackInterval) {
+                    clearInterval(this.playbackInterval);
+                }
+                
+                const fps = parseInt(document.getElementById('playbackFps').value);
+                const intervalMs = Math.max(10, Math.floor(1000 / fps));
+                this.playbackInterval = setInterval(() => this.drawNextFrame(), intervalMs);
+            },
+
+            disconnect() {
+                if (this.ws) {
+                    this.ws.close();
+                    this.ws = null;
+                }
+                if (this.playbackInterval) {
+                    clearInterval(this.playbackInterval);
+                    this.playbackInterval = null;
+                }
+                this.isGenerating = false;
+                this.updateUI();
+            },
+
+            downloadVideo() {
+                this.showInfo('Download functionality coming soon');
+            },
+
+            updateUI() {
+                const btn = document.getElementById('startStopBtn');
+                btn.textContent = this.isGenerating ? 'Stop Generation' : 'Start Generation';
+                btn.className = this.isGenerating ? 'btn btn-danger' : 'btn btn-primary';
+            },
+
+            showError(message) {
+                const box = document.getElementById('errorBox');
+                box.textContent = '❌ ' + message;
+                box.classList.remove('hidden');
+                setTimeout(() => box.classList.add('hidden'), 5000);
+            },
+
+            showInfo(message) {
+                const box = document.getElementById('infoBox');
+                box.textContent = '✓ ' + message;
+                box.classList.remove('hidden');
+                setTimeout(() => box.classList.add('hidden'), 3000);
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            {% if can_start %}
+            app.init();
+            {% endif %}
+        });
         {% endif %}
     </script>
 </body>
