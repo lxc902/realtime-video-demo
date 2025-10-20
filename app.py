@@ -160,47 +160,84 @@ async def get_user_info(access_token: str) -> dict:
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Home page - client-side auth with popup OAuth"""
+    # Return template - authentication will be handled client-side
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "oauth_client_id": OAUTH_CLIENT_ID
+    })
+
+@app.get("/api/auth/login")
+async def auth_login(request: Request, state: Optional[str] = None):
+    """OAuth login - stores state in cookie and redirects to HF OAuth"""
     # Dynamically detect origin from request
     origin = get_origin_from_request(request)
     redirect_uri = f"{origin}/oauth/callback"
 
-    # Return template - authentication will be handled client-side
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "oauth_client_id": OAUTH_CLIENT_ID,
-        "redirect_uri": redirect_uri
-    })
+    # Generate or use provided state
+    oauth_state = state or os.urandom(16).hex()
+
+    # Build OAuth authorize URL
+    auth_url = f"https://huggingface.co/oauth/authorize"
+    auth_url += f"?response_type=code"
+    auth_url += f"&client_id={OAUTH_CLIENT_ID}"
+    auth_url += f"&redirect_uri={redirect_uri}"
+    auth_url += f"&scope=openid profile"
+    auth_url += f"&state={oauth_state}"
+
+    # Create response that redirects to HF OAuth
+    response = RedirectResponse(url=auth_url, status_code=302)
+
+    # Store state in cookie for validation in callback
+    if not state:  # Only set cookie if state wasn't provided
+        response.set_cookie(
+            key="hf_oauth_state",
+            value=oauth_state,
+            httponly=True,
+            samesite="lax",
+            secure=True,
+            max_age=300,  # 5 minutes
+            path="/"
+        )
+
+    return response
 
 @app.get("/oauth/callback", response_class=HTMLResponse)
-async def oauth_callback(request: Request, code: str, state: Optional[str] = None):
+async def oauth_callback(request: Request, code: str = None, state: str = None, hf_oauth_state: Optional[str] = Cookie(None)):
     """Handle OAuth callback - returns HTML that posts message to opener window"""
     origin = get_origin_from_request(request)
     redirect_uri = f"{origin}/oauth/callback"
 
-    if not code:
-        # Return error HTML that closes popup
+    # Validate state from cookie
+    if not code or not state or not hf_oauth_state or state != hf_oauth_state:
+        error_msg = 'Invalid or expired OAuth state'
+        if not code:
+            error_msg = 'Missing authorization code'
+
         error_html = f"""
         <!DOCTYPE html>
         <html>
         <body>
         <script>
             (function() {{
-                console.log('OAuth callback - missing code error');
+                console.log('OAuth callback error: {error_msg}');
                 const target = window.opener || window.parent || window;
                 if (target) {{
                     target.postMessage({{
                         type: 'HF_OAUTH_ERROR',
-                        payload: {{ message: 'Missing authorization code' }}
-                    }}, '*');
+                        payload: {{ message: '{error_msg}' }}
+                    }}, '{origin}');
                 }}
-                setTimeout(function() {{ window.close(); }}, 300);
+                setTimeout(function() {{ window.close(); }}, 100);
             }})();
         </script>
         </body>
         </html>
         """
-        return HTMLResponse(content=error_html)
+        response = HTMLResponse(content=error_html)
+        response.delete_cookie("hf_oauth_state")
+        return response
 
+    # Delete state cookie
     try:
         token_data = await exchange_code_for_token(code, redirect_uri)
         access_token = token_data.get("access_token")
@@ -218,31 +255,25 @@ async def oauth_callback(request: Request, code: str, state: Optional[str] = Non
         <body>
         <script>
             (function() {{
-                console.log('OAuth callback - sending success message');
                 const target = window.opener || window.parent || window;
                 if (target) {{
-                    console.log('Posting message to target window');
                     target.postMessage({{
                         type: 'HF_OAUTH_SUCCESS',
                         payload: {{
                             token: {json.dumps(access_token)},
-                            username: {json.dumps(user_info["username"])},
-                            is_pro: {json.dumps(user_info["is_pro"])},
-                            fullname: {json.dumps(user_info["fullname"])},
-                            avatar: {json.dumps(user_info.get("avatar"))}
+                            namespace: {json.dumps(user_info["username"])}
                         }}
-                    }}, '*');
+                    }}, '{origin}');
                 }}
-                setTimeout(function() {{
-                    console.log('Closing popup window');
-                    window.close();
-                }}, 300);
+                setTimeout(function() {{ window.close(); }}, 100);
             }})();
         </script>
         </body>
         </html>
         """
-        return HTMLResponse(content=success_html)
+        response = HTMLResponse(content=success_html)
+        response.delete_cookie("hf_oauth_state")
+        return response
 
     except Exception as e:
         print(f"OAuth callback error: {e}")
@@ -252,21 +283,22 @@ async def oauth_callback(request: Request, code: str, state: Optional[str] = Non
         <body>
         <script>
             (function() {{
-                console.log('OAuth callback - error:', {json.dumps(str(e))});
                 const target = window.opener || window.parent || window;
                 if (target) {{
                     target.postMessage({{
                         type: 'HF_OAUTH_ERROR',
                         payload: {{ message: {json.dumps(str(e))} }}
-                    }}, '*');
+                    }}, '{origin}');
                 }}
-                setTimeout(function() {{ window.close(); }}, 300);
+                setTimeout(function() {{ window.close(); }}, 100);
             }})();
         </script>
         </body>
         </html>
         """
-        return HTMLResponse(content=error_html)
+        response = HTMLResponse(content=error_html)
+        response.delete_cookie("hf_oauth_state")
+        return response
 
 @app.get("/api/whoami")
 async def whoami_endpoint(authorization: Optional[str] = Header(None)):

@@ -717,7 +717,6 @@
 
     <script>
         const OAUTH_CLIENT_ID = "{{ oauth_client_id }}";
-        const REDIRECT_URI = "{{ redirect_uri }}";
         const AUTH_STORAGE_KEY = 'HF_AUTH_STATE';
 
         // Authentication Manager
@@ -782,35 +781,9 @@
             },
 
             loginWithOAuth() {
-                console.log('Opening OAuth popup');
-                const state = crypto.randomUUID();
-                sessionStorage.setItem('HF_OAUTH_STATE', state);
-
-                const authUrl = new URL('https://huggingface.co/oauth/authorize');
-                authUrl.searchParams.set('response_type', 'code');
-                authUrl.searchParams.set('client_id', OAUTH_CLIENT_ID);
-                authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
-                authUrl.searchParams.set('scope', 'openid profile');
-                authUrl.searchParams.set('state', state);
-
-                console.log('OAuth URL:', authUrl.toString());
-                console.log('Redirect URI:', REDIRECT_URI);
-
-                // Open popup
-                const width = 600;
-                const height = 700;
-                const left = (screen.width - width) / 2;
-                const top = (screen.height - height) / 2;
-                const popup = window.open(
-                    authUrl.toString(),
-                    'HF OAuth',
-                    `width=${width},height=${height},left=${left},top=${top}`
-                );
-
-                if (!popup) {
-                    console.error('Failed to open popup - may be blocked');
-                    app.showError('Popup was blocked. Please allow popups for this site.');
-                }
+                console.log('Starting OAuth flow - navigating to /api/auth/login');
+                // Navigate to login endpoint which handles state and redirects to HF OAuth
+                window.location.href = '/api/auth/login';
             },
 
             async handleOAuthMessage(event) {
@@ -821,16 +794,15 @@
                     return;
                 }
 
-                // Verify origin for security (allow HF domains and localhost for testing)
+                // Verify origin for security
                 if (!event.origin.includes('hf.space') && !event.origin.includes('huggingface.co') && !event.origin.includes('localhost')) {
                     console.warn('Message from untrusted origin:', event.origin);
                     return;
                 }
 
                 if (event.data.type === 'HF_OAUTH_SUCCESS') {
-                    console.log('OAuth success received');
-                    const { token, username, is_pro, fullname, avatar } = event.data.payload;
-                    sessionStorage.removeItem('HF_OAUTH_STATE');
+                    console.log('OAuth success received', event.data.payload);
+                    const { token, namespace } = event.data.payload;
 
                     try {
                         await this.validateAndSetAuth(token);
@@ -841,7 +813,6 @@
                     }
                 } else if (event.data.type === 'HF_OAUTH_ERROR') {
                     console.error('OAuth error received:', event.data.payload);
-                    sessionStorage.removeItem('HF_OAUTH_STATE');
                     app.showError(event.data.payload.message || 'Authentication failed');
                     this.showLoginStrip();
                 }
@@ -857,7 +828,6 @@
                 this.user = null;
                 this.canStart = false;
                 localStorage.removeItem(AUTH_STORAGE_KEY);
-                sessionStorage.removeItem('HF_OAUTH_STATE');
                 this.showLoginStrip();
             },
 
