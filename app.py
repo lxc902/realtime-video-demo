@@ -12,7 +12,7 @@ import secrets
 import httpx
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=".")
 
 # OAuth configuration from HF Spaces environment
 OAUTH_CLIENT_ID = os.getenv("OAUTH_CLIENT_ID")
