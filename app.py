@@ -423,36 +423,43 @@ async def health():
     }
 
 @app.websocket("/ws/video-gen")
-async def websocket_video_gen(websocket: WebSocket):
+async def websocket_video_gen(websocket: WebSocket, user_fal_key: Optional[str] = None):
     """WebSocket proxy to FAL API - keeps API key secret"""
     from fastapi import WebSocket
     import websockets
     import json
-    
+
     await websocket.accept()
-    
+
     # Get user from cookie
     access_token = websocket.cookies.get("access_token")
     if not access_token:
         await websocket.close(code=1008, reason="Not authenticated")
         return
-    
+
     try:
         user_info = await get_user_info(access_token)
     except:
         await websocket.close(code=1008, reason="Invalid session")
         return
-    
-    # Check if user can start session
-    can_start, used, limit = can_start_generation(user_info["username"], user_info["is_pro"])
-    if not can_start:
-        await websocket.close(code=1008, reason=f"Daily limit reached ({used}/{limit})")
-        return
-    
-    if not FAL_API_KEY:
-        await websocket.close(code=1011, reason="FAL API key not configured")
-        return
-    
+
+    # If user provided their own FAL key, use it (bypass limits)
+    if user_fal_key:
+        print(f"User {user_info['username']} using their own FAL key")
+        fal_key_to_use = user_fal_key
+    else:
+        # Check if user can start session with server FAL key
+        can_start, used, limit = can_start_generation(user_info["username"], user_info["is_pro"])
+        if not can_start:
+            await websocket.close(code=1008, reason=f"Daily limit reached ({used}/{limit})")
+            return
+
+        if not FAL_API_KEY:
+            await websocket.close(code=1011, reason="FAL API key not configured")
+            return
+
+        fal_key_to_use = FAL_API_KEY
+
     # Fetch temporary FAL token
     try:
         async with httpx.AsyncClient() as client:
@@ -460,7 +467,7 @@ async def websocket_video_gen(websocket: WebSocket):
                 "https://rest.alpha.fal.ai/tokens/",
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Key {FAL_API_KEY}"
+                    "Authorization": f"Key {fal_key_to_use}"
                 },
                 json={
                     "allowed_apps": ["krea-wan-14b"],

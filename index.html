@@ -533,6 +533,91 @@
             padding: 15px 0;
         }
 
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: #fafaf9;
+            border-radius: 12px;
+            border: 1px solid #d6d3d1;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal h2 {
+            color: #1c1917;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+
+        .modal p {
+            color: #57534e;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .modal-options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .modal-option {
+            padding: 15px;
+            border: 2px solid #d6d3d1;
+            border-radius: 8px;
+            text-align: left;
+            background: #fafaf9;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .modal-option:hover {
+            border-color: #f59e0b;
+            background: #fef3c7;
+        }
+
+        .modal-option h3 {
+            color: #1c1917;
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+
+        .modal-option p {
+            color: #78716c;
+            font-size: 0.85rem;
+            margin: 0;
+        }
+
+        .modal-fal-key {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #d6d3d1;
+        }
+
+        .modal-fal-key h3 {
+            color: #1c1917;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        .modal-fal-key .form-group {
+            margin-bottom: 10px;
+        }
+
         @media (max-width: 1024px) {
             .video-grid {
                 grid-template-columns: 1fr;
@@ -561,15 +646,6 @@
 
         <!-- App Container (Grayed out when not authenticated) -->
         <div id="appContainer">
-            <!-- Limit Warning (Hidden by default) -->
-            <div id="limitWarning" class="limit-warning hidden">
-                <h3 style="color: #991b1b; margin-bottom: 10px;">Daily Limit Reached</h3>
-                <p id="limitMessage" style="color: #78716c; font-size: 0.9rem;"></p>
-                <p id="upgradeMessage" style="margin-top: 10px; color: #78716c; font-size: 0.9rem;" class="hidden">
-                    Upgrade to <a href="https://huggingface.co/pricing" target="_blank" class="upgrade-link">Hugging Face PRO</a> for 15 generations per day!
-                </p>
-            </div>
-
             <header>
                 <h1>KREA Realtime Video</h1>
                 <div class="header-links">
@@ -711,6 +787,53 @@
                 <div id="infoBox" class="info-box hidden"></div>
             </div>
 
+            <!-- Limit Reached Modal -->
+            <div id="limitModal" class="modal-overlay hidden">
+                <div class="modal">
+                    <h2>Daily Limit Reached</h2>
+                    <p>You've used all your generations for today. Here are your options:</p>
+
+                    <div class="modal-options">
+                        <!-- Subscribe to PRO (Free users only) -->
+                        <a href="https://huggingface.co/subscribe/pro" target="_blank" class="modal-option" id="proOption">
+                            <h3>Subscribe to PRO</h3>
+                            <p>Get more generations per day with Hugging Face PRO</p>
+                        </a>
+
+                        <!-- Run Locally -->
+                        <a href="https://huggingface.co/krea/krea-realtime-video" target="_blank" class="modal-option">
+                            <h3>Run Locally</h3>
+                            <p>Download and run the model on your own hardware</p>
+                        </a>
+
+                        <!-- Use API -->
+                        <a href="https://fal.ai" target="_blank" class="modal-option">
+                            <h3>Use with API</h3>
+                            <p>Integrate into your own applications with FAL API</p>
+                        </a>
+                    </div>
+
+                    <!-- FAL Key Input -->
+                    <div class="modal-fal-key">
+                        <h3>Or use your own FAL API Key</h3>
+                        <div class="form-group">
+                            <label>FAL API Key</label>
+                            <input type="password" id="falKeyInput" placeholder="Enter your FAL API key">
+                        </div>
+                        <button class="btn btn-primary" style="width: 100%;" onclick="limitModal.saveFalKey()">
+                            Save & Continue
+                        </button>
+                        <p style="font-size: 0.75rem; color: #78716c; margin-top: 10px;">
+                            Your key is stored locally and never sent to our servers
+                        </p>
+                    </div>
+
+                    <button onclick="limitModal.close()" style="margin-top: 20px; background: transparent; border: none; color: #78716c; cursor: pointer; width: 100%;">
+                        Close
+                    </button>
+                </div>
+            </div>
+
             <!-- User Bar (Hidden when not authenticated) -->
             <div id="userBar" class="user-bar hidden">
                 <div class="user-info">
@@ -734,6 +857,53 @@
     <script>
         const OAUTH_CLIENT_ID = "{{ oauth_client_id }}";
         const AUTH_STORAGE_KEY = 'HF_AUTH_STATE';
+        const FAL_KEY_STORAGE = 'FAL_API_KEY';
+
+        // Limit Modal Manager
+        const limitModal = {
+            show(isPro) {
+                // Show/hide PRO option based on user tier
+                const proOption = document.getElementById('proOption');
+                if (isPro) {
+                    proOption.style.display = 'none';
+                } else {
+                    proOption.style.display = 'block';
+                }
+
+                // Check if FAL key already saved
+                const savedKey = localStorage.getItem(FAL_KEY_STORAGE);
+                if (savedKey) {
+                    document.getElementById('falKeyInput').value = '••••••••••••';
+                }
+
+                document.getElementById('limitModal').classList.remove('hidden');
+            },
+
+            close() {
+                document.getElementById('limitModal').classList.add('hidden');
+            },
+
+            saveFalKey() {
+                const key = document.getElementById('falKeyInput').value.trim();
+                if (!key || key === '••••••••••••') {
+                    app.showError('Please enter a valid FAL API key');
+                    return;
+                }
+
+                localStorage.setItem(FAL_KEY_STORAGE, key);
+                app.showInfo('FAL API key saved! You can now use unlimited generations.');
+                auth.hasFalKey = true;
+                this.close();
+            },
+
+            hasFalKey() {
+                return !!localStorage.getItem(FAL_KEY_STORAGE);
+            },
+
+            getFalKey() {
+                return localStorage.getItem(FAL_KEY_STORAGE);
+            }
+        };
 
         // Authentication Manager
         const auth = {
@@ -742,9 +912,13 @@
             canStart: false,
             sessionsUsed: 0,
             sessionsLimit: 1,
+            hasFalKey: false,
 
             async init() {
                 console.log('Auth init - checking for saved token');
+
+                // Check if user has FAL key
+                this.hasFalKey = limitModal.hasFalKey();
 
                 // Try to restore saved auth from localStorage
                 const saved = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -838,19 +1012,7 @@
                 badge.textContent = this.user.is_pro ? 'PRO' : 'FREE';
                 badge.className = 'user-badge ' + (this.user.is_pro ? 'badge-pro' : 'badge-free');
 
-                // Show/hide limit warning
-                if (!this.canStart) {
-                    document.getElementById('limitWarning').classList.remove('hidden');
-                    document.getElementById('limitMessage').textContent =
-                        `You've used all ${this.sessionsLimit} generations for today. Come back tomorrow!`;
-                    if (!this.user.is_pro) {
-                        document.getElementById('upgradeMessage').classList.remove('hidden');
-                    }
-                    document.getElementById('startStopBtn').disabled = true;
-                    document.getElementById('startStopBtn').textContent = 'Limit Reached';
-                } else {
-                    document.getElementById('limitWarning').classList.add('hidden');
-                }
+                // No longer show banner - modal will appear when user tries to generate
             },
 
             getAuthHeaders() {
@@ -1164,25 +1326,35 @@
                         return;
                     }
 
-                    // Record session
-                    try {
-                        const response = await fetch('/api/start-session', {
-                            method: 'POST',
-                            headers: auth.getAuthHeaders()
-                        });
-                        if (!response.ok) {
-                            const data = await response.json();
-                            this.showError(data.detail || 'Failed to start session');
+                    // Check if user has FAL key - if so, skip HF generation limits
+                    if (!auth.hasFalKey) {
+                        // Record session and check limits
+                        try {
+                            const response = await fetch('/api/start-session', {
+                                method: 'POST',
+                                headers: auth.getAuthHeaders()
+                            });
+                            if (!response.ok) {
+                                const data = await response.json();
+                                // If limit reached, show modal
+                                if (response.status === 429) {
+                                    limitModal.show(auth.user.is_pro);
+                                    return;
+                                }
+                                this.showError(data.detail || 'Failed to start session');
+                                return;
+                            }
+                            // Update session count
+                            const sessionData = await response.json();
+                            auth.sessionsUsed = sessionData.sessions_used;
+                            auth.sessionsLimit = sessionData.sessions_limit;
+                            auth.canStart = sessionData.sessions_used < sessionData.sessions_limit;
+                        } catch (error) {
+                            this.showError('Failed to start session');
                             return;
                         }
-                        // Update session count
-                        const sessionData = await response.json();
-                        auth.sessionsUsed = sessionData.sessions_used;
-                        auth.sessionsLimit = sessionData.sessions_limit;
-                        auth.canStart = sessionData.sessions_used < sessionData.sessions_limit;
-                    } catch (error) {
-                        this.showError('Failed to start session');
-                        return;
+                    } else {
+                        console.log('Using FAL API key - bypassing HF generation limits');
                     }
 
                     const prompt = document.getElementById('prompt').value.trim();
@@ -1225,7 +1397,13 @@
 
                     // Connect to backend WebSocket proxy
                     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    const wsUrl = `${protocol}//${window.location.host}/ws/video-gen`;
+                    let wsUrl = `${protocol}//${window.location.host}/ws/video-gen`;
+
+                    // If user has their own FAL key, pass it as query param
+                    const userFalKey = limitModal.getFalKey();
+                    if (userFalKey) {
+                        wsUrl += `?user_fal_key=${encodeURIComponent(userFalKey)}`;
+                    }
 
                     try {
                         this.ws = new WebSocket(wsUrl);
