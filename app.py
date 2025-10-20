@@ -185,14 +185,15 @@ async def oauth_callback(request: Request, code: str, state: Optional[str] = Non
         <body>
         <script>
             (function() {{
+                console.log('OAuth callback - missing code error');
                 const target = window.opener || window.parent || window;
                 if (target) {{
                     target.postMessage({{
                         type: 'HF_OAUTH_ERROR',
                         payload: {{ message: 'Missing authorization code' }}
-                    }}, '{origin}');
+                    }}, '*');
                 }}
-                setTimeout(function() {{ window.close(); }}, 100);
+                setTimeout(function() {{ window.close(); }}, 300);
             }})();
         </script>
         </body>
@@ -217,8 +218,10 @@ async def oauth_callback(request: Request, code: str, state: Optional[str] = Non
         <body>
         <script>
             (function() {{
+                console.log('OAuth callback - sending success message');
                 const target = window.opener || window.parent || window;
                 if (target) {{
+                    console.log('Posting message to target window');
                     target.postMessage({{
                         type: 'HF_OAUTH_SUCCESS',
                         payload: {{
@@ -228,9 +231,12 @@ async def oauth_callback(request: Request, code: str, state: Optional[str] = Non
                             fullname: {json.dumps(user_info["fullname"])},
                             avatar: {json.dumps(user_info.get("avatar"))}
                         }}
-                    }}, '{origin}');
+                    }}, '*');
                 }}
-                setTimeout(function() {{ window.close(); }}, 100);
+                setTimeout(function() {{
+                    console.log('Closing popup window');
+                    window.close();
+                }}, 300);
             }})();
         </script>
         </body>
@@ -246,14 +252,15 @@ async def oauth_callback(request: Request, code: str, state: Optional[str] = Non
         <body>
         <script>
             (function() {{
+                console.log('OAuth callback - error:', {json.dumps(str(e))});
                 const target = window.opener || window.parent || window;
                 if (target) {{
                     target.postMessage({{
                         type: 'HF_OAUTH_ERROR',
                         payload: {{ message: {json.dumps(str(e))} }}
-                    }}, '{origin}');
+                    }}, '*');
                 }}
-                setTimeout(function() {{ window.close(); }}, 100);
+                setTimeout(function() {{ window.close(); }}, 300);
             }})();
         </script>
         </body>

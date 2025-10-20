@@ -729,12 +729,14 @@
             sessionsLimit: 1,
 
             async init() {
+                console.log('Auth init - setting up message listener');
                 // Listen for OAuth messages from popup
                 window.addEventListener('message', this.handleOAuthMessage.bind(this));
 
                 // Try to restore saved auth
                 const saved = localStorage.getItem(AUTH_STORAGE_KEY);
                 if (saved) {
+                    console.log('Found saved auth, attempting to restore');
                     try {
                         const authState = JSON.parse(saved);
                         await this.validateAndSetAuth(authState.token);
@@ -743,21 +745,24 @@
                         this.clearAuth();
                     }
                 } else {
+                    console.log('No saved auth found, showing login strip');
                     this.showLoginStrip();
                 }
             },
 
             async validateAndSetAuth(token) {
+                console.log('Validating token with /api/whoami');
                 try {
                     const response = await fetch('/api/whoami', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
 
                     if (!response.ok) {
-                        throw new Error('Token validation failed');
+                        throw new Error('Token validation failed with status: ' + response.status);
                     }
 
                     const data = await response.json();
+                    console.log('Token validated successfully:', data);
                     this.token = token;
                     this.user = data;
                     this.canStart = data.can_start;
@@ -777,6 +782,7 @@
             },
 
             loginWithOAuth() {
+                console.log('Opening OAuth popup');
                 const state = crypto.randomUUID();
                 sessionStorage.setItem('HF_OAUTH_STATE', state);
 
@@ -787,25 +793,42 @@
                 authUrl.searchParams.set('scope', 'openid profile');
                 authUrl.searchParams.set('state', state);
 
+                console.log('OAuth URL:', authUrl.toString());
+                console.log('Redirect URI:', REDIRECT_URI);
+
                 // Open popup
                 const width = 600;
                 const height = 700;
                 const left = (screen.width - width) / 2;
                 const top = (screen.height - height) / 2;
-                window.open(
+                const popup = window.open(
                     authUrl.toString(),
                     'HF OAuth',
                     `width=${width},height=${height},left=${left},top=${top}`
                 );
+
+                if (!popup) {
+                    console.error('Failed to open popup - may be blocked');
+                    app.showError('Popup was blocked. Please allow popups for this site.');
+                }
             },
 
             async handleOAuthMessage(event) {
-                // Verify origin for security
+                console.log('Received message:', event.data, 'from origin:', event.origin);
+
+                // Verify this is an OAuth message
+                if (!event.data || !event.data.type || (!event.data.type.startsWith('HF_OAUTH_'))) {
+                    return;
+                }
+
+                // Verify origin for security (allow HF domains and localhost for testing)
                 if (!event.origin.includes('hf.space') && !event.origin.includes('huggingface.co') && !event.origin.includes('localhost')) {
+                    console.warn('Message from untrusted origin:', event.origin);
                     return;
                 }
 
                 if (event.data.type === 'HF_OAUTH_SUCCESS') {
+                    console.log('OAuth success received');
                     const { token, username, is_pro, fullname, avatar } = event.data.payload;
                     sessionStorage.removeItem('HF_OAUTH_STATE');
 
@@ -813,9 +836,11 @@
                         await this.validateAndSetAuth(token);
                         app.showInfo('Logged in successfully!');
                     } catch (e) {
+                        console.error('Failed to validate token:', e);
                         app.showError('Failed to validate authentication');
                     }
                 } else if (event.data.type === 'HF_OAUTH_ERROR') {
+                    console.error('OAuth error received:', event.data.payload);
                     sessionStorage.removeItem('HF_OAUTH_STATE');
                     app.showError(event.data.payload.message || 'Authentication failed');
                     this.showLoginStrip();
