@@ -920,7 +920,13 @@
                             this.isGenerating = false;
                             this.stopFrameExtraction();
                             this.stopRecording();
+                            this.stopPlaybackLoop();
+                            this.ws = null;
                             this.updateUI();
+                            
+                            // Update status pill
+                            document.getElementById('statusPill').className = 'status-pill status-disconnected';
+                            document.getElementById('statusPill').textContent = 'Disconnected';
                         };
                         
                     } catch (error) {
@@ -1312,6 +1318,17 @@
                 const btn = document.getElementById('startStopBtn');
                 btn.textContent = this.isGenerating ? 'Stop Generation' : 'Start Generation';
                 btn.className = this.isGenerating ? 'btn btn-danger' : 'btn btn-primary';
+                
+                // Update mode buttons
+                const textBtn = document.getElementById('textModeBtn');
+                const videoBtn = document.getElementById('videoModeBtn');
+                const webcamBtn = document.getElementById('webcamModeBtn');
+                
+                if (textBtn && videoBtn && webcamBtn) {
+                    textBtn.disabled = this.isGenerating;
+                    videoBtn.disabled = this.isGenerating;
+                    webcamBtn.disabled = this.isGenerating;
+                }
             },
 
             showError(message) {
