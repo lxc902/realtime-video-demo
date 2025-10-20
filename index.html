@@ -252,6 +252,15 @@
             margin-bottom: 20px;
         }
 
+        .video-grid.text-mode {
+            grid-template-columns: 1fr;
+        }
+
+        .video-grid.text-mode .output-panel {
+            max-width: 50%;
+            margin: 0 auto;
+        }
+
         .panel {
             background: #fafaf9;
             border-radius: 8px;
@@ -573,20 +582,39 @@
             </header>
 
             <!-- Video Grid: Webcam Left, Output Right -->
-            <div class="video-grid">
-                <!-- Webcam Panel -->
-                <div class="panel">
-                    <h2>Webcam Input</h2>
-                    <div class="video-container">
+            <div id="videoGrid" class="video-grid">
+                <!-- Input Panel (Webcam or Video) -->
+                <div id="inputPanel" class="panel">
+                    <h2 id="inputPanelTitle">Webcam Input</h2>
+
+                    <!-- Webcam Video -->
+                    <div id="webcamContainer" class="video-container">
                         <video id="webcamVideo" autoplay playsinline muted></video>
                         <div id="webcamPlaceholder" class="placeholder">
                             <p>Webcam will appear here</p>
                         </div>
                     </div>
+
+                    <!-- Uploaded Video Preview -->
+                    <div id="uploadedVideoContainer" class="video-container hidden">
+                        <video id="uploadedVideoPreview" loop muted playsinline></video>
+                        <div id="uploadedVideoPlaceholder" class="placeholder">
+                            <p>Upload a video to see preview</p>
+                        </div>
+                    </div>
+
+                    <!-- Video Upload UI (for video mode) -->
+                    <div id="videoUploadUI" class="hidden" style="margin-top: 15px;">
+                        <input type="file" id="videoFileInput" accept="video/*" class="hidden">
+                        <button class="btn btn-secondary" style="width: 100%;" onclick="document.getElementById('videoFileInput').click()">
+                            Upload Video
+                        </button>
+                        <div id="videoInfoDisplay" style="margin-top: 10px; font-size: 0.85rem; color: #78716c;"></div>
+                    </div>
                 </div>
 
                 <!-- Video Output Panel -->
-                <div class="panel">
+                <div class="panel output-panel">
                     <h2>Generated Video</h2>
                     <div class="video-container">
                         <canvas id="outputCanvas"></canvas>
@@ -629,18 +657,6 @@
                     <label>Prompt <span style="color: #15803d; font-size: 0.75rem;">(updates sent every 2 seconds)</span></label>
                     <textarea id="prompt">A cat riding a skateboard through a neon city at night</textarea>
                     <div class="hint">Detailed prompts work better</div>
-                </div>
-
-                <!-- Video Upload (V2V mode) -->
-                <div id="videoControls" class="hidden">
-                    <div class="form-group">
-                        <label>Upload Video</label>
-                        <input type="file" id="videoFile" accept="video/*" class="hidden">
-                        <button class="btn btn-secondary" style="width: 100%;" onclick="document.getElementById('videoFile').click()">
-                            Select Video File
-                        </button>
-                        <div id="videoInfo" style="margin-top: 10px; font-size: 0.85rem; color: #78716c;"></div>
-                    </div>
                 </div>
 
                 <!-- Action Buttons (Outside Accordion) -->
@@ -1005,8 +1021,8 @@
                 document.getElementById('videoModeBtn').addEventListener('click', () => this.setMode('video'));
                 document.getElementById('webcamModeBtn').addEventListener('click', () => this.setMode('webcam'));
 
-                // Video file upload
-                document.getElementById('videoFile').addEventListener('change', (e) => this.handleVideoUpload(e));
+                // Video file upload (new location in left panel)
+                document.getElementById('videoFileInput').addEventListener('change', (e) => this.handleVideoUpload(e));
 
                 document.getElementById('playbackFps').addEventListener('input', (e) => {
                     document.getElementById('playbackFpsValue').textContent = e.target.value + ' fps';
@@ -1046,10 +1062,45 @@
             setMode(mode) {
                 if (this.isGenerating) return;
                 this.mode = mode;
+
+                // Update mode buttons
                 document.getElementById('textModeBtn').classList.toggle('active', mode === 'text');
                 document.getElementById('videoModeBtn').classList.toggle('active', mode === 'video');
                 document.getElementById('webcamModeBtn').classList.toggle('active', mode === 'webcam');
-                document.getElementById('videoControls').classList.toggle('hidden', mode !== 'video');
+
+                // Update grid layout for text mode (center output, hide input)
+                const videoGrid = document.getElementById('videoGrid');
+                const inputPanel = document.getElementById('inputPanel');
+
+                if (mode === 'text') {
+                    videoGrid.classList.add('text-mode');
+                    inputPanel.classList.add('hidden');
+                } else {
+                    videoGrid.classList.remove('text-mode');
+                    inputPanel.classList.remove('hidden');
+                }
+
+                // Update input panel title and content
+                const inputPanelTitle = document.getElementById('inputPanelTitle');
+                const webcamContainer = document.getElementById('webcamContainer');
+                const uploadedVideoContainer = document.getElementById('uploadedVideoContainer');
+                const videoUploadUI = document.getElementById('videoUploadUI');
+
+                if (mode === 'webcam') {
+                    inputPanelTitle.textContent = 'Webcam Input';
+                    webcamContainer.classList.remove('hidden');
+                    uploadedVideoContainer.classList.add('hidden');
+                    videoUploadUI.classList.add('hidden');
+                    this.startWebcam();
+                } else if (mode === 'video') {
+                    inputPanelTitle.textContent = 'Video Input';
+                    webcamContainer.classList.add('hidden');
+                    uploadedVideoContainer.classList.remove('hidden');
+                    videoUploadUI.classList.remove('hidden');
+                    this.stopWebcam();
+                } else {
+                    this.stopWebcam();
+                }
 
                 // Input controls visible in accordion for webcam/video modes
                 const inputControls = document.getElementById('inputControls');
@@ -1057,13 +1108,6 @@
                     inputControls.style.display = 'none';
                 } else {
                     inputControls.style.display = 'block';
-                }
-
-                // Start/stop webcam based on mode
-                if (mode === 'webcam') {
-                    this.startWebcam();
-                } else {
-                    this.stopWebcam();
                 }
             },
 
@@ -1165,6 +1209,19 @@
 
                     // Start recording
                     this.startRecording();
+
+                    // Check if WebSocket is already open and ready
+                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        console.log('Reusing existing WebSocket connection');
+                        this.showInfo('Starting new generation...');
+                        await this.sendInitialParams();
+
+                        // Start frame extraction for v2v and webcam modes
+                        if (this.mode === 'video' || this.mode === 'webcam') {
+                            setTimeout(() => this.startFrameExtraction(), 500);
+                        }
+                        return;
+                    }
 
                     // Connect to backend WebSocket proxy
                     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1325,6 +1382,16 @@
                 // Update progress
                 const progress = Math.min(100, (this.frameCount / this.maxFrames) * 100);
                 document.getElementById('progressFill').style.width = progress + '%';
+
+                // Check if generation is complete
+                if (this.frameCount >= this.maxFrames) {
+                    console.log('Generation complete - stopping processes but keeping WebSocket open');
+                    this.isGenerating = false;
+                    this.stopFrameExtraction();
+                    this.stopRecording();
+                    this.updateUI();
+                    this.showInfo('Generation complete!');
+                }
             },
 
             drawNextFrame() {
@@ -1366,33 +1433,41 @@
                 if (!file) return;
 
                 this.currentVideoFile = file;
-                const video = document.getElementById('hiddenVideo');
+                const hiddenVideo = document.getElementById('hiddenVideo');
+                const previewVideo = document.getElementById('uploadedVideoPreview');
                 const url = URL.createObjectURL(file);
 
                 return new Promise((resolve) => {
-                    video.onloadedmetadata = () => {
+                    hiddenVideo.onloadedmetadata = () => {
                         this.videoMetadata = {
-                            duration: video.duration,
-                            width: video.videoWidth,
-                            height: video.videoHeight
+                            duration: hiddenVideo.duration,
+                            width: hiddenVideo.videoWidth,
+                            height: hiddenVideo.videoHeight
                         };
 
-                        document.getElementById('videoInfo').innerHTML = `
+                        // Update info display
+                        const infoHTML = `
                             ${file.name}<br>
                             ${this.videoMetadata.width}×${this.videoMetadata.height} • ${this.videoMetadata.duration.toFixed(1)}s
                         `;
+                        document.getElementById('videoInfoDisplay').innerHTML = infoHTML;
+
+                        // Show preview video
+                        previewVideo.src = url;
+                        previewVideo.play();
+                        document.getElementById('uploadedVideoPlaceholder').style.display = 'none';
 
                         this.showInfo('Video loaded successfully');
                         resolve();
                     };
 
-                    video.onerror = () => {
+                    hiddenVideo.onerror = () => {
                         this.showError('Failed to load video');
                         this.currentVideoFile = null;
                         this.videoMetadata = null;
                     };
 
-                    video.src = url;
+                    hiddenVideo.src = url;
                 });
             },
 
