@@ -80,7 +80,7 @@ def record_generation(username: str, is_pro: bool):
 def can_start_generation(username: str, is_pro: bool) -> tuple[bool, int, int]:
     """Check if user can start a new generation. Returns (can_start, used, limit)"""
     used = get_daily_usage(username)
-    limit = 15 if is_pro else 1
+    limit = 15 if is_pro else 2
     return used < limit, used, limit
 
 def get_origin_from_request(request: Request) -> str:
