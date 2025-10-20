@@ -205,11 +205,8 @@ async def auth_login(request: Request, state: Optional[str] = None):
 @app.post("/api/auth/exchange")
 async def auth_exchange(request: Request, code: str, state: str, hf_oauth_state: Optional[str] = Cookie(None)):
     """Exchange OAuth code for access token - called from callback page"""
-    print(f"Exchange request - code: {code[:20] if code and len(code) >= 20 else code}..., state: {state}, cookie_state: {hf_oauth_state}")
-
     # Validate state from cookie
     if not hf_oauth_state or state != hf_oauth_state:
-        print(f"State mismatch! URL state: {state}, Cookie state: {hf_oauth_state}")
         raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
 
     origin = get_origin_from_request(request)
@@ -246,7 +243,6 @@ async def auth_exchange(request: Request, code: str, state: str, hf_oauth_state:
         return response
 
     except Exception as e:
-        print(f"Token exchange error: {e}")
         response = JSONResponse(
             {"error": str(e)},
             status_code=400
@@ -284,23 +280,18 @@ async def oauth_callback(request: Request):
                 }
 
                 try {
-                    console.log('Exchanging code for token...');
                     // Exchange code for token
                     const response = await fetch('/api/auth/exchange?code=' + code + '&state=' + state, {
                         method: 'POST',
                         credentials: 'same-origin'
                     });
 
-                    console.log('Exchange response status:', response.status);
-
                     if (!response.ok) {
                         const data = await response.json().catch(() => ({ detail: 'Unknown error' }));
-                        console.error('Exchange failed:', data);
                         throw new Error(data.detail || data.error || 'Failed to exchange code for token');
                     }
 
                     const data = await response.json();
-                    console.log('Token exchange successful');
 
                     // Store in localStorage
                     const authState = {
@@ -308,12 +299,10 @@ async def oauth_callback(request: Request):
                         user: { username: data.namespace }
                     };
                     localStorage.setItem('HF_AUTH_STATE', JSON.stringify(authState));
-                    console.log('Token saved to localStorage, redirecting to /');
 
                     // Redirect back to home
                     window.location.href = '/';
                 } catch (err) {
-                    console.error('OAuth error:', err);
                     document.body.innerHTML = '<h2>Authentication failed</h2><p>' + err.message + '</p><p><a href="/">Return to app</a></p>';
                 }
             })();
@@ -445,7 +434,6 @@ async def websocket_video_gen(websocket: WebSocket, user_fal_key: Optional[str] 
 
     # If user provided their own FAL key, use it (bypass limits)
     if user_fal_key:
-        print(f"User {user_info['username']} using their own FAL key")
         fal_key_to_use = user_fal_key
     else:
         # Check if user can start session with server FAL key

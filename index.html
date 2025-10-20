@@ -257,8 +257,14 @@
         }
 
         .video-grid.text-mode .output-panel {
-            max-width: 50%;
+            max-width: 65%;
             margin: 0 auto;
+        }
+
+        @media (max-width: 900px) {
+            .video-grid.text-mode .output-panel {
+                max-width: 100%;
+            }
         }
 
         .panel {
@@ -330,6 +336,9 @@
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .mode-btn {
@@ -632,6 +641,10 @@
                 flex-direction: column;
                 gap: 15px;
             }
+
+            .mode-toggle {
+                max-width: 100%;
+            }
         }
     </style>
 </head>
@@ -661,6 +674,13 @@
                     <a href="https://fal.ai/models/fal-ai/krea/realtime-video" target="_blank" class="header-link">FAL API</a>
                 </div>
             </header>
+
+            <!-- Mode Selection -->
+            <div class="mode-toggle">
+                <button id="webcamModeBtn" class="mode-btn active">Webcam-to-Video</button>
+                <button id="videoModeBtn" class="mode-btn">Video-to-Video</button>
+                <button id="textModeBtn" class="mode-btn">Text-to-Video</button>
+            </div>
 
             <!-- Video Grid: Webcam Left, Output Right -->
             <div id="videoGrid" class="video-grid">
@@ -724,15 +744,6 @@
 
             <!-- Controls Panel -->
             <div class="panel">
-                <h2 style="margin-bottom: 20px;">Controls</h2>
-
-                <!-- Mode Selection -->
-                <div class="mode-toggle">
-                    <button id="textModeBtn" class="mode-btn">Text-to-Video</button>
-                    <button id="videoModeBtn" class="mode-btn">Video-to-Video</button>
-                    <button id="webcamModeBtn" class="mode-btn active">Webcam-to-Video</button>
-                </div>
-
                 <!-- Prompt (Main Setting) -->
                 <div class="form-group">
                     <label>Prompt <span style="color: #15803d; font-size: 0.75rem;">(updates sent every 2 seconds)</span></label>
@@ -923,15 +934,12 @@
             hasFalKey: false,
 
             async init() {
-                console.log('Auth init - checking for saved token');
-
                 // Check if user has FAL key
                 this.hasFalKey = limitModal.hasFalKey();
 
                 // Try to restore saved auth from localStorage
                 const saved = localStorage.getItem(AUTH_STORAGE_KEY);
                 if (saved) {
-                    console.log('Found saved auth, attempting to restore');
                     try {
                         const authState = JSON.parse(saved);
                         await this.validateAndSetAuth(authState.token);
@@ -940,13 +948,11 @@
                         this.clearAuth();
                     }
                 } else {
-                    console.log('No saved auth found, showing login strip');
                     this.showLoginStrip();
                 }
             },
 
             async validateAndSetAuth(token) {
-                console.log('Validating token with /api/whoami');
                 try {
                     const response = await fetch('/api/whoami', {
                         headers: { 'Authorization': `Bearer ${token}` }
@@ -957,7 +963,6 @@
                     }
 
                     const data = await response.json();
-                    console.log('Token validated successfully:', data);
                     this.token = token;
                     this.user = data;
                     this.canStart = data.can_start;
@@ -977,8 +982,6 @@
             },
 
             loginWithOAuth() {
-                console.log('Starting OAuth flow - navigating to /api/auth/login');
-                // Full page navigation to login endpoint which handles state and redirects to HF OAuth
                 window.location.href = '/api/auth/login';
             },
 
@@ -1297,7 +1300,6 @@
                     this.showInfo('Webcam started successfully');
                 } catch (error) {
                     this.showError(`Failed to access webcam: ${error.message}`);
-                    console.error('Webcam error:', error);
                     // Switch back to text mode if webcam fails
                     this.setMode('text');
                 }
@@ -1361,8 +1363,6 @@
                             this.showError('Failed to start session');
                             return;
                         }
-                    } else {
-                        console.log('Using FAL API key - bypassing HF generation limits');
                     }
 
                     const prompt = document.getElementById('prompt').value.trim();
@@ -1392,7 +1392,6 @@
 
                     // Check if WebSocket is already open and ready
                     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                        console.log('Reusing existing WebSocket connection');
                         this.showInfo('Starting new generation...');
                         await this.sendInitialParams();
 
@@ -1433,7 +1432,7 @@
                                         this.disconnect();
                                     }
                                 } catch (e) {
-                                    console.log('Text message:', event.data);
+                                    console.error('WebSocket message parse error:', e);
                                 }
                             } else if (event.data instanceof ArrayBuffer) {
                                 await this.displayFrame(event.data);
@@ -1446,8 +1445,6 @@
                         };
 
                         this.ws.onclose = (event) => {
-                            console.log('WebSocket closed:', event.reason);
-
                             // Force state reset
                             this.isGenerating = false;
                             this.ws = null;
@@ -1571,7 +1568,6 @@
 
                 // Check if generation is complete
                 if (this.frameCount >= this.maxFrames) {
-                    console.log('Generation complete - stopping processes but keeping WebSocket open');
                     this.isGenerating = false;
                     this.stopFrameExtraction();
                     this.stopRecording();
