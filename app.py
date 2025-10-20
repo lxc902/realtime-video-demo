@@ -82,6 +82,17 @@ def can_start_generation(username: str, is_pro: bool) -> tuple[bool, int, int]:
     limit = 15 if is_pro else 1
     return used < limit, used, limit
 
+def get_origin_from_request(request: Request) -> str:
+    """Get the origin (scheme + host) from the request, with fallback to SPACE_HOST"""
+    # Try to get from request URL (works for both huggingface.co/spaces and .hf.space)
+    base_url = str(request.base_url).rstrip('/')
+    if base_url and base_url != "http://":
+        return base_url
+
+    # Fallback to SPACE_HOST environment variable
+    scheme = request.url.scheme or "https"
+    return f"{scheme}://{SPACE_HOST}"
+
 async def exchange_code_for_token(code: str, redirect_uri: str) -> dict:
     """Exchange OAuth code for access token"""
     token_url = f"{OPENID_PROVIDER_URL}/oauth/token"
@@ -124,16 +135,20 @@ async def get_user_info(access_token: str) -> dict:
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, access_token: Optional[str] = Cookie(None)):
     """Home page - check auth and show app or login"""
-    
+
+    # Dynamically detect origin from request
+    origin = get_origin_from_request(request)
+    redirect_uri = f"{origin}/oauth/callback"
+
     if not access_token:
         return templates.TemplateResponse("index.html", {
             "request": request,
             "authenticated": False,
             "oauth_client_id": OAUTH_CLIENT_ID,
-            "redirect_uri": f"https://{SPACE_HOST}/oauth/callback",
+            "redirect_uri": redirect_uri,
             "space_host": SPACE_HOST
         })
-    
+
     try:
         user_info = await get_user_info(access_token)
     except:
@@ -141,15 +156,15 @@ async def home(request: Request, access_token: Optional[str] = Cookie(None)):
             "request": request,
             "authenticated": False,
             "oauth_client_id": OAUTH_CLIENT_ID,
-            "redirect_uri": f"https://{SPACE_HOST}/oauth/callback",
+            "redirect_uri": redirect_uri,
             "space_host": SPACE_HOST,
             "error": "Session expired. Please login again."
         })
         response.delete_cookie("access_token")
         return response
-    
+
     can_start, used, limit = can_start_generation(user_info["username"], user_info["is_pro"])
-    
+
     return templates.TemplateResponse("index.html", {
         "request": request,
         "authenticated": True,
@@ -160,20 +175,22 @@ async def home(request: Request, access_token: Optional[str] = Cookie(None)):
     })
 
 @app.get("/oauth/callback")
-async def oauth_callback(code: str, state: Optional[str] = None):
+async def oauth_callback(request: Request, code: str, state: Optional[str] = None):
     """Handle OAuth callback from Hugging Face"""
     if not code:
         raise HTTPException(status_code=400, detail="Missing authorization code")
-    
-    redirect_uri = f"https://{SPACE_HOST}/oauth/callback"
-    
+
+    # Dynamically detect origin to match the authorization request
+    origin = get_origin_from_request(request)
+    redirect_uri = f"{origin}/oauth/callback"
+
     try:
         token_data = await exchange_code_for_token(code, redirect_uri)
         access_token = token_data.get("access_token")
-        
+
         if not access_token:
             raise HTTPException(status_code=400, detail="No access token received")
-        
+
         response = RedirectResponse(url="/", status_code=302)
         response.set_cookie(
             key="access_token",
@@ -183,9 +200,9 @@ async def oauth_callback(code: str, state: Optional[str] = None):
             samesite="lax",
             max_age=30 * 24 * 60 * 60
         )
-        
+
         return response
-        
+
     except Exception as e:
         print(f"OAuth callback error: {e}")
         raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")

@@ -545,7 +545,7 @@
                 <div class="login-message">
                     Sign in with Hugging Face to start generating videos
                 </div>
-                <a href="https://huggingface.co/oauth/authorize?response_type=code&client_id={{ oauth_client_id }}&redirect_uri=https://{{ space_host }}/oauth/callback&scope=openid%20profile&state={{ range(10000, 99999) | random }}"
+                <a href="https://huggingface.co/oauth/authorize?response_type=code&client_id={{ oauth_client_id }}&redirect_uri={{ redirect_uri }}&scope=openid%20profile&state={{ range(10000, 99999) | random }}"
                    class="btn btn-primary"
                    target="_blank">
                     Sign in with Hugging Face
