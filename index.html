@@ -541,10 +541,14 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.7);
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             z-index: 1000;
+        }
+
+        .modal-overlay:not(.hidden) {
+            display: flex;
         }
 
         .modal {
@@ -583,6 +587,7 @@
             background: #fafaf9;
             cursor: pointer;
             transition: all 0.2s;
+            text-decoration: none;
         }
 
         .modal-option:hover {
@@ -880,7 +885,10 @@
             },
 
             close() {
-                document.getElementById('limitModal').classList.add('hidden');
+                const modal = document.getElementById('limitModal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                }
             },
 
             saveFalKey() {
