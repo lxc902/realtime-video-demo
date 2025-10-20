@@ -747,7 +747,7 @@
                     <div class="status-bar">
                         <div>
                             <span id="statusPill" class="status-pill status-disconnected">Disconnected</span>
-                            <span style="margin-left: 15px;">Frames: <strong id="frameCount">0</strong> / <strong id="maxFrames">234</strong></span>
+                            <span style="margin-left: 15px;">Frames: <strong id="frameCount">0</strong> / <strong id="maxFrames">474</strong></span>
                             <button id="replayBtn" class="btn btn-secondary hidden" onclick="app.replayVideo()" style="margin-left: 15px; padding: 4px 12px; font-size: 0.75rem;">
                                 Replay
                             </button>
@@ -802,14 +802,14 @@
 
                                 <div class="form-group">
                                     <label>Transformation Strength: <span class="range-value" id="strengthValue">0.45</span></label>
-                                    <input type="range" id="strength" min="0.1" max="0.6" step="0.05" value="0.45">
-                                    <div class="hint">Keep low (&lt;0.5-0.6) to avoid artifacts</div>
+                                    <input type="range" id="strength" min="0.05" max="1" step="0.05" value="0.45">
+                                    <div class="hint">Lower values preserve input better, higher values allow more creative freedom</div>
                                 </div>
                             </div>
 
                             <div class="form-group">
-                                <label>Max Frames (Blocks): <span class="range-value" id="numBlocksValue">20</span> → ~<span id="estimatedFrames">234</span> frames</label>
-                                <input type="range" id="numBlocks" min="10" max="50" step="5" value="20">
+                                <label>Max Frames (Blocks): <span class="range-value" id="numBlocksValue">40</span> → ~<span id="estimatedFrames">474</span> frames</label>
+                                <input type="range" id="numBlocks" min="10" max="50" step="5" value="40">
                                 <div class="hint">Each block generates ~12 frames</div>
                             </div>
 
@@ -1187,7 +1187,7 @@
             mode: 'webcam',
             isGenerating: false,
             frameCount: 0,
-            maxFrames: 234,
+            maxFrames: 474,
             ws: null,
             frameBuffer: [],
             allFrames: [], // Store all frames for replay
@@ -1618,9 +1618,7 @@
 
                     // Show replay and download buttons
                     document.getElementById('replayBtn').classList.remove('hidden');
-                    if (this.recordedChunks.length > 0) {
-                        document.getElementById('downloadBtn').classList.remove('hidden');
-                    }
+                    document.getElementById('downloadBtn').classList.remove('hidden');
 
                     this.showInfo('Generation complete!');
                 }
