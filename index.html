@@ -728,11 +728,9 @@
             sessionsLimit: 1,
 
             async init() {
-                console.log('Auth init - setting up message listener');
-                // Listen for OAuth messages from popup
-                window.addEventListener('message', this.handleOAuthMessage.bind(this));
+                console.log('Auth init - checking for saved token');
 
-                // Try to restore saved auth
+                // Try to restore saved auth from localStorage
                 const saved = localStorage.getItem(AUTH_STORAGE_KEY);
                 if (saved) {
                     console.log('Found saved auth, attempting to restore');
@@ -782,40 +780,8 @@
 
             loginWithOAuth() {
                 console.log('Starting OAuth flow - navigating to /api/auth/login');
-                // Navigate to login endpoint which handles state and redirects to HF OAuth
+                // Full page navigation to login endpoint which handles state and redirects to HF OAuth
                 window.location.href = '/api/auth/login';
-            },
-
-            async handleOAuthMessage(event) {
-                console.log('Received message:', event.data, 'from origin:', event.origin);
-
-                // Verify this is an OAuth message
-                if (!event.data || !event.data.type || (!event.data.type.startsWith('HF_OAUTH_'))) {
-                    return;
-                }
-
-                // Verify origin for security
-                if (!event.origin.includes('hf.space') && !event.origin.includes('huggingface.co') && !event.origin.includes('localhost')) {
-                    console.warn('Message from untrusted origin:', event.origin);
-                    return;
-                }
-
-                if (event.data.type === 'HF_OAUTH_SUCCESS') {
-                    console.log('OAuth success received', event.data.payload);
-                    const { token, namespace } = event.data.payload;
-
-                    try {
-                        await this.validateAndSetAuth(token);
-                        app.showInfo('Logged in successfully!');
-                    } catch (e) {
-                        console.error('Failed to validate token:', e);
-                        app.showError('Failed to validate authentication');
-                    }
-                } else if (event.data.type === 'HF_OAUTH_ERROR') {
-                    console.error('OAuth error received:', event.data.payload);
-                    app.showError(event.data.payload.message || 'Authentication failed');
-                    this.showLoginStrip();
-                }
             },
 
             logout() {

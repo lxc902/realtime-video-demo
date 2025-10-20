@@ -201,104 +201,105 @@ async def auth_login(request: Request, state: Optional[str] = None):
 
     return response
 
-@app.get("/oauth/callback", response_class=HTMLResponse)
-async def oauth_callback(request: Request, code: str = None, state: str = None, hf_oauth_state: Optional[str] = Cookie(None)):
-    """Handle OAuth callback - returns HTML that posts message to opener window"""
+@app.post("/api/auth/exchange")
+async def auth_exchange(request: Request, code: str, state: str, hf_oauth_state: Optional[str] = Cookie(None)):
+    """Exchange OAuth code for access token - called from callback page"""
+    # Validate state from cookie
+    if not hf_oauth_state or state != hf_oauth_state:
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+
     origin = get_origin_from_request(request)
     redirect_uri = f"{origin}/oauth/callback"
 
-    # Validate state from cookie
-    if not code or not state or not hf_oauth_state or state != hf_oauth_state:
-        error_msg = 'Invalid or expired OAuth state'
-        if not code:
-            error_msg = 'Missing authorization code'
-
-        error_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <body>
-        <script>
-            (function() {{
-                console.log('OAuth callback error: {error_msg}');
-                const target = window.opener || window.parent || window;
-                if (target) {{
-                    target.postMessage({{
-                        type: 'HF_OAUTH_ERROR',
-                        payload: {{ message: '{error_msg}' }}
-                    }}, '{origin}');
-                }}
-                setTimeout(function() {{ window.close(); }}, 100);
-            }})();
-        </script>
-        </body>
-        </html>
-        """
-        response = HTMLResponse(content=error_html)
-        response.delete_cookie("hf_oauth_state")
-        return response
-
-    # Delete state cookie
     try:
         token_data = await exchange_code_for_token(code, redirect_uri)
         access_token = token_data.get("access_token")
 
         if not access_token:
-            raise Exception("No access token received")
+            raise HTTPException(status_code=400, detail="No access token received")
 
         # Get user info
         user_info = await get_user_info(access_token)
 
-        # Return success HTML that posts message to opener
-        success_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <body>
-        <script>
-            (function() {{
-                const target = window.opener || window.parent || window;
-                if (target) {{
-                    target.postMessage({{
-                        type: 'HF_OAUTH_SUCCESS',
-                        payload: {{
-                            token: {json.dumps(access_token)},
-                            namespace: {json.dumps(user_info["username"])}
-                        }}
-                    }}, '{origin}');
-                }}
-                setTimeout(function() {{ window.close(); }}, 100);
-            }})();
-        </script>
-        </body>
-        </html>
-        """
-        response = HTMLResponse(content=success_html)
+        # Return token and user info
+        response = JSONResponse({
+            "token": access_token,
+            "namespace": user_info["username"]
+        })
         response.delete_cookie("hf_oauth_state")
         return response
 
     except Exception as e:
-        print(f"OAuth callback error: {e}")
-        error_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <body>
-        <script>
-            (function() {{
-                const target = window.opener || window.parent || window;
-                if (target) {{
-                    target.postMessage({{
-                        type: 'HF_OAUTH_ERROR',
-                        payload: {{ message: {json.dumps(str(e))} }}
-                    }}, '{origin}');
-                }}
-                setTimeout(function() {{ window.close(); }}, 100);
-            }})();
-        </script>
-        </body>
-        </html>
-        """
-        response = HTMLResponse(content=error_html)
+        print(f"Token exchange error: {e}")
+        response = JSONResponse(
+            {"error": str(e)},
+            status_code=400
+        )
         response.delete_cookie("hf_oauth_state")
-        return response
+        raise HTTPException(status_code=400, detail=f"Token exchange failed: {str(e)}")
+
+@app.get("/oauth/callback", response_class=HTMLResponse)
+async def oauth_callback(request: Request):
+    """OAuth callback page - exchanges code for token client-side"""
+    callback_html = """
+    <!DOCTYPE html>
+    <html>
+    <head><title>Authenticating...</title></head>
+    <body style="font-family: sans-serif; padding: 40px; text-align: center;">
+        <h2>Authenticating...</h2>
+        <p>Please wait while we complete your login.</p>
+        <script>
+            (async function() {
+                const params = new URLSearchParams(window.location.search);
+                const code = params.get('code');
+                const state = params.get('state');
+                const error = params.get('error');
+
+                if (error) {
+                    document.body.innerHTML = '<h2>Authentication failed</h2><p>' + error + '</p>';
+                    setTimeout(() => window.location.href = '/', 3000);
+                    return;
+                }
+
+                if (!code || !state) {
+                    document.body.innerHTML = '<h2>Authentication failed</h2><p>Missing authorization code</p>';
+                    setTimeout(() => window.location.href = '/', 3000);
+                    return;
+                }
+
+                try {
+                    // Exchange code for token
+                    const response = await fetch('/api/auth/exchange?code=' + code + '&state=' + state, {
+                        method: 'POST'
+                    });
+
+                    if (!response.ok) {
+                        const data = await response.json();
+                        throw new Error(data.error || 'Failed to exchange code for token');
+                    }
+
+                    const data = await response.json();
+
+                    // Store in localStorage
+                    const authState = {
+                        token: data.token,
+                        user: { username: data.namespace }
+                    };
+                    localStorage.setItem('HF_AUTH_STATE', JSON.stringify(authState));
+
+                    // Redirect back to home
+                    window.location.href = '/';
+                } catch (err) {
+                    console.error('OAuth error:', err);
+                    document.body.innerHTML = '<h2>Authentication failed</h2><p>' + err.message + '</p>';
+                    setTimeout(() => window.location.href = '/', 3000);
+                }
+            })();
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=callback_html)
 
 @app.get("/api/whoami")
 async def whoami_endpoint(authorization: Optional[str] = Header(None)):
