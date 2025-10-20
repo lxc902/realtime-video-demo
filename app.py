@@ -1,9 +1,10 @@
 import os
 import sqlite3
 import base64
+import json
 from datetime import datetime
 from typing import Optional
-from fastapi import FastAPI, Request, Cookie, HTTPException, WebSocket
+from fastapi import FastAPI, Request, Cookie, HTTPException, WebSocket, Header
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from huggingface_hub import whoami
@@ -107,6 +108,16 @@ def get_origin_from_request(request: Request) -> str:
     # Fallback to SPACE_HOST environment variable with HTTPS
     return f"https://{SPACE_HOST}"
 
+def get_token_from_request(cookie_token: Optional[str], auth_header: Optional[str]) -> Optional[str]:
+    """Extract access token from either cookie or Authorization header"""
+    # Try Authorization header first (Bearer token)
+    if auth_header:
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            return parts[1]
+    # Fall back to cookie
+    return cookie_token
+
 async def exchange_code_for_token(code: str, redirect_uri: str) -> dict:
     """Exchange OAuth code for access token"""
     token_url = f"{OPENID_PROVIDER_URL}/oauth/token"
@@ -147,88 +158,148 @@ async def get_user_info(access_token: str) -> dict:
         raise HTTPException(status_code=401, detail="Failed to get user information")
 
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request, access_token: Optional[str] = Cookie(None)):
-    """Home page - check auth and show app or login"""
-
+async def home(request: Request):
+    """Home page - client-side auth with popup OAuth"""
     # Dynamically detect origin from request
     origin = get_origin_from_request(request)
     redirect_uri = f"{origin}/oauth/callback"
 
-    if not access_token:
-        return templates.TemplateResponse("index.html", {
-            "request": request,
-            "authenticated": False,
-            "oauth_client_id": OAUTH_CLIENT_ID,
-            "redirect_uri": redirect_uri,
-            "space_host": SPACE_HOST
-        })
-
-    try:
-        user_info = await get_user_info(access_token)
-    except:
-        response = templates.TemplateResponse("index.html", {
-            "request": request,
-            "authenticated": False,
-            "oauth_client_id": OAUTH_CLIENT_ID,
-            "redirect_uri": redirect_uri,
-            "space_host": SPACE_HOST,
-            "error": "Session expired. Please login again."
-        })
-        response.delete_cookie("access_token")
-        return response
-
-    can_start, used, limit = can_start_generation(user_info["username"], user_info["is_pro"])
-
+    # Return template - authentication will be handled client-side
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "authenticated": True,
-        "user": user_info,
-        "can_start": can_start,
-        "sessions_used": used,
-        "sessions_limit": limit
+        "oauth_client_id": OAUTH_CLIENT_ID,
+        "redirect_uri": redirect_uri
     })
 
-@app.get("/oauth/callback")
+@app.get("/oauth/callback", response_class=HTMLResponse)
 async def oauth_callback(request: Request, code: str, state: Optional[str] = None):
-    """Handle OAuth callback from Hugging Face"""
-    if not code:
-        raise HTTPException(status_code=400, detail="Missing authorization code")
-
-    # Dynamically detect origin to match the authorization request
+    """Handle OAuth callback - returns HTML that posts message to opener window"""
     origin = get_origin_from_request(request)
     redirect_uri = f"{origin}/oauth/callback"
+
+    if not code:
+        # Return error HTML that closes popup
+        error_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <body>
+        <script>
+            (function() {{
+                const target = window.opener || window.parent || window;
+                if (target) {{
+                    target.postMessage({{
+                        type: 'HF_OAUTH_ERROR',
+                        payload: {{ message: 'Missing authorization code' }}
+                    }}, '{origin}');
+                }}
+                setTimeout(function() {{ window.close(); }}, 100);
+            }})();
+        </script>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=error_html)
 
     try:
         token_data = await exchange_code_for_token(code, redirect_uri)
         access_token = token_data.get("access_token")
 
         if not access_token:
-            raise HTTPException(status_code=400, detail="No access token received")
+            raise Exception("No access token received")
 
-        response = RedirectResponse(url="/", status_code=302)
-        response.set_cookie(
-            key="access_token",
-            value=access_token,
-            httponly=True,
-            secure=True,
-            samesite="lax",
-            max_age=30 * 24 * 60 * 60
-        )
+        # Get user info
+        user_info = await get_user_info(access_token)
 
-        return response
+        # Return success HTML that posts message to opener
+        success_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <body>
+        <script>
+            (function() {{
+                const target = window.opener || window.parent || window;
+                if (target) {{
+                    target.postMessage({{
+                        type: 'HF_OAUTH_SUCCESS',
+                        payload: {{
+                            token: {json.dumps(access_token)},
+                            username: {json.dumps(user_info["username"])},
+                            is_pro: {json.dumps(user_info["is_pro"])},
+                            fullname: {json.dumps(user_info["fullname"])},
+                            avatar: {json.dumps(user_info.get("avatar"))}
+                        }}
+                    }}, '{origin}');
+                }}
+                setTimeout(function() {{ window.close(); }}, 100);
+            }})();
+        </script>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=success_html)
 
     except Exception as e:
         print(f"OAuth callback error: {e}")
-        raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")
+        error_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <body>
+        <script>
+            (function() {{
+                const target = window.opener || window.parent || window;
+                if (target) {{
+                    target.postMessage({{
+                        type: 'HF_OAUTH_ERROR',
+                        payload: {{ message: {json.dumps(str(e))} }}
+                    }}, '{origin}');
+                }}
+                setTimeout(function() {{ window.close(); }}, 100);
+            }})();
+        </script>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=error_html)
 
-@app.post("/api/start-session")
-async def start_session(access_token: Optional[str] = Cookie(None)):
-    """Start a new generation - counts towards daily limit"""
-    if not access_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
+@app.get("/api/whoami")
+async def whoami_endpoint(authorization: Optional[str] = Header(None)):
+    """Validate token and return user info"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="No authorization header")
+
+    # Extract Bearer token
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid authorization header format")
+
+    access_token = parts[1]
+
     try:
         user_info = await get_user_info(access_token)
+        # Get usage info
+        can_start, used, limit = can_start_generation(user_info["username"], user_info["is_pro"])
+
+        return {
+            "username": user_info["username"],
+            "fullname": user_info["fullname"],
+            "is_pro": user_info["is_pro"],
+            "avatar": user_info.get("avatar"),
+            "can_start": can_start,
+            "sessions_used": used,
+            "sessions_limit": limit
+        }
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+
+@app.post("/api/start-session")
+async def start_session(access_token: Optional[str] = Cookie(None), authorization: Optional[str] = Header(None)):
+    """Start a new generation - counts towards daily limit"""
+    token = get_token_from_request(access_token, authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        user_info = await get_user_info(token)
     except:
         raise HTTPException(status_code=401, detail="Invalid session")
     
@@ -253,13 +324,14 @@ async def start_session(access_token: Optional[str] = Cookie(None)):
     }
 
 @app.get("/api/check-limits")
-async def check_limits(access_token: Optional[str] = Cookie(None)):
+async def check_limits(access_token: Optional[str] = Cookie(None), authorization: Optional[str] = Header(None)):
     """Check current usage limits"""
-    if not access_token:
+    token = get_token_from_request(access_token, authorization)
+    if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
+
     try:
-        user_info = await get_user_info(access_token)
+        user_info = await get_user_info(token)
     except:
         raise HTTPException(status_code=401, detail="Invalid session")
     

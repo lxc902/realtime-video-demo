@@ -538,194 +538,177 @@
 </head>
 <body>
     <div class="container">
-        {% if not authenticated %}
-        <!-- Login Strip -->
-        <div class="login-strip">
+        <!-- Login Strip (Hidden when authenticated) -->
+        <div id="loginStrip" class="login-strip hidden">
             <div class="login-strip-content">
                 <div class="login-message">
                     Sign in with Hugging Face to start generating videos
                 </div>
-                <a href="https://huggingface.co/oauth/authorize?response_type=code&client_id={{ oauth_client_id }}&redirect_uri={{ redirect_uri }}&scope=openid%20profile&state={{ range(10000, 99999) | random }}"
-                   class="btn btn-primary"
-                   target="_blank">
+                <button class="btn btn-primary" onclick="auth.loginWithOAuth()">
                     Sign in with Hugging Face
-                </a>
-            </div>
-        </div>
-
-        <!-- Grayed Out App -->
-        <div class="app-grayed">
-        {% endif %}
-
-        <!-- Authenticated App -->
-        {% if authenticated %}
-        <div class="user-bar">
-            <div class="user-info">
-                {% if user.avatar %}
-                <img src="{{ user.avatar }}" alt="Avatar" class="user-avatar">
-                {% endif %}
-                <div class="user-details">
-                    <h3 style="font-size: 1rem; margin-bottom: 3px;">{{ user.fullname }}</h3>
-                    <span class="user-badge {% if user.is_pro %}badge-pro{% else %}badge-free{% endif %}">
-                        {% if user.is_pro %}PRO{% else %}FREE{% endif %}
-                    </span>
-                </div>
-            </div>
-            <div style="text-align: right;">
-                <div class="usage-info" style="font-size: 0.85rem; color: #78716c;">Generations: {{ sessions_used }}/{{ sessions_limit }} today</div>
-                <button class="btn-logout" onclick="logout()">Logout</button>
-            </div>
-        </div>
-
-        {% if not can_start %}
-        <div class="limit-warning">
-            <h3 style="color: #991b1b; margin-bottom: 10px;">Daily Limit Reached</h3>
-            <p style="color: #78716c; font-size: 0.9rem;">You've used all {{ sessions_limit }} generations for today. Come back tomorrow!</p>
-            {% if not user.is_pro %}
-            <p style="margin-top: 10px; color: #78716c; font-size: 0.9rem;">
-                Upgrade to <a href="https://huggingface.co/pricing" target="_blank" class="upgrade-link">Hugging Face PRO</a> for 15 generations per day!
-            </p>
-            {% endif %}
-        </div>
-        {% endif %}
-        {% endif %}
-
-        <header>
-            <h1>KREA Realtime Video</h1>
-            <div class="header-links">
-                <a href="https://huggingface.co/krea/krea-realtime-video" target="_blank" class="header-link">Model on Hugging Face</a>
-                <span style="color: #d6d3d1;">•</span>
-                <a href="https://github.com/krea-ai/realtime-video" target="_blank" class="header-link">GitHub Repository</a>
-            </div>
-            <p class="subtitle">Self-Forcing Diffusion with Dynamic Prompt Rewriting • 832×480 Fixed Resolution</p>
-        </header>
-
-        <!-- Video Grid: Webcam Left, Output Right -->
-        <div class="video-grid">
-            <!-- Webcam Panel -->
-            <div class="panel">
-                <h2>Webcam Input</h2>
-                <div class="video-container">
-                    <video id="webcamVideo" autoplay playsinline muted></video>
-                    <div id="webcamPlaceholder" class="placeholder">
-                        <p>{% if can_start %}Webcam will appear here{% else %}Sign in to use webcam{% endif %}</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Video Output Panel -->
-            <div class="panel">
-                <h2>Generated Video</h2>
-                <div class="video-container">
-                    <canvas id="outputCanvas"></canvas>
-                    <div id="placeholder" class="placeholder">
-                        <p>{% if can_start %}Configure settings and click Start{% else %}Daily limit reached{% endif %}</p>
-                    </div>
-                </div>
-
-                <div class="status-bar">
-                    <div>
-                        <span id="statusPill" class="status-pill status-disconnected">Disconnected</span>
-                        <span style="margin-left: 15px;">Frames: <strong id="frameCount">0</strong> / <strong id="maxFrames">234</strong></span>
-                    </div>
-                    <div>
-                        <label style="display: inline; margin: 0;">Playback:</label>
-                        <input type="range" id="playbackFps" min="8" max="20" value="12" style="width: 100px;">
-                        <span class="range-value" id="playbackFpsValue">12 fps</span>
-                    </div>
-                </div>
-
-                <div class="progress-bar">
-                    <div id="progressFill" class="progress-fill"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Controls Panel -->
-        <div class="panel">
-            <h2 style="margin-bottom: 20px;">Controls</h2>
-
-            <!-- Mode Selection -->
-            <div class="mode-toggle">
-                <button id="textModeBtn" class="mode-btn" {% if not can_start %}disabled{% endif %}>Text-to-Video</button>
-                <button id="videoModeBtn" class="mode-btn" {% if not can_start %}disabled{% endif %}>Video-to-Video</button>
-                <button id="webcamModeBtn" class="mode-btn active" {% if not can_start %}disabled{% endif %}>Webcam-to-Video</button>
-            </div>
-
-            <!-- Prompt (Main Setting) -->
-            <div class="form-group">
-                <label>Prompt <span style="color: #15803d; font-size: 0.75rem;">(updates sent every 2 seconds)</span></label>
-                <textarea id="prompt" {% if not can_start %}disabled{% endif %}>A cat riding a skateboard through a neon city at night</textarea>
-                <div class="hint">Detailed prompts work better</div>
-            </div>
-
-            <!-- Video Upload (V2V mode) -->
-            <div id="videoControls" class="hidden">
-                <div class="form-group">
-                    <label>Upload Video</label>
-                    <input type="file" id="videoFile" accept="video/*" class="hidden">
-                    <button class="btn btn-secondary" style="width: 100%;" onclick="document.getElementById('videoFile').click()">
-                        Select Video File
-                    </button>
-                    <div id="videoInfo" style="margin-top: 10px; font-size: 0.85rem; color: #78716c;"></div>
-                </div>
-            </div>
-
-            <!-- Action Buttons (Outside Accordion) -->
-            <div class="action-buttons">
-                <button id="startStopBtn" class="btn btn-primary" onclick="app.toggleGeneration()" style="flex: 1;" {% if not can_start %}disabled{% endif %}>
-                    {% if can_start %}Start Generation{% else %}Limit Reached{% endif %}
                 </button>
-                <button class="btn btn-secondary" onclick="app.downloadVideo()">Download</button>
+            </div>
+        </div>
+
+        <!-- App Container (Grayed out when not authenticated) -->
+        <div id="appContainer">
+            <!-- User Bar (Hidden when not authenticated) -->
+            <div id="userBar" class="user-bar hidden">
+                <div class="user-info">
+                    <img id="userAvatar" src="" alt="Avatar" class="user-avatar">
+                    <div class="user-details">
+                        <h3 id="userFullname" style="font-size: 1rem; margin-bottom: 3px;"></h3>
+                        <span id="userBadge" class="user-badge"></span>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div id="usageInfo" class="usage-info" style="font-size: 0.85rem; color: #78716c;"></div>
+                    <button class="btn-logout" onclick="auth.logout()">Logout</button>
+                </div>
             </div>
 
-            <!-- Advanced Settings Accordion -->
-            <div class="accordion">
-                <div class="accordion-header" onclick="app.toggleAccordion()">
-                    <span>Advanced Settings</span>
-                    <span class="accordion-icon" id="accordionIcon">▼</span>
+            <!-- Limit Warning (Hidden by default) -->
+            <div id="limitWarning" class="limit-warning hidden">
+                <h3 style="color: #991b1b; margin-bottom: 10px;">Daily Limit Reached</h3>
+                <p id="limitMessage" style="color: #78716c; font-size: 0.9rem;"></p>
+                <p id="upgradeMessage" style="margin-top: 10px; color: #78716c; font-size: 0.9rem;" class="hidden">
+                    Upgrade to <a href="https://huggingface.co/pricing" target="_blank" class="upgrade-link">Hugging Face PRO</a> for 15 generations per day!
+                </p>
+            </div>
+
+            <header>
+                <h1>KREA Realtime Video</h1>
+                <div class="header-links">
+                    <a href="https://huggingface.co/krea/krea-realtime-video" target="_blank" class="header-link">Model on Hugging Face</a>
+                    <span style="color: #d6d3d1;">•</span>
+                    <a href="https://github.com/krea-ai/realtime-video" target="_blank" class="header-link">GitHub Repository</a>
                 </div>
-                <div class="accordion-content" id="accordionContent">
-                    <div class="accordion-body">
-                        <!-- Input Controls (V2V and Webcam modes) -->
-                        <div id="inputControls">
-                            <div class="form-group">
-                                <label>Input Frame Rate: <span class="range-value" id="inputFpsValue">12</span> fps</label>
-                                <input type="range" id="inputFps" min="10" max="14" value="12" {% if not can_start %}disabled{% endif %}>
-                                <div class="hint">Recommended: 10-14 fps</div>
-                            </div>
+                <p class="subtitle">Self-Forcing Diffusion with Dynamic Prompt Rewriting • 832×480 Fixed Resolution</p>
+            </header>
 
-                            <div class="form-group">
-                                <label>Transformation Strength: <span class="range-value" id="strengthValue">0.45</span></label>
-                                <input type="range" id="strength" min="0.1" max="0.6" step="0.05" value="0.45" {% if not can_start %}disabled{% endif %}>
-                                <div class="hint">Keep low (&lt;0.5-0.6) to avoid artifacts</div>
-                            </div>
+            <!-- Video Grid: Webcam Left, Output Right -->
+            <div class="video-grid">
+                <!-- Webcam Panel -->
+                <div class="panel">
+                    <h2>Webcam Input</h2>
+                    <div class="video-container">
+                        <video id="webcamVideo" autoplay playsinline muted></video>
+                        <div id="webcamPlaceholder" class="placeholder">
+                            <p>Webcam will appear here</p>
                         </div>
+                    </div>
+                </div>
 
-                        <div class="form-group">
-                            <label>Max Frames (Blocks): <span class="range-value" id="numBlocksValue">20</span> → ~<span id="estimatedFrames">234</span> frames</label>
-                            <input type="range" id="numBlocks" min="10" max="50" step="5" value="20" {% if not can_start %}disabled{% endif %}>
-                            <div class="hint">Each block generates ~12 frames</div>
+                <!-- Video Output Panel -->
+                <div class="panel">
+                    <h2>Generated Video</h2>
+                    <div class="video-container">
+                        <canvas id="outputCanvas"></canvas>
+                        <div id="placeholder" class="placeholder">
+                            <p>Configure settings and click Start</p>
                         </div>
+                    </div>
 
-                        <div class="form-group">
-                            <label>Seed (optional)</label>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                <input type="number" id="seed" placeholder="random" {% if not can_start %}disabled{% endif %}>
-                                <button class="btn btn-secondary" onclick="app.randomizeSeed()" {% if not can_start %}disabled{% endif %}>Random</button>
-                            </div>
+                    <div class="status-bar">
+                        <div>
+                            <span id="statusPill" class="status-pill status-disconnected">Disconnected</span>
+                            <span style="margin-left: 15px;">Frames: <strong id="frameCount">0</strong> / <strong id="maxFrames">234</strong></span>
                         </div>
+                        <div>
+                            <label style="display: inline; margin: 0;">Playback:</label>
+                            <input type="range" id="playbackFps" min="8" max="20" value="12" style="width: 100px;">
+                            <span class="range-value" id="playbackFpsValue">12 fps</span>
+                        </div>
+                    </div>
+
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
                     </div>
                 </div>
             </div>
 
-            <div id="errorBox" class="error-box hidden"></div>
-            <div id="infoBox" class="info-box hidden"></div>
-        </div>
+            <!-- Controls Panel -->
+            <div class="panel">
+                <h2 style="margin-bottom: 20px;">Controls</h2>
 
-        {% if not authenticated %}
+                <!-- Mode Selection -->
+                <div class="mode-toggle">
+                    <button id="textModeBtn" class="mode-btn">Text-to-Video</button>
+                    <button id="videoModeBtn" class="mode-btn">Video-to-Video</button>
+                    <button id="webcamModeBtn" class="mode-btn active">Webcam-to-Video</button>
+                </div>
+
+                <!-- Prompt (Main Setting) -->
+                <div class="form-group">
+                    <label>Prompt <span style="color: #15803d; font-size: 0.75rem;">(updates sent every 2 seconds)</span></label>
+                    <textarea id="prompt">A cat riding a skateboard through a neon city at night</textarea>
+                    <div class="hint">Detailed prompts work better</div>
+                </div>
+
+                <!-- Video Upload (V2V mode) -->
+                <div id="videoControls" class="hidden">
+                    <div class="form-group">
+                        <label>Upload Video</label>
+                        <input type="file" id="videoFile" accept="video/*" class="hidden">
+                        <button class="btn btn-secondary" style="width: 100%;" onclick="document.getElementById('videoFile').click()">
+                            Select Video File
+                        </button>
+                        <div id="videoInfo" style="margin-top: 10px; font-size: 0.85rem; color: #78716c;"></div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons (Outside Accordion) -->
+                <div class="action-buttons">
+                    <button id="startStopBtn" class="btn btn-primary" onclick="app.toggleGeneration()" style="flex: 1;">
+                        Start Generation
+                    </button>
+                    <button class="btn btn-secondary" onclick="app.downloadVideo()">Download</button>
+                </div>
+
+                <!-- Advanced Settings Accordion -->
+                <div class="accordion">
+                    <div class="accordion-header" onclick="app.toggleAccordion()">
+                        <span>Advanced Settings</span>
+                        <span class="accordion-icon" id="accordionIcon">▼</span>
+                    </div>
+                    <div class="accordion-content" id="accordionContent">
+                        <div class="accordion-body">
+                            <!-- Input Controls (V2V and Webcam modes) -->
+                            <div id="inputControls">
+                                <div class="form-group">
+                                    <label>Input Frame Rate: <span class="range-value" id="inputFpsValue">12</span> fps</label>
+                                    <input type="range" id="inputFps" min="10" max="14" value="12">
+                                    <div class="hint">Recommended: 10-14 fps</div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Transformation Strength: <span class="range-value" id="strengthValue">0.45</span></label>
+                                    <input type="range" id="strength" min="0.1" max="0.6" step="0.05" value="0.45">
+                                    <div class="hint">Keep low (&lt;0.5-0.6) to avoid artifacts</div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Max Frames (Blocks): <span class="range-value" id="numBlocksValue">20</span> → ~<span id="estimatedFrames">234</span> frames</label>
+                                <input type="range" id="numBlocks" min="10" max="50" step="5" value="20">
+                                <div class="hint">Each block generates ~12 frames</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Seed (optional)</label>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                    <input type="number" id="seed" placeholder="random">
+                                    <button class="btn btn-secondary" onclick="app.randomizeSeed()">Random</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="errorBox" class="error-box hidden"></div>
+                <div id="infoBox" class="info-box hidden"></div>
+            </div>
         </div>
-        {% endif %}
     </div>
 
     <!-- Hidden elements for video processing -->
@@ -733,16 +716,175 @@
     <canvas id="extractionCanvas" style="display: none;"></canvas>
 
     <script>
-        {% if not authenticated %}
-        // Not authenticated - no app logic needed
-        {% else %}
+        const OAUTH_CLIENT_ID = "{{ oauth_client_id }}";
+        const REDIRECT_URI = "{{ redirect_uri }}";
+        const AUTH_STORAGE_KEY = 'HF_AUTH_STATE';
 
-        async function logout() {
-            await fetch('/api/logout', {method: 'POST'});
-            window.location.reload();
-        }
+        // Authentication Manager
+        const auth = {
+            token: null,
+            user: null,
+            canStart: false,
+            sessionsUsed: 0,
+            sessionsLimit: 1,
 
-        // MsgPack Encoder (abbreviated for space - full version from original)
+            async init() {
+                // Listen for OAuth messages from popup
+                window.addEventListener('message', this.handleOAuthMessage.bind(this));
+
+                // Try to restore saved auth
+                const saved = localStorage.getItem(AUTH_STORAGE_KEY);
+                if (saved) {
+                    try {
+                        const authState = JSON.parse(saved);
+                        await this.validateAndSetAuth(authState.token);
+                    } catch (e) {
+                        console.error('Failed to restore auth:', e);
+                        this.clearAuth();
+                    }
+                } else {
+                    this.showLoginStrip();
+                }
+            },
+
+            async validateAndSetAuth(token) {
+                try {
+                    const response = await fetch('/api/whoami', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Token validation failed');
+                    }
+
+                    const data = await response.json();
+                    this.token = token;
+                    this.user = data;
+                    this.canStart = data.can_start;
+                    this.sessionsUsed = data.sessions_used;
+                    this.sessionsLimit = data.sessions_limit;
+
+                    // Save to localStorage
+                    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token, user: data }));
+
+                    this.updateUI();
+                    app.init();
+                } catch (error) {
+                    console.error('Auth validation failed:', error);
+                    this.clearAuth();
+                    throw error;
+                }
+            },
+
+            loginWithOAuth() {
+                const state = crypto.randomUUID();
+                sessionStorage.setItem('HF_OAUTH_STATE', state);
+
+                const authUrl = new URL('https://huggingface.co/oauth/authorize');
+                authUrl.searchParams.set('response_type', 'code');
+                authUrl.searchParams.set('client_id', OAUTH_CLIENT_ID);
+                authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
+                authUrl.searchParams.set('scope', 'openid profile');
+                authUrl.searchParams.set('state', state);
+
+                // Open popup
+                const width = 600;
+                const height = 700;
+                const left = (screen.width - width) / 2;
+                const top = (screen.height - height) / 2;
+                window.open(
+                    authUrl.toString(),
+                    'HF OAuth',
+                    `width=${width},height=${height},left=${left},top=${top}`
+                );
+            },
+
+            async handleOAuthMessage(event) {
+                // Verify origin for security
+                if (!event.origin.includes('hf.space') && !event.origin.includes('huggingface.co') && !event.origin.includes('localhost')) {
+                    return;
+                }
+
+                if (event.data.type === 'HF_OAUTH_SUCCESS') {
+                    const { token, username, is_pro, fullname, avatar } = event.data.payload;
+                    sessionStorage.removeItem('HF_OAUTH_STATE');
+
+                    try {
+                        await this.validateAndSetAuth(token);
+                        app.showInfo('Logged in successfully!');
+                    } catch (e) {
+                        app.showError('Failed to validate authentication');
+                    }
+                } else if (event.data.type === 'HF_OAUTH_ERROR') {
+                    sessionStorage.removeItem('HF_OAUTH_STATE');
+                    app.showError(event.data.payload.message || 'Authentication failed');
+                    this.showLoginStrip();
+                }
+            },
+
+            logout() {
+                this.clearAuth();
+                window.location.reload();
+            },
+
+            clearAuth() {
+                this.token = null;
+                this.user = null;
+                this.canStart = false;
+                localStorage.removeItem(AUTH_STORAGE_KEY);
+                sessionStorage.removeItem('HF_OAUTH_STATE');
+                this.showLoginStrip();
+            },
+
+            showLoginStrip() {
+                document.getElementById('loginStrip').classList.remove('hidden');
+                document.getElementById('appContainer').classList.add('app-grayed');
+                document.getElementById('userBar').classList.add('hidden');
+            },
+
+            updateUI() {
+                // Hide login strip, show app
+                document.getElementById('loginStrip').classList.add('hidden');
+                document.getElementById('appContainer').classList.remove('app-grayed');
+
+                // Show user bar
+                const userBar = document.getElementById('userBar');
+                userBar.classList.remove('hidden');
+
+                // Update user info
+                if (this.user.avatar) {
+                    document.getElementById('userAvatar').src = this.user.avatar;
+                }
+                document.getElementById('userFullname').textContent = this.user.fullname;
+
+                const badge = document.getElementById('userBadge');
+                badge.textContent = this.user.is_pro ? 'PRO' : 'FREE';
+                badge.className = 'user-badge ' + (this.user.is_pro ? 'badge-pro' : 'badge-free');
+
+                document.getElementById('usageInfo').textContent =
+                    `Generations: ${this.sessionsUsed}/${this.sessionsLimit} today`;
+
+                // Show/hide limit warning
+                if (!this.canStart) {
+                    document.getElementById('limitWarning').classList.remove('hidden');
+                    document.getElementById('limitMessage').textContent =
+                        `You've used all ${this.sessionsLimit} generations for today. Come back tomorrow!`;
+                    if (!this.user.is_pro) {
+                        document.getElementById('upgradeMessage').classList.remove('hidden');
+                    }
+                    document.getElementById('startStopBtn').disabled = true;
+                    document.getElementById('startStopBtn').textContent = 'Limit Reached';
+                } else {
+                    document.getElementById('limitWarning').classList.add('hidden');
+                }
+            },
+
+            getAuthHeaders() {
+                return this.token ? { 'Authorization': `Bearer ${this.token}` } : {};
+            }
+        };
+
+        // MsgPack Encoder
         const createMsgpackEncoder = (() => {
             const textEncoder = new TextEncoder();
             const ensureUint8Array = (value) => (value instanceof Uint8Array ? value : new Uint8Array(value));
@@ -868,7 +1010,7 @@
             };
         })();
 
-        // Main App (simplified - add full video generation logic here)
+        // Main App
         const app = {
             mode: 'webcam',
             isGenerating: false,
@@ -951,7 +1093,7 @@
                 document.getElementById('webcamModeBtn').classList.toggle('active', mode === 'webcam');
                 document.getElementById('videoControls').classList.toggle('hidden', mode !== 'video');
 
-                // Input controls always visible in accordion for webcam/video modes
+                // Input controls visible in accordion for webcam/video modes
                 const inputControls = document.getElementById('inputControls');
                 if (mode === 'text') {
                     inputControls.style.display = 'none';
@@ -1015,20 +1157,29 @@
                 if (this.isGenerating) {
                     this.disconnect();
                 } else {
-                    // ✅ Record session EVERY time user clicks "Start Generation"
+                    if (!auth.token) {
+                        this.showError('Please sign in first');
+                        return;
+                    }
+
+                    // Record session
                     try {
-                        const response = await fetch('/api/start-session', {method: 'POST'});
+                        const response = await fetch('/api/start-session', {
+                            method: 'POST',
+                            headers: auth.getAuthHeaders()
+                        });
                         if (!response.ok) {
                             const data = await response.json();
                             this.showError(data.detail || 'Failed to start session');
                             return;
                         }
-                        // Update session count in UI
+                        // Update session count
                         const sessionData = await response.json();
-                        const usedSpan = document.querySelector('.usage-info');
-                        if (usedSpan) {
-                            usedSpan.textContent = `Generations: ${sessionData.sessions_used}/${sessionData.sessions_limit} today`;
-                        }
+                        auth.sessionsUsed = sessionData.sessions_used;
+                        auth.sessionsLimit = sessionData.sessions_limit;
+                        auth.canStart = sessionData.sessions_used < sessionData.sessions_limit;
+                        document.getElementById('usageInfo').textContent =
+                            `Generations: ${auth.sessionsUsed}/${auth.sessionsLimit} today`;
                     } catch (error) {
                         this.showError('Failed to start session');
                         return;
@@ -1112,7 +1263,7 @@
                             if (btn) {
                                 btn.textContent = 'Start Generation';
                                 btn.className = 'btn btn-primary';
-                                btn.disabled = false;
+                                btn.disabled = !auth.canStart;
                             }
 
                             // Update status
@@ -1554,12 +1705,10 @@
             }
         };
 
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
-            {% if can_start %}
-            app.init();
-            {% endif %}
+            auth.init();
         });
-        {% endif %}
     </script>
 </body>
 </html>
