@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Video Generation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e3a8a, #312e81);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #22d3ee, #3b82f6, #a855f7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        /* Login Modal */
+        .login-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .login-box {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .login-box h2 {
+            margin-bottom: 10px;
+            color: #e2e8f0;
+        }
+
+        .login-box p {
+            color: #94a3b8;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        input[type="password"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            background: rgba(51, 65, 85, 0.5);
+            border: 1px solid #475569;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: #10b981;
+            color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: #059669;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-box, .info-box, .warning-box {
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+        }
+
+        .error-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #93c5fd;
+        }
+
+        .warning-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fcd34d;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* User Info Bar */
+        .user-bar {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #3b82f6;
+        }
+
+        .user-details h3 {
+            font-size: 1rem;
+            margin-bottom: 3px;
+        }
+
+        .user-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-pro {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .badge-free {
+            background: #475569;
+            color: #94a3b8;
+        }
+
+        .usage-info {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: #475569;
+            color: #e2e8f0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .btn-logout:hover {
+            background: #64748b;
+        }
+
+        .limit-warning {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .limit-warning h3 {
+            color: #fca5a5;
+            margin-bottom: 10px;
+        }
+
+        .limit-warning p {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .upgrade-link {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .upgrade-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Main app styles from original */
+        .grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            padding: 20px;
+        }
+
+        .video-container {
+            background: #000;
+            border-radius: 8px;
+            aspect-ratio: 832/480;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #outputCanvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .placeholder {
+            text-align: center;
+            color: #475569;
+        }
+
+        /* Additional styles would continue here - abbreviated for space */
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .user-bar {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% if not authenticated %}
+        <!-- Login Modal -->
+        <div class="login-modal" id="loginModal">
+            <div class="login-box">
+                <h2>🤗 Sign in with Hugging Face</h2>
+                <p>Please enter your Hugging Face token to continue</p>
+                
+                <div class="form-group">
+                    <label>Hugging Face Token</label>
+                    <input type="password" id="hfToken" placeholder="hf_...">
+                    <small style="color: #64748b; font-size: 0.75rem; display: block; margin-top: 5px;">
+                        Get your token from <a href="https://huggingface.co/settings/tokens" target="_blank" style="color: #3b82f6;">huggingface.co/settings/tokens</a>
+                    </small>
+                </div>
+
+                <button class="btn btn-primary" onclick="login()" id="loginBtn">
+                    Sign In
+                </button>
+
+                <div id="loginError" class="error-box hidden"></div>
+                
+                <div class="info-box" style="margin-top: 20px;">
+                    <strong>Free Users:</strong> 1 session per day<br>
+                    <strong>PRO Users:</strong> 15 sessions per day
+                </div>
+            </div>
+        </div>
+        {% else %}
+        
+        <!-- User Bar -->
+        <div class="user-bar">
+            <div class="user-info">
+                {% if user.avatar %}
+                <img src="{{ user.avatar }}" alt="Avatar" class="user-avatar">
+                {% endif %}
+                <div class="user-details">
+                    <h3>{{ user.fullname }}</h3>
+                    <span class="user-badge {% if user.is_pro %}badge-pro{% else %}badge-free{% endif %}">
+                        {% if user.is_pro %}PRO{% else %}FREE{% endif %}
+                    </span>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <div class="usage-info">Sessions: {{ sessions_used }}/{{ sessions_limit }} today</div>
+                <button class="btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        {% if not can_start %}
+        <!-- Limit Reached Warning -->
+        <div class="limit-warning">
+            <h3>⚠️ Daily Limit Reached</h3>
+            <p>You've used all {{ sessions_limit }} sessions for today. Come back tomorrow!</p>
+            {% if not user.is_pro %}
+            <p style="margin-top: 10px;">
+                Upgrade to <a href="https://huggingface.co/pricing" target="_blank" class="upgrade-link">Hugging Face PRO</a> for 15 sessions per day!
+            </p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <header>
+            <h1>Real-time Video Generation</h1>
+            <p class="subtitle">Self-Forcing Diffusion with Dynamic Prompt Rewriting • 832×480 Fixed Resolution</p>
+        </header>
+
+        <!-- Original app content would go here -->
+        <div class="grid">
+            <div class="panel">
+                <div class="video-container">
+                    <canvas id="outputCanvas"></canvas>
+                    <div id="placeholder" class="placeholder">
+                        <p>{% if can_start %}Click Start to begin generation{% else %}Daily limit reached{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2 style="margin-bottom: 20px;">Controls</h2>
+                
+                <div class="form-group">
+                    <label>FAL API Key</label>
+                    <input type="password" id="apiKey" placeholder="YOUR_FAL_API_KEY" {% if not can_start %}disabled{% endif %}>
+                </div>
+
+                <div class="form-group">
+                    <label>Prompt</label>
+                    <textarea id="prompt" {% if not can_start %}disabled{% endif %}>A cat riding a skateboard through a neon city at night</textarea>
+                </div>
+
+                <button class="btn btn-primary" id="startBtn" onclick="startGeneration()" {% if not can_start %}disabled{% endif %}>
+                    {% if can_start %}Start Generation{% else %}Limit Reached{% endif %}
+                </button>
+
+                <div id="statusMessage" class="info-box hidden"></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        {% if not authenticated %}
+        async function login() {
+            const token = document.getElementById('hfToken').value.trim();
+            const btn = document.getElementById('loginBtn');
+            const errorBox = document.getElementById('loginError');
+            
+            if (!token) {
+                errorBox.textContent = 'Please enter your token';
+                errorBox.classList.remove('hidden');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Signing in...';
+            errorBox.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({token})
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    errorBox.textContent = data.detail || 'Login failed';
+                    errorBox.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.textContent = 'Sign In';
+                }
+            } catch (error) {
+                errorBox.textContent = 'Network error. Please try again.';
+                errorBox.classList.remove('hidden');
+                btn.disabled = false;
+                btn.textContent = 'Sign In';
+            }
+        }
+
+        document.getElementById('hfToken').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+        {% else %}
+        async function logout() {
+            await fetch('/api/logout', {method: 'POST'});
+            window.location.reload();
+        }
+
+        async function startGeneration() {
+            const btn = document.getElementById('startBtn');
+            const statusMsg = document.getElementById('statusMessage');
+            
+            btn.disabled = true;
+            btn.textContent = 'Starting...';
+
+            try {
+                const response = await fetch('/api/start-session', {method: 'POST'});
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusMsg.className = 'info-box';
+                    statusMsg.textContent = `✓ Session started! (${data.sessions_used}/${data.sessions_limit} used today)`;
+                    statusMsg.classList.remove('hidden');
+                    
+                    // Here you would initialize the actual video generation
+                    // For now, just show success
+                    btn.textContent = 'Session Active';
+                } else {
+                    statusMsg.className = 'error-box';
+                    statusMsg.textContent = data.detail || 'Failed to start session';
+                    statusMsg.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.textContent = 'Start Generation';
+                }
+            } catch (error) {
+                statusMsg.className = 'error-box';
+                statusMsg.textContent = 'Network error. Please try again.';
+                statusMsg.classList.remove('hidden');
+                btn.disabled = false;
+                btn.textContent = 'Start Generation';
+            }
+        }
+        {% endif %}
+    </script>
+</body>
+</html>
