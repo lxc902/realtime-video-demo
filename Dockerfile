@@ -12,7 +12,8 @@ RUN pip install --no-cache-dir \
     huggingface-hub==0.20.1 \
     python-multipart==0.0.6 \
     jinja2==3.1.2 \
-    httpx==0.25.2
+    httpx==0.25.2 \
+    websockets==12.0
 
 # Create data directory with proper permissions
 RUN mkdir -p /data && chown -R user:user /data
@@ -20,9 +21,6 @@ RUN mkdir -p /data && chown -R user:user /data
 # Copy application files
 COPY --chown=user:user app.py /app/
 COPY --chown=user:user index.html /app/
-
-# Debug: List files to verify they were copied
-RUN ls -la /app/
 
 # Switch to user
 USER user
