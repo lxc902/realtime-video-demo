@@ -808,8 +808,8 @@
                             </div>
 
                             <div class="form-group">
-                                <label>Max Frames (Blocks): <span class="range-value" id="numBlocksValue">40</span> → ~<span id="estimatedFrames">474</span> frames</label>
-                                <input type="range" id="numBlocks" min="10" max="50" step="5" value="40">
+                                <label>Max Frames (Blocks): <span class="range-value" id="numBlocksValue">25</span> → ~<span id="estimatedFrames">294</span> frames</label>
+                                <input type="range" id="numBlocks" min="10" max="50" step="5" value="25">
                                 <div class="hint">Each block generates ~12 frames</div>
                             </div>
 
@@ -1425,18 +1425,6 @@
                     // Start recording
                     this.startRecording();
 
-                    // Check if WebSocket is already open and ready
-                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                        this.showInfo('Starting new generation...');
-                        await this.sendInitialParams();
-
-                        // Start frame extraction for v2v and webcam modes
-                        if (this.mode === 'video' || this.mode === 'webcam') {
-                            setTimeout(() => this.startFrameExtraction(), 500);
-                        }
-                        return;
-                    }
-
                     // Connect to backend WebSocket proxy
                     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                     let wsUrl = `${protocol}//${window.location.host}/ws/video-gen`;
@@ -1605,11 +1593,7 @@
 
                 // Check if generation is complete
                 if (this.frameCount >= this.maxFrames) {
-                    this.isGenerating = false;
                     this.generationFinished = true;
-                    this.stopFrameExtraction();
-                    this.stopRecording();
-                    this.updateUI();
 
                     // Update status to Finished
                     const statusPill = document.getElementById('statusPill');
@@ -1620,7 +1604,11 @@
                     document.getElementById('replayBtn').classList.remove('hidden');
                     document.getElementById('downloadBtn').classList.remove('hidden');
 
-                    this.showInfo('Generation complete!');
+                    // Disconnect to clean up (will trigger onclose which resets UI)
+                    setTimeout(() => {
+                        this.disconnect();
+                        this.showInfo('Generation complete!');
+                    }, 500);
                 }
             },
 
