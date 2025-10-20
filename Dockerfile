@@ -19,6 +19,7 @@ RUN mkdir -p /data && chown -R user:user /data
 
 # Copy application files
 COPY --chown=user:user app.py /app/
+COPY --chown=user:user index.html /app/
 
 # Switch to user
 USER user
