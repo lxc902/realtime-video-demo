@@ -414,8 +414,8 @@
             
             <div class="info-box" style="text-align: left;">
                 <strong>📊 Usage Limits:</strong><br>
-                • <strong>Free Users:</strong> 1 session per day<br>
-                • <strong>PRO Users:</strong> 15 sessions per day<br><br>
+                • <strong>Free Users:</strong> 1 generation per day<br>
+                • <strong>PRO Users:</strong> 15 generations per day<br><br>
                 <small>Limits reset daily at midnight UTC</small>
             </div>
         </div>
@@ -435,7 +435,7 @@
                 </div>
             </div>
             <div style="text-align: right;">
-                <div style="font-size: 0.85rem; color: #94a3b8;">Sessions: {{ sessions_used }}/{{ sessions_limit }} today</div>
+                <div style="font-size: 0.85rem; color: #94a3b8;">Generations: {{ sessions_used }}/{{ sessions_limit }} today</div>
                 <button class="btn-logout" onclick="logout()">Logout</button>
             </div>
         </div>
@@ -443,10 +443,10 @@
         {% if not can_start %}
         <div class="limit-warning">
             <h3 style="color: #fca5a5; margin-bottom: 10px;">⚠️ Daily Limit Reached</h3>
-            <p style="color: #94a3b8; font-size: 0.9rem;">You've used all {{ sessions_limit }} sessions for today. Come back tomorrow!</p>
+            <p style="color: #94a3b8; font-size: 0.9rem;">You've used all {{ sessions_limit }} generations for today. Come back tomorrow!</p>
             {% if not user.is_pro %}
             <p style="margin-top: 10px; color: #94a3b8; font-size: 0.9rem;">
-                Upgrade to <a href="https://huggingface.co/pricing" target="_blank" class="upgrade-link">Hugging Face PRO</a> for 15 sessions per day!
+                Upgrade to <a href="https://huggingface.co/pricing" target="_blank" class="upgrade-link">Hugging Face PRO</a> for 15 generations per day!
             </p>
             {% endif %}
         </div>
@@ -847,7 +847,7 @@
                         const sessionData = await response.json();
                         const usedSpan = document.querySelector('.usage-info');
                         if (usedSpan) {
-                            usedSpan.textContent = `Sessions: ${sessionData.sessions_used}/${sessionData.sessions_limit} today`;
+                            usedSpan.textContent = `Generations: ${sessionData.sessions_used}/${sessionData.sessions_limit} today`;
                         }
                     } catch (error) {
                         this.showError('Failed to start session');
