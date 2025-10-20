@@ -916,17 +916,39 @@
                         };
                         
                         this.ws.onclose = (event) => {
-                            this.showInfo(`Disconnected: ${event.reason || 'Connection closed'}`);
+                            console.log('WebSocket closed:', event.reason);
+                            
+                            // Force state reset
                             this.isGenerating = false;
+                            this.ws = null;
+                            
+                            // Stop all processes
                             this.stopFrameExtraction();
                             this.stopRecording();
                             this.stopPlaybackLoop();
-                            this.ws = null;
-                            this.updateUI();
                             
-                            // Update status pill
-                            document.getElementById('statusPill').className = 'status-pill status-disconnected';
-                            document.getElementById('statusPill').textContent = 'Disconnected';
+                            // Update UI immediately
+                            const btn = document.getElementById('startStopBtn');
+                            if (btn) {
+                                btn.textContent = 'Start Generation';
+                                btn.className = 'btn btn-primary';
+                                btn.disabled = false;
+                            }
+                            
+                            // Update status
+                            const statusPill = document.getElementById('statusPill');
+                            if (statusPill) {
+                                statusPill.className = 'status-pill status-disconnected';
+                                statusPill.textContent = 'Disconnected';
+                            }
+                            
+                            // Re-enable mode buttons
+                            ['textModeBtn', 'videoModeBtn', 'webcamModeBtn'].forEach(id => {
+                                const btn = document.getElementById(id);
+                                if (btn) btn.disabled = false;
+                            });
+                            
+                            this.showInfo(`Disconnected: ${event.reason || 'Generation complete'}`);
                         };
                         
                     } catch (error) {
