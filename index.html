@@ -709,12 +709,21 @@
         const app = {
             mode: 'text',
             isGenerating: false,
+            isConnected: false,
             frameCount: 0,
             maxFrames: 234,
             ws: null,
             frameBuffer: [],
             playbackInterval: null,
+            frameExtractionInterval: null,
+            mediaRecorder: null,
+            recordedChunks: [],
             sessionStarted: false,
+            webcamStream: null,
+            videoMetadata: null,
+            currentVideoFile: null,
+            promptUpdateTimer: null,
+            pendingPromptUpdate: null,
 
             init() {
                 this.setupEventListeners();
@@ -728,10 +737,17 @@
                 
                 document.getElementById('playbackFps').addEventListener('input', (e) => {
                     document.getElementById('playbackFpsValue').textContent = e.target.value + ' fps';
+                    if (this.playbackInterval) {
+                        this.startPlaybackLoop();
+                    }
                 });
                 
                 document.getElementById('inputFps').addEventListener('input', (e) => {
                     document.getElementById('inputFpsValue').textContent = e.target.value;
+                    if (this.isGenerating && (this.mode === 'video' || this.mode === 'webcam')) {
+                        this.stopFrameExtraction();
+                        this.startFrameExtraction();
+                    }
                 });
                 
                 document.getElementById('strength').addEventListener('input', (e) => {
@@ -741,7 +757,20 @@
                 document.getElementById('numBlocks').addEventListener('input', (e) => {
                     document.getElementById('numBlocksValue').textContent = e.target.value;
                     this.updateEstimatedFrames();
+                    if (this.isGenerating) {
+                        this.queuePromptUpdate();
+                    }
                 });
+
+                // Prompt changes - queue updates every 2 seconds
+                document.getElementById('prompt').addEventListener('input', () => {
+                    if (this.isGenerating && (this.mode === 'text' || this.mode === 'webcam')) {
+                        this.queuePromptUpdate();
+                    }
+                });
+
+                // Video file upload
+                document.getElementById('videoFile').addEventListener('change', (e) => this.handleVideoUpload(e));
             },
 
             setMode(mode) {
@@ -753,6 +782,43 @@
                 document.getElementById('videoControls').classList.toggle('hidden', mode !== 'video');
                 document.getElementById('webcamControls').classList.toggle('hidden', mode !== 'webcam');
                 document.getElementById('inputControls').classList.toggle('hidden', !(mode === 'video' || mode === 'webcam'));
+                
+                // Start/stop webcam based on mode
+                if (mode === 'webcam') {
+                    this.startWebcam();
+                } else {
+                    this.stopWebcam();
+                }
+            },
+
+            async startWebcam() {
+                try {
+                    this.webcamStream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        },
+                        audio: false
+                    });
+                    
+                    const video = document.getElementById('webcamVideo');
+                    video.srcObject = this.webcamStream;
+                    this.showInfo('Webcam started successfully');
+                } catch (error) {
+                    this.showError(`Failed to access webcam: ${error.message}`);
+                    console.error('Webcam error:', error);
+                    // Switch back to text mode if webcam fails
+                    this.setMode('text');
+                }
+            },
+
+            stopWebcam() {
+                if (this.webcamStream) {
+                    this.webcamStream.getTracks().forEach(track => track.stop());
+                    this.webcamStream = null;
+                    const video = document.getElementById('webcamVideo');
+                    video.srcObject = null;
+                }
             },
 
             updateEstimatedFrames() {
@@ -761,6 +827,241 @@
                 this.maxFrames = estimatedFrames;
                 document.getElementById('estimatedFrames').textContent = estimatedFrames;
                 document.getElementById('maxFrames').textContent = estimatedFrames;
+            },
+
+            queuePromptUpdate() {
+                // Store the pending update
+                this.pendingPromptUpdate = {
+                    prompt: document.getElementById('prompt').value,
+                    num_blocks: parseInt(document.getElementById('numBlocks').value)
+                };
+
+                // Clear existing timer
+                if (this.promptUpdateTimer) {
+                    clearTimeout(this.promptUpdateTimer);
+                }
+
+                // Set new timer to send update after 2 seconds
+                this.promptUpdateTimer = setTimeout(() => {
+                    if (this.pendingPromptUpdate && this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        const encoded = createMsgpackEncoder(this.pendingPromptUpdate);
+                        this.ws.send(encoded);
+                        this.maxFrames = (12 * this.pendingPromptUpdate.num_blocks) - 6;
+                        document.getElementById('maxFrames').textContent = this.maxFrames;
+                        console.log('Sent prompt update:', this.pendingPromptUpdate);
+                        this.pendingPromptUpdate = null;
+                    }
+                }, 2000);
+            },
+
+            async handleVideoUpload(event) {
+                const file = event.target.files?.[0];
+                if (!file) return;
+
+                this.currentVideoFile = file;
+                const video = document.getElementById('hiddenVideo');
+                const url = URL.createObjectURL(file);
+
+                return new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        this.videoMetadata = {
+                            duration: video.duration,
+                            width: video.videoWidth,
+                            height: video.videoHeight
+                        };
+                        
+                        document.getElementById('videoInfo').innerHTML = `
+                            ${file.name}<br>
+                            ${this.videoMetadata.width}×${this.videoMetadata.height} • ${this.videoMetadata.duration.toFixed(1)}s
+                        `;
+                        
+                        this.showInfo('Video loaded successfully');
+                        resolve();
+                    };
+
+                    video.onerror = () => {
+                        this.showError('Failed to load video');
+                        this.currentVideoFile = null;
+                        this.videoMetadata = null;
+                    };
+
+                    video.src = url;
+                });
+            },
+
+            async extractVideoFrameBytes() {
+                const video = document.getElementById('hiddenVideo');
+                const canvas = document.getElementById('extractionCanvas');
+                
+                if (!video || !canvas) {
+                    console.error('Video or canvas element not found');
+                    return null;
+                }
+                
+                const ctx = canvas.getContext('2d');
+                canvas.width = 832;
+                canvas.height = 480;
+                
+                // Scale and crop to 832x480
+                const scale = Math.max(832 / video.videoWidth, 480 / video.videoHeight);
+                const scaledWidth = video.videoWidth * scale;
+                const scaledHeight = video.videoHeight * scale;
+                const offsetX = (832 - scaledWidth) / 2;
+                const offsetY = (480 - scaledHeight) / 2;
+                
+                ctx.clearRect(0, 0, 832, 480);
+                ctx.drawImage(video, offsetX, offsetY, scaledWidth, scaledHeight);
+
+                return new Promise((resolve) => {
+                    canvas.toBlob(async (blob) => {
+                        if (!blob) {
+                            console.error('Failed to create blob from canvas');
+                            resolve(null);
+                            return;
+                        }
+                        try {
+                            const arrayBuffer = await blob.arrayBuffer();
+                            const uint8Array = new Uint8Array(arrayBuffer);
+                            resolve(uint8Array);
+                        } catch (error) {
+                            console.error('Failed to convert blob to Uint8Array:', error);
+                            resolve(null);
+                        }
+                    }, 'image/jpeg', 0.9);
+                });
+            },
+
+            async extractWebcamBytes() {
+                const video = document.getElementById('webcamVideo');
+                const canvas = document.getElementById('extractionCanvas');
+                
+                if (!video || !canvas || !video.videoWidth) {
+                    console.error('Webcam not ready');
+                    return null;
+                }
+                
+                const ctx = canvas.getContext('2d');
+                
+                // Set fixed dimensions
+                const targetWidth = 832;
+                const targetHeight = 480;
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                
+                // Calculate source rectangle to crop center 832x480 from webcam
+                const videoWidth = video.videoWidth;
+                const videoHeight = video.videoHeight;
+                
+                // Calculate crop dimensions maintaining aspect ratio
+                const sourceAspect = videoWidth / videoHeight;
+                const targetAspect = targetWidth / targetHeight;
+                
+                let sx, sy, sWidth, sHeight;
+                
+                if (sourceAspect > targetAspect) {
+                    // Video is wider, crop sides
+                    sHeight = videoHeight;
+                    sWidth = videoHeight * targetAspect;
+                    sx = (videoWidth - sWidth) / 2;
+                    sy = 0;
+                } else {
+                    // Video is taller, crop top/bottom
+                    sWidth = videoWidth;
+                    sHeight = videoWidth / targetAspect;
+                    sx = 0;
+                    sy = (videoHeight - sHeight) / 2;
+                }
+                
+                // Draw cropped and scaled image
+                ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
+
+                return new Promise((resolve) => {
+                    canvas.toBlob(async (blob) => {
+                        if (!blob) {
+                            console.error('Failed to create blob from canvas');
+                            resolve(null);
+                            return;
+                        }
+                        try {
+                            const arrayBuffer = await blob.arrayBuffer();
+                            const uint8Array = new Uint8Array(arrayBuffer);
+                            resolve(uint8Array);
+                        } catch (error) {
+                            console.error('Failed to convert blob to Uint8Array:', error);
+                            resolve(null);
+                        }
+                    }, 'image/jpeg', 0.9);
+                });
+            },
+
+            startFrameExtraction() {
+                const inputFps = parseInt(document.getElementById('inputFps').value);
+                const intervalMs = Math.floor(1000 / inputFps);
+                const video = document.getElementById('hiddenVideo');
+                
+                if (this.mode === 'video') {
+                    video.play();
+                }
+                
+                this.frameExtractionInterval = setInterval(async () => {
+                    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                        this.stopFrameExtraction();
+                        return;
+                    }
+
+                    let frameBytes = null;
+                    if (this.mode === 'video') {
+                        if (video.ended) {
+                            video.currentTime = 0;
+                            video.play();
+                        }
+                        frameBytes = await this.extractVideoFrameBytes();
+                    } else if (this.mode === 'webcam') {
+                        frameBytes = await this.extractWebcamBytes();
+                    }
+
+                    if (!frameBytes || frameBytes.length === 0) {
+                        console.warn('Empty frame, skipping');
+                        return;
+                    }
+                    
+                    const strengthValue = parseFloat(document.getElementById('strength').value);
+                    if (isNaN(strengthValue)) {
+                        console.error('Invalid strength value');
+                        return;
+                    }
+                    
+                    const message = {
+                        image: frameBytes,
+                        strength: strengthValue,
+                        timestamp: Date.now()
+                    };
+                    
+                    // For webcam mode, include prompt and num_blocks continually
+                    if (this.mode === 'webcam') {
+                        message.prompt = document.getElementById('prompt').value;
+                        message.num_blocks = parseInt(document.getElementById('numBlocks').value);
+                    }
+                    
+                    if (!(message.image instanceof Uint8Array)) {
+                        console.error('Frame bytes is not a Uint8Array');
+                        return;
+                    }
+                    
+                    const encoded = createMsgpackEncoder(message);
+                    this.ws.send(encoded);
+                }, intervalMs);
+            },
+
+            stopFrameExtraction() {
+                if (this.frameExtractionInterval) {
+                    clearInterval(this.frameExtractionInterval);
+                    this.frameExtractionInterval = null;
+                }
+                
+                const video = document.getElementById('hiddenVideo');
+                video.pause();
+                video.currentTime = 0;
             },
 
             randomizeSeed() {
@@ -855,6 +1156,52 @@
                     width: 832,
                     height: 480
                 };
+
+                // Handle start frame for video and webcam modes
+                if (this.mode === 'video' && this.currentVideoFile) {
+                    try {
+                        const video = document.getElementById('hiddenVideo');
+                        if (!video) {
+                            throw new Error('Video element not found');
+                        }
+                        
+                        video.currentTime = 0;
+                        
+                        await new Promise((resolve, reject) => {
+                            const timeout = setTimeout(() => {
+                                reject(new Error('Video seek timeout'));
+                            }, 5000);
+                            
+                            video.onseeked = () => {
+                                clearTimeout(timeout);
+                                resolve();
+                            };
+                        });
+                        
+                        const startFrame = await this.extractVideoFrameBytes();
+                        if (!startFrame || !(startFrame instanceof Uint8Array)) {
+                            throw new Error('Failed to extract valid start frame');
+                        }
+                        
+                        payload.start_frame = new Uint8Array(startFrame);
+                        console.log('Start frame extracted:', payload.start_frame.length, 'bytes');
+                    } catch (error) {
+                        this.showError(`Failed to extract start frame: ${error.message}`);
+                        return false;
+                    }
+                } else if (this.mode === 'webcam') {
+                    try {
+                        const startFrame = await this.extractWebcamBytes();
+                        if (!startFrame || !(startFrame instanceof Uint8Array)) {
+                            throw new Error('Failed to extract valid start frame from webcam');
+                        }
+                        payload.start_frame = new Uint8Array(startFrame);
+                        console.log('Start frame extracted from webcam:', payload.start_frame.length, 'bytes');
+                    } catch (error) {
+                        this.showError(`Failed to extract start frame from webcam: ${error.message}`);
+                        return false;
+                    }
+                }
                 
                 const seedValue = document.getElementById('seed').value;
                 if (seedValue && seedValue.trim() !== '') {
@@ -862,13 +1209,81 @@
                 } else {
                     payload.seed = Math.floor(Math.random() * (1 << 24));
                 }
+
+                // Clear canvas
+                const canvas = document.getElementById('outputCanvas');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+                
+                this.frameBuffer = [];
+                this.frameCount = 0;
+                document.getElementById('frameCount').textContent = '0';
+                this.updateProgress();
+                
+                this.startRecording();
                 
                 try {
+                    console.log('Sending payload:', {
+                        ...payload,
+                        start_frame: payload.start_frame ? `[${payload.start_frame.length} bytes]` : undefined
+                    });
+                    
                     const encoded = createMsgpackEncoder(payload);
                     this.ws.send(encoded);
                     this.showInfo('Generation started!');
+                    this.isConnected = true;
+                    document.getElementById('statusPill').className = 'status-pill status-connected';
+                    document.getElementById('statusPill').textContent = 'Connected';
+                    
+                    // Start frame extraction for video/webcam modes
+                    if (this.mode === 'video' || this.mode === 'webcam') {
+                        setTimeout(() => this.startFrameExtraction(), 500);
+                    }
+                    
+                    return true;
                 } catch (error) {
                     this.showError('Failed to send parameters: ' + error.message);
+                    return false;
+                }
+            },
+
+            startRecording() {
+                const canvas = document.getElementById('outputCanvas');
+                const fps = parseInt(document.getElementById('playbackFps').value);
+                const stream = canvas.captureStream(fps);
+                
+                this.recordedChunks = [];
+                this.mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9') 
+                        ? 'video/webm;codecs=vp9' 
+                        : 'video/webm'
+                });
+                
+                this.mediaRecorder.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0) {
+                        this.recordedChunks.push(event.data);
+                    }
+                };
+                
+                this.mediaRecorder.start();
+            },
+
+            stopRecording() {
+                if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+                    this.mediaRecorder.stop();
+                }
+            },
+
+            updateProgress() {
+                const progress = Math.min(100, (this.frameCount / this.maxFrames) * 100);
+                document.getElementById('progressFill').style.width = progress + '%';
+                
+                // Auto-disconnect when reaching max frames
+                if (this.frameCount >= this.maxFrames && this.isGenerating) {
+                    this.showInfo(`Reached maximum frames (${this.maxFrames}). Disconnecting...`);
+                    setTimeout(() => this.disconnect(), 1000);
                 }
             },
 
@@ -926,6 +1341,7 @@
                     clearInterval(this.playbackInterval);
                     this.playbackInterval = null;
                 }
+                this.stopWebcam();
                 this.isGenerating = false;
                 this.updateUI();
             },
