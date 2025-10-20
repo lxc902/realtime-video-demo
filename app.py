@@ -17,7 +17,7 @@ templates = Jinja2Templates(directory=".")
 OAUTH_CLIENT_ID = os.getenv("OAUTH_CLIENT_ID")
 OAUTH_CLIENT_SECRET = os.getenv("OAUTH_CLIENT_SECRET")
 OAUTH_SCOPES = os.getenv("OAUTH_SCOPES", "openid profile")
-SPACE_HOST = os.getenv("SPACE_HOST", "multimodalart-krea-realtime-video.hf.space")
+SPACE_HOST = os.getenv("SPACE_HOST", "localhost:7860")
 OPENID_PROVIDER_URL = os.getenv("OPENID_PROVIDER_URL", "https://huggingface.co")
 
 # FAL API Key from environment
@@ -31,14 +31,18 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sessions (
+        CREATE TABLE IF NOT EXISTS generations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL,
             is_pro BOOLEAN NOT NULL,
-            session_date DATE NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(username, session_date)
+            generation_date DATE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
+    """)
+    # Create index for faster queries
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_username_date 
+        ON generations(username, generation_date)
     """)
     conn.commit()
     conn.close()
@@ -46,38 +50,34 @@ def init_db():
 init_db()
 
 def get_daily_usage(username: str, date: str = None) -> int:
-    """Get number of sessions used today by user"""
+    """Get number of generations used today by user"""
     if date is None:
         date = datetime.now().date().isoformat()
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT COUNT(*) FROM sessions WHERE username = ? AND session_date = ?",
+        "SELECT COUNT(*) FROM generations WHERE username = ? AND generation_date = ?",
         (username, date)
     )
     count = cursor.fetchone()[0]
     conn.close()
     return count
 
-def record_session(username: str, is_pro: bool):
-    """Record a new session"""
+def record_generation(username: str, is_pro: bool):
+    """Record a new generation - called every time user clicks 'Start Generation'"""
     date = datetime.now().date().isoformat()
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    try:
-        cursor.execute(
-            "INSERT INTO sessions (username, is_pro, session_date) VALUES (?, ?, ?)",
-            (username, is_pro, date)
-        )
-        conn.commit()
-    except sqlite3.IntegrityError:
-        pass
-    finally:
-        conn.close()
+    cursor.execute(
+        "INSERT INTO generations (username, is_pro, generation_date) VALUES (?, ?, ?)",
+        (username, is_pro, date)
+    )
+    conn.commit()
+    conn.close()
 
-def can_start_session(username: str, is_pro: bool) -> tuple[bool, int, int]:
-    """Check if user can start a new session. Returns (can_start, used, limit)"""
+def can_start_generation(username: str, is_pro: bool) -> tuple[bool, int, int]:
+    """Check if user can start a new generation. Returns (can_start, used, limit)"""
     used = get_daily_usage(username)
     limit = 15 if is_pro else 1
     return used < limit, used, limit
@@ -148,7 +148,7 @@ async def home(request: Request, access_token: Optional[str] = Cookie(None)):
         response.delete_cookie("access_token")
         return response
     
-    can_start, used, limit = can_start_session(user_info["username"], user_info["is_pro"])
+    can_start, used, limit = can_start_generation(user_info["username"], user_info["is_pro"])
     
     return templates.TemplateResponse("index.html", {
         "request": request,
@@ -192,7 +192,7 @@ async def oauth_callback(code: str, state: Optional[str] = None):
 
 @app.post("/api/start-session")
 async def start_session(access_token: Optional[str] = Cookie(None)):
-    """Start a new generation session"""
+    """Start a new generation - counts towards daily limit"""
     if not access_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -201,19 +201,23 @@ async def start_session(access_token: Optional[str] = Cookie(None)):
     except:
         raise HTTPException(status_code=401, detail="Invalid session")
     
-    can_start, used, limit = can_start_session(user_info["username"], user_info["is_pro"])
+    can_start, used, limit = can_start_generation(user_info["username"], user_info["is_pro"])
     
     if not can_start:
         raise HTTPException(
             status_code=429,
-            detail=f"Daily limit reached. You've used {used}/{limit} sessions today."
+            detail=f"Daily limit reached. You've used {used}/{limit} generations today."
         )
     
-    record_session(user_info["username"], user_info["is_pro"])
+    # Record this generation
+    record_generation(user_info["username"], user_info["is_pro"])
+    
+    # Get updated count
+    new_count = get_daily_usage(user_info["username"])
     
     return {
         "success": True,
-        "sessions_used": used + 1,
+        "sessions_used": new_count,
         "sessions_limit": limit
     }
 
@@ -228,7 +232,7 @@ async def check_limits(access_token: Optional[str] = Cookie(None)):
     except:
         raise HTTPException(status_code=401, detail="Invalid session")
     
-    can_start, used, limit = can_start_session(user_info["username"], user_info["is_pro"])
+    can_start, used, limit = can_start_generation(user_info["username"], user_info["is_pro"])
     
     return {
         "can_start": can_start,
@@ -275,7 +279,7 @@ async def websocket_video_gen(websocket: WebSocket):
         return
     
     # Check if user can start session
-    can_start, used, limit = can_start_session(user_info["username"], user_info["is_pro"])
+    can_start, used, limit = can_start_generation(user_info["username"], user_info["is_pro"])
     if not can_start:
         await websocket.close(code=1008, reason=f"Daily limit reached ({used}/{limit})")
         return
