@@ -17,9 +17,12 @@ RUN pip install --no-cache-dir \
 # Create data directory with proper permissions
 RUN mkdir -p /data && chown -R user:user /data
 
-# Copy application files directly to /app
+# Copy application files
 COPY --chown=user:user app.py /app/
 COPY --chown=user:user index.html /app/
+
+# Debug: List files to verify they were copied
+RUN ls -la /app/
 
 # Switch to user
 USER user
