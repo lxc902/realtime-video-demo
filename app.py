@@ -231,6 +231,18 @@ async def auth_exchange(request: Request, code: str, state: str, hf_oauth_state:
             "namespace": user_info["username"]
         })
         response.delete_cookie("hf_oauth_state")
+
+        # Also set access_token cookie for WebSocket authentication
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            samesite="none",
+            secure=True,
+            max_age=30 * 24 * 60 * 60,
+            path="/"
+        )
+
         return response
 
     except Exception as e:

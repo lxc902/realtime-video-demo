@@ -154,7 +154,7 @@
             border-radius: 8px;
             border: 1px solid #d6d3d1;
             padding: 15px 20px;
-            margin-bottom: 20px;
+            margin-top: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -552,21 +552,6 @@
 
         <!-- App Container (Grayed out when not authenticated) -->
         <div id="appContainer">
-            <!-- User Bar (Hidden when not authenticated) -->
-            <div id="userBar" class="user-bar hidden">
-                <div class="user-info">
-                    <img id="userAvatar" src="" alt="Avatar" class="user-avatar">
-                    <div class="user-details">
-                        <h3 id="userFullname" style="font-size: 1rem; margin-bottom: 3px;"></h3>
-                        <span id="userBadge" class="user-badge"></span>
-                    </div>
-                </div>
-                <div style="text-align: right;">
-                    <div id="usageInfo" class="usage-info" style="font-size: 0.85rem; color: #78716c;"></div>
-                    <button class="btn-logout" onclick="auth.logout()">Logout</button>
-                </div>
-            </div>
-
             <!-- Limit Warning (Hidden by default) -->
             <div id="limitWarning" class="limit-warning hidden">
                 <h3 style="color: #991b1b; margin-bottom: 10px;">Daily Limit Reached</h3>
@@ -582,8 +567,9 @@
                     <a href="https://huggingface.co/krea/krea-realtime-video" target="_blank" class="header-link">Model on Hugging Face</a>
                     <span style="color: #d6d3d1;">•</span>
                     <a href="https://github.com/krea-ai/realtime-video" target="_blank" class="header-link">GitHub Repository</a>
+                    <span style="color: #d6d3d1;">•</span>
+                    <a href="https://fal.ai/models/fal-ai/krea/realtime-video" target="_blank" class="header-link">FAL API</a>
                 </div>
-                <p class="subtitle">Self-Forcing Diffusion with Dynamic Prompt Rewriting • 832×480 Fixed Resolution</p>
             </header>
 
             <!-- Video Grid: Webcam Left, Output Right -->
@@ -708,6 +694,20 @@
                 <div id="errorBox" class="error-box hidden"></div>
                 <div id="infoBox" class="info-box hidden"></div>
             </div>
+
+            <!-- User Bar (Hidden when not authenticated) -->
+            <div id="userBar" class="user-bar hidden">
+                <div class="user-info">
+                    <img id="userAvatar" src="" alt="Avatar" class="user-avatar">
+                    <div class="user-details">
+                        <h3 id="userFullname" style="font-size: 1rem; margin-bottom: 3px;"></h3>
+                        <span id="userBadge" class="user-badge"></span>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <button class="btn-logout" onclick="auth.logout()">Logout</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -821,9 +821,6 @@
                 const badge = document.getElementById('userBadge');
                 badge.textContent = this.user.is_pro ? 'PRO' : 'FREE';
                 badge.className = 'user-badge ' + (this.user.is_pro ? 'badge-pro' : 'badge-free');
-
-                document.getElementById('usageInfo').textContent =
-                    `Generations: ${this.sessionsUsed}/${this.sessionsLimit} today`;
 
                 // Show/hide limit warning
                 if (!this.canStart) {
@@ -1139,8 +1136,6 @@
                         auth.sessionsUsed = sessionData.sessions_used;
                         auth.sessionsLimit = sessionData.sessions_limit;
                         auth.canStart = sessionData.sessions_used < sessionData.sessions_limit;
-                        document.getElementById('usageInfo').textContent =
-                            `Generations: ${auth.sessionsUsed}/${auth.sessionsLimit} today`;
                     } catch (error) {
                         this.showError('Failed to start session');
                         return;
