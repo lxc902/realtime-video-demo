@@ -17,7 +17,7 @@ templates = Jinja2Templates(directory=".")
 OAUTH_CLIENT_ID = os.getenv("OAUTH_CLIENT_ID")
 OAUTH_CLIENT_SECRET = os.getenv("OAUTH_CLIENT_SECRET")
 OAUTH_SCOPES = os.getenv("OAUTH_SCOPES", "openid profile")
-SPACE_HOST = os.getenv("SPACE_HOST", "multimodalart-krea-realtime-video.hf.space")
+SPACE_HOST = os.getenv("SPACE_HOST", "localhost:7860")
 OPENID_PROVIDER_URL = os.getenv("OPENID_PROVIDER_URL", "https://huggingface.co")
 
 # FAL API Key from environment
