@@ -221,7 +221,7 @@
             <h2>🤗 Sign in with Hugging Face</h2>
             <p>Authenticate with your Hugging Face account to start generating videos</p>
             
-            <a href="https://huggingface.co/oauth/authorize?client_id={{ oauth_client_id }}&redirect_uri=https://{{ space_host }}/oauth/callback&scope=openid%20profile&state={{ range(10000, 99999) | random }}" 
+            <a href="https://huggingface.co/oauth/authorize?response_type=code&client_id={{ oauth_client_id }}&redirect_uri=https://{{ space_host }}/oauth/callback&scope=openid%20profile&state={{ range(10000, 99999) | random }}" 
                class="btn btn-primary"
                target="_blank">
                 Sign in with Hugging Face
