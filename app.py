@@ -83,15 +83,29 @@ def can_start_generation(username: str, is_pro: bool) -> tuple[bool, int, int]:
     return used < limit, used, limit
 
 def get_origin_from_request(request: Request) -> str:
-    """Get the origin (scheme + host) from the request, with fallback to SPACE_HOST"""
-    # Try to get from request URL (works for both huggingface.co/spaces and .hf.space)
-    base_url = str(request.base_url).rstrip('/')
-    if base_url and base_url != "http://":
-        return base_url
+    """Get the origin (scheme + host) from the request, detecting HTTPS from proxy headers"""
+    # Check proxy headers for original protocol (common when behind reverse proxy)
+    proto = request.headers.get("X-Forwarded-Proto", "")
+    ssl = request.headers.get("X-Forwarded-Ssl", "")
 
-    # Fallback to SPACE_HOST environment variable
-    scheme = request.url.scheme or "https"
-    return f"{scheme}://{SPACE_HOST}"
+    # Get host from headers (handles both direct access and proxy)
+    host = request.headers.get("X-Forwarded-Host") or request.headers.get("Host") or ""
+
+    # Determine scheme
+    if proto == "https" or ssl == "on":
+        scheme = "https"
+    elif ".hf.space" in host or "huggingface.co" in host:
+        # Force HTTPS for Hugging Face domains (they always serve over HTTPS)
+        scheme = "https"
+    else:
+        scheme = request.url.scheme or "https"
+
+    # Build origin URL
+    if host:
+        return f"{scheme}://{host}"
+
+    # Fallback to SPACE_HOST environment variable with HTTPS
+    return f"https://{SPACE_HOST}"
 
 async def exchange_code_for_token(code: str, redirect_uri: str) -> dict:
     """Exchange OAuth code for access token"""
