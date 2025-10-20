@@ -207,6 +207,10 @@
             background: #57534e;
         }
 
+        #spinner, #placeholder {
+            position: absolute;
+        }
+
         /* Main App Layout */
         header {
             text-align: center;
@@ -334,6 +338,7 @@
             border-radius: 12px;
             font-size: 0.75rem;
             font-weight: 500;
+            display: none;
         }
 
         .status-connected {
@@ -748,18 +753,22 @@
                         <div>
                             <span id="statusPill" class="status-pill status-disconnected">Disconnected</span>
                             <span style="margin-left: 15px;">Frames: <strong id="frameCount">0</strong> / <strong id="maxFrames">474</strong></span>
-                            <button id="replayBtn" class="btn btn-secondary hidden" onclick="app.replayVideo()" style="margin-left: 15px; padding: 4px 12px; font-size: 0.75rem;">
-                                Replay
-                            </button>
-                            <button id="downloadBtn" class="btn btn-secondary hidden" onclick="app.downloadVideo()" style="margin-left: 10px; padding: 4px 12px; font-size: 0.75rem;">
-                                Download
-                            </button>
                         </div>
                         <div>
                             <label style="display: inline; margin: 0;">Playback:</label>
                             <input type="range" id="playbackFps" min="8" max="20" value="12" style="width: 100px;">
                             <span class="range-value" id="playbackFpsValue">12 fps</span>
                         </div>
+                    </div>
+
+                    <!-- Video Controls (Replay & Download) -->
+                    <div id="videoControls" class="hidden" style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button id="replayBtn" class="btn btn-secondary" onclick="app.replayVideo()" style="flex: 1;">
+                            Replay
+                        </button>
+                        <button id="downloadBtn" class="btn btn-secondary" onclick="app.downloadVideo()" style="flex: 1;">
+                            Download
+                        </button>
                     </div>
 
                     <div class="progress-bar">
@@ -1416,11 +1425,10 @@
                     this.allFrames = [];
                     this.updateUI();
 
-                    // Show spinner, hide placeholder, replay and download buttons
+                    // Show spinner, hide placeholder and video controls
                     document.getElementById('spinner').classList.remove('hidden');
                     document.getElementById('placeholder').style.display = 'none';
-                    document.getElementById('replayBtn').classList.add('hidden');
-                    document.getElementById('downloadBtn').classList.add('hidden');
+                    document.getElementById('videoControls').classList.add('hidden');
 
                     // Start recording
                     this.startRecording();
@@ -1600,9 +1608,8 @@
                     statusPill.className = 'status-pill status-finished';
                     statusPill.textContent = 'Finished';
 
-                    // Show replay and download buttons
-                    document.getElementById('replayBtn').classList.remove('hidden');
-                    document.getElementById('downloadBtn').classList.remove('hidden');
+                    // Show video controls (replay and download)
+                    document.getElementById('videoControls').classList.remove('hidden');
 
                     // Disconnect to clean up (will trigger onclose which resets UI)
                     setTimeout(() => {
