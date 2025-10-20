@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir \
 # Create data directory with proper permissions
 RUN mkdir -p /data && chown -R user:user /data
 
-# Copy application files
+# Copy application files directly to /app
 COPY --chown=user:user app.py /app/
 COPY --chown=user:user index.html /app/
 
@@ -27,4 +27,3 @@ USER user
 EXPOSE 7860
 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
-
