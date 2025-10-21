@@ -490,6 +490,7 @@ async def websocket_video_gen(websocket: WebSocket, user_fal_key: Optional[str] 
                         await fal_ws.send(data)
                 except Exception as e:
                     print(f"Client to FAL error: {e}")
+                    raise  # Re-raise to stop both coroutines
 
             async def fal_to_client():
                 try:
@@ -503,13 +504,18 @@ async def websocket_video_gen(websocket: WebSocket, user_fal_key: Optional[str] 
                             await websocket.send_bytes(message)
                 except Exception as e:
                     print(f"FAL to client error: {e}")
+                    raise  # Re-raise to stop both coroutines
 
-            # Run both directions concurrently
+            # Run both directions concurrently - if either fails, both stop
             import asyncio
-            await asyncio.gather(
-                client_to_fal(),
-                fal_to_client()
-            )
+            try:
+                await asyncio.gather(
+                    client_to_fal(),
+                    fal_to_client()
+                )
+            except Exception:
+                # One direction failed, close everything
+                pass
     except Exception as e:
         print(f"WebSocket proxy error: {e}")
         await websocket.close(code=1011, reason=str(e))
