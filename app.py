@@ -427,58 +427,58 @@ async def websocket_video_gen(websocket: WebSocket, user_fal_key: Optional[str] 
     active_websockets.add(websocket)
     print(f"WebSocket connected. Active connections: {len(active_websockets)}")
 
-    # Get user from cookie
-    access_token = websocket.cookies.get("access_token")
-    if not access_token:
-        await websocket.close(code=1008, reason="Not authenticated")
-        return
-
     try:
-        user_info = await get_user_info(access_token)
-    except:
-        await websocket.close(code=1008, reason="Invalid session")
-        return
-
-    # If user provided their own FAL key, use it (bypass limits)
-    if user_fal_key:
-        fal_key_to_use = user_fal_key
-    else:
-        # Check if user can start session with server FAL key
-        can_start, used, limit = can_start_generation(user_info["username"], user_info["is_pro"])
-        if not can_start:
-            await websocket.close(code=1008, reason=f"Daily limit reached ({used}/{limit})")
+        # Get user from cookie
+        access_token = websocket.cookies.get("access_token")
+        if not access_token:
+            await websocket.close(code=1008, reason="Not authenticated")
             return
 
-        if not FAL_API_KEY:
-            await websocket.close(code=1011, reason="FAL API key not configured")
+        try:
+            user_info = await get_user_info(access_token)
+        except:
+            await websocket.close(code=1008, reason="Invalid session")
             return
 
-        fal_key_to_use = FAL_API_KEY
+        # If user provided their own FAL key, use it (bypass limits)
+        if user_fal_key:
+            fal_key_to_use = user_fal_key
+        else:
+            # Check if user can start session with server FAL key
+            can_start, used, limit = can_start_generation(user_info["username"], user_info["is_pro"])
+            if not can_start:
+                await websocket.close(code=1008, reason=f"Daily limit reached ({used}/{limit})")
+                return
 
-    # Fetch temporary FAL token
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://rest.alpha.fal.ai/tokens/",
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Key {fal_key_to_use}"
-                },
-                json={
-                    "allowed_apps": ["krea-wan-14b"],
-                    "token_expiration": 5000
-                }
-            )
-            response.raise_for_status()
-            fal_token = response.json()
-    except Exception as e:
-        await websocket.close(code=1011, reason=f"Failed to get FAL token: {str(e)}")
-        return
+            if not FAL_API_KEY:
+                await websocket.close(code=1011, reason="FAL API key not configured")
+                return
+
+            fal_key_to_use = FAL_API_KEY
+
+        # Fetch temporary FAL token
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://rest.alpha.fal.ai/tokens/",
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Key {fal_key_to_use}"
+                    },
+                    json={
+                        "allowed_apps": ["krea-wan-14b"],
+                        "token_expiration": 5000
+                    }
+                )
+                response.raise_for_status()
+                fal_token = response.json()
+        except Exception as e:
+            await websocket.close(code=1011, reason=f"Failed to get FAL token: {str(e)}")
+            return
     
-    # Connect to FAL WebSocket
-    fal_ws_url = f"wss://fal.run/fal-ai/krea-wan-14b/ws?fal_jwt_token={fal_token}"
+        # Connect to FAL WebSocket
+        fal_ws_url = f"wss://fal.run/fal-ai/krea-wan-14b/ws?fal_jwt_token={fal_token}"
 
-    try:
         async with websockets.connect(fal_ws_url) as fal_ws:
             # Relay messages between client and FAL
             async def client_to_fal():
@@ -520,6 +520,6 @@ async def websocket_video_gen(websocket: WebSocket, user_fal_key: Optional[str] 
         print(f"WebSocket proxy error: {e}")
         await websocket.close(code=1011, reason=str(e))
     finally:
-        # Remove from active connections
+        # Remove from active connections - ALWAYS executes
         active_websockets.discard(websocket)
         print(f"WebSocket disconnected. Active connections: {len(active_websockets)}")
