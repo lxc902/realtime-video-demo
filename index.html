@@ -1210,6 +1210,8 @@
             promptUpdateTimer: null,
             pendingPromptUpdate: null,
             generationFinished: false,
+            idleTimeout: null,
+            lastFrameTime: null,
 
             init() {
                 this.setupEventListeners();
@@ -1449,6 +1451,7 @@
 
                         this.ws.onopen = () => {
                             this.showInfo('Connected! Waiting for ready signal...');
+                            this.startIdleTimeout();
                         };
 
                         this.ws.onmessage = async (event) => {
@@ -1589,6 +1592,9 @@
                 this.allFrames.push(imageData); // Store raw data for replay
                 this.frameCount++;
                 document.getElementById('frameCount').textContent = this.frameCount;
+
+                // Reset idle timeout on every frame
+                this.startIdleTimeout();
 
                 if (this.frameCount === 1) {
                     document.getElementById('spinner').classList.add('hidden');
@@ -1893,7 +1899,31 @@
                 }
             },
 
+            startIdleTimeout() {
+                // Clear existing timeout
+                if (this.idleTimeout) {
+                    clearTimeout(this.idleTimeout);
+                }
+
+                // Set new timeout - disconnect after 15 seconds of no frames
+                this.idleTimeout = setTimeout(() => {
+                    if (this.isGenerating) {
+                        this.showError('The FAL API server is too busy, try again soon!');
+                        this.disconnect();
+                    }
+                }, 15000);
+            },
+
+            clearIdleTimeout() {
+                if (this.idleTimeout) {
+                    clearTimeout(this.idleTimeout);
+                    this.idleTimeout = null;
+                }
+            },
+
             disconnect() {
+                this.clearIdleTimeout();
+
                 if (this.ws) {
                     this.ws.close();
                     this.ws = null;

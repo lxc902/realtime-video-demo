@@ -14,6 +14,9 @@ import websockets
 app = FastAPI()
 templates = Jinja2Templates(directory=".")
 
+# Track active WebSocket connections
+active_websockets = set()
+
 # OAuth configuration from HF Spaces environment
 OAUTH_CLIENT_ID = os.getenv("OAUTH_CLIENT_ID")
 OAUTH_CLIENT_SECRET = os.getenv("OAUTH_CLIENT_SECRET")
@@ -420,6 +423,10 @@ async def websocket_video_gen(websocket: WebSocket, user_fal_key: Optional[str] 
 
     await websocket.accept()
 
+    # Track this connection
+    active_websockets.add(websocket)
+    print(f"WebSocket connected. Active connections: {len(active_websockets)}")
+
     # Get user from cookie
     access_token = websocket.cookies.get("access_token")
     if not access_token:
@@ -470,7 +477,7 @@ async def websocket_video_gen(websocket: WebSocket, user_fal_key: Optional[str] 
     
     # Connect to FAL WebSocket
     fal_ws_url = f"wss://fal.run/fal-ai/krea-wan-14b/ws?fal_jwt_token={fal_token}"
-    
+
     try:
         async with websockets.connect(fal_ws_url) as fal_ws:
             # Relay messages between client and FAL
@@ -483,7 +490,7 @@ async def websocket_video_gen(websocket: WebSocket, user_fal_key: Optional[str] 
                         await fal_ws.send(data)
                 except Exception as e:
                     print(f"Client to FAL error: {e}")
-            
+
             async def fal_to_client():
                 try:
                     while True:
@@ -496,7 +503,7 @@ async def websocket_video_gen(websocket: WebSocket, user_fal_key: Optional[str] 
                             await websocket.send_bytes(message)
                 except Exception as e:
                     print(f"FAL to client error: {e}")
-            
+
             # Run both directions concurrently
             import asyncio
             await asyncio.gather(
@@ -506,3 +513,7 @@ async def websocket_video_gen(websocket: WebSocket, user_fal_key: Optional[str] 
     except Exception as e:
         print(f"WebSocket proxy error: {e}")
         await websocket.close(code=1011, reason=str(e))
+    finally:
+        # Remove from active connections
+        active_websockets.discard(websocket)
+        print(f"WebSocket disconnected. Active connections: {len(active_websockets)}")
