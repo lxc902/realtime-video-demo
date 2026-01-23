@@ -760,6 +760,9 @@
         const app = {
             mode: 'webcam',
             isGenerating: false,
+            useHttpMode: true,  // 默认使用 HTTP 模式（更兼容）
+            httpSessionId: null,
+            httpPollingInterval: null,
             frameCount: 0,
             maxFrames: 474,
             ws: null,
@@ -966,89 +969,261 @@
                     // Start recording
                     this.startRecording();
 
-                    // Connect to backend WebSocket proxy
-                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    let wsUrl = `${protocol}//${window.location.host}/ws/video-gen`;
+                    // 选择连接模式：HTTP 或 WebSocket
+                    if (this.useHttpMode) {
+                        // HTTP 轮询模式
+                        await this.startHttpGeneration();
+                    } else {
+                        // WebSocket 模式
+                        await this.startWebSocketGeneration();
+                    }
+                }
+            },
 
-                    // If user has their own FAL key, pass it as query param
-                    const userFalKey = localStorage.getItem(FAL_KEY_STORAGE);
-                    if (userFalKey) {
-                        wsUrl += `?user_fal_key=${encodeURIComponent(userFalKey)}`;
+            async startHttpGeneration() {
+                try {
+                    this.showInfo('Starting HTTP generation...');
+                    
+                    // 准备初始参数
+                    const payload = {
+                        prompt: document.getElementById('prompt').value,
+                        num_blocks: parseInt(document.getElementById('numBlocks').value),
+                        num_denoising_steps: 4,
+                        strength: parseFloat(document.getElementById('strength').value) || 0.45
+                    };
+
+                    // 获取起始帧（webcam 或 video 模式）
+                    if (this.mode === 'webcam' && this.webcamStream) {
+                        const frame = await this.captureWebcamFrame();
+                        if (frame) {
+                            payload.start_frame = this.arrayBufferToBase64(frame);
+                        }
+                    } else if (this.mode === 'video' && this.currentVideoFile) {
+                        const frame = await this.captureVideoFrame();
+                        if (frame) {
+                            payload.start_frame = this.arrayBufferToBase64(frame);
+                        }
+                    }
+
+                    // 开始生成
+                    const response = await fetch('/api/generate/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    this.httpSessionId = data.session_id;
+                    this.showInfo(`Generation started (session: ${this.httpSessionId})`);
+
+                    // 开始轮询获取帧
+                    this.startHttpPolling();
+
+                    // 如果是 webcam/video 模式，开始发送帧
+                    if (this.mode === 'webcam' || this.mode === 'video') {
+                        this.startHttpFrameSending();
+                    }
+
+                } catch (error) {
+                    this.showError('Failed to start: ' + error.message);
+                    console.error('HTTP generation error:', error);
+                    this.isGenerating = false;
+                    this.updateUI();
+                }
+            },
+
+            startHttpPolling() {
+                // 每 200ms 轮询获取新帧
+                this.httpPollingInterval = setInterval(async () => {
+                    if (!this.httpSessionId || !this.isGenerating) {
+                        this.stopHttpPolling();
+                        return;
                     }
 
                     try {
-                        this.ws = new WebSocket(wsUrl);
-                        this.ws.binaryType = 'arraybuffer';
-
-                        this.ws.onopen = () => {
-                            this.showInfo('Connected! Waiting for ready signal...');
-                            this.startIdleTimeout();
-                        };
-
-                        this.ws.onmessage = async (event) => {
-                            if (typeof event.data === 'string') {
-                                try {
-                                    const data = JSON.parse(event.data);
-                                    if (data.status === 'ready') {
-                                        this.showInfo('Ready - sending parameters...');
-                                        await this.sendInitialParams();
-                                    } else if (data.error) {
-                                        this.showError(`Server error: ${JSON.stringify(data.error)}`);
-                                        this.disconnect();
-                                    }
-                                } catch (e) {
-                                    console.error('WebSocket message parse error:', e);
-                                }
-                            } else if (event.data instanceof ArrayBuffer) {
-                                await this.displayFrame(event.data);
+                        const response = await fetch(`/api/generate/frames/${this.httpSessionId}?count=5`);
+                        if (!response.ok) {
+                            if (response.status === 404) {
+                                this.stopHttpPolling();
+                                return;
                             }
-                        };
+                            return;
+                        }
 
-                        this.ws.onerror = (error) => {
-                            this.showError('WebSocket connection error');
-                            console.error('WebSocket error:', error);
-                        };
+                        const data = await response.json();
+                        
+                        // 显示帧
+                        for (const frameBase64 of data.frames) {
+                            const frameBytes = this.base64ToArrayBuffer(frameBase64);
+                            await this.displayFrame(frameBytes);
+                        }
 
-                        this.ws.onclose = (event) => {
-                            // Force state reset
-                            this.isGenerating = false;
-                            this.ws = null;
-
-                            // Stop all processes
-                            this.stopFrameExtraction();
-                            this.stopRecording();
-                            this.stopPlaybackLoop();
-
-                            // Update UI immediately
-                            const btn = document.getElementById('startStopBtn');
-                            if (btn) {
-                                btn.textContent = 'Start Generation';
-                                btn.className = 'btn btn-primary';
-                                btn.disabled = false;
-                            }
-
-                            // Update status - only if not already finished
-                            if (!this.generationFinished) {
-                                const statusPill = document.getElementById('statusPill');
-                                if (statusPill) {
-                                    statusPill.className = 'status-pill status-disconnected';
-                                    statusPill.textContent = 'Disconnected';
-                                }
-                                this.showInfo(`Disconnected: ${event.reason || 'Connection closed'}`);
-                            }
-
-                            // Re-enable mode buttons
-                            ['textModeBtn', 'videoModeBtn', 'webcamModeBtn'].forEach(id => {
-                                const btn = document.getElementById(id);
-                                if (btn) btn.disabled = false;
-                            });
-                        };
-
+                        // 检查是否完成
+                        if (data.complete) {
+                            this.showInfo('Generation complete!');
+                            this.generationFinished = true;
+                            this.stopHttpPolling();
+                            this.disconnect();
+                        }
                     } catch (error) {
-                        this.showError('Failed to connect: ' + error.message);
-                        this.isGenerating = false;
-                        this.updateUI();
+                        console.error('Polling error:', error);
                     }
+                }, 200);
+            },
+
+            startHttpFrameSending() {
+                // 每 200ms 发送一帧（约 5fps）
+                this.frameExtractionInterval = setInterval(async () => {
+                    if (!this.httpSessionId || !this.isGenerating) {
+                        this.stopFrameExtraction();
+                        return;
+                    }
+
+                    try {
+                        let frameBytes = null;
+                        
+                        if (this.mode === 'webcam') {
+                            frameBytes = await this.captureWebcamFrame();
+                        } else if (this.mode === 'video') {
+                            frameBytes = await this.captureVideoFrame();
+                        }
+
+                        if (frameBytes) {
+                            const payload = {
+                                session_id: this.httpSessionId,
+                                image: this.arrayBufferToBase64(frameBytes),
+                                prompt: document.getElementById('prompt').value,
+                                strength: parseFloat(document.getElementById('strength').value) || 0.45
+                            };
+
+                            const response = await fetch('/api/generate/frame', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+
+                            if (!response.ok && response.status === 404) {
+                                this.stopFrameExtraction();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Frame sending error:', error);
+                    }
+                }, 200);
+            },
+
+            stopHttpPolling() {
+                if (this.httpPollingInterval) {
+                    clearInterval(this.httpPollingInterval);
+                    this.httpPollingInterval = null;
+                }
+            },
+
+            arrayBufferToBase64(buffer) {
+                const bytes = new Uint8Array(buffer);
+                let binary = '';
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                return btoa(binary);
+            },
+
+            base64ToArrayBuffer(base64) {
+                const binary = atob(base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                return bytes.buffer;
+            },
+
+            async startWebSocketGeneration() {
+                // Connect to backend WebSocket proxy
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                let wsUrl = `${protocol}//${window.location.host}/ws/video-gen`;
+
+                // If user has their own FAL key, pass it as query param
+                const userFalKey = localStorage.getItem(FAL_KEY_STORAGE);
+                if (userFalKey) {
+                    wsUrl += `?user_fal_key=${encodeURIComponent(userFalKey)}`;
+                }
+
+                try {
+                    this.ws = new WebSocket(wsUrl);
+                    this.ws.binaryType = 'arraybuffer';
+
+                    this.ws.onopen = () => {
+                        this.showInfo('Connected! Waiting for ready signal...');
+                        this.startIdleTimeout();
+                    };
+
+                    this.ws.onmessage = async (event) => {
+                        if (typeof event.data === 'string') {
+                            try {
+                                const data = JSON.parse(event.data);
+                                if (data.status === 'ready') {
+                                    this.showInfo('Ready - sending parameters...');
+                                    await this.sendInitialParams();
+                                } else if (data.error) {
+                                    this.showError(`Server error: ${JSON.stringify(data.error)}`);
+                                    this.disconnect();
+                                }
+                            } catch (e) {
+                                console.error('WebSocket message parse error:', e);
+                            }
+                        } else if (event.data instanceof ArrayBuffer) {
+                            await this.displayFrame(event.data);
+                        }
+                    };
+
+                    this.ws.onerror = (error) => {
+                        this.showError('WebSocket connection error');
+                        console.error('WebSocket error:', error);
+                    };
+
+                    this.ws.onclose = (event) => {
+                        // Force state reset
+                        this.isGenerating = false;
+                        this.ws = null;
+
+                        // Stop all processes
+                        this.stopFrameExtraction();
+                        this.stopRecording();
+                        this.stopPlaybackLoop();
+
+                        // Update UI immediately
+                        const btn = document.getElementById('startStopBtn');
+                        if (btn) {
+                            btn.textContent = 'Start Generation';
+                            btn.className = 'btn btn-primary';
+                            btn.disabled = false;
+                        }
+
+                        // Update status - only if not already finished
+                        if (!this.generationFinished) {
+                            const statusPill = document.getElementById('statusPill');
+                            if (statusPill) {
+                                statusPill.className = 'status-pill status-disconnected';
+                                statusPill.textContent = 'Disconnected';
+                            }
+                            this.showInfo(`Disconnected: ${event.reason || 'Connection closed'}`);
+                        }
+
+                        // Re-enable mode buttons
+                        ['textModeBtn', 'videoModeBtn', 'webcamModeBtn'].forEach(id => {
+                            const btn = document.getElementById(id);
+                            if (btn) btn.disabled = false;
+                        });
+                    };
+
+                } catch (error) {
+                    this.showError('Failed to connect: ' + error.message);
+                    this.isGenerating = false;
+                    this.updateUI();
                 }
             },
 
@@ -1271,6 +1446,15 @@
                 });
             },
 
+            // HTTP 模式使用的帧捕获函数
+            async captureWebcamFrame() {
+                return await this.extractWebcamBytes();
+            },
+
+            async captureVideoFrame() {
+                return await this.extractVideoFrameBytes();
+            },
+
             async extractWebcamBytes() {
                 const video = document.getElementById('webcamVideo');
                 const canvas = document.getElementById('extractionCanvas');
@@ -1455,6 +1639,14 @@
             disconnect() {
                 this.clearIdleTimeout();
 
+                // 清理 HTTP 模式
+                this.stopHttpPolling();
+                if (this.httpSessionId) {
+                    fetch(`/api/generate/stop/${this.httpSessionId}`, { method: 'POST' }).catch(() => {});
+                    this.httpSessionId = null;
+                }
+
+                // 清理 WebSocket 模式
                 if (this.ws) {
                     this.ws.close();
                     this.ws = null;

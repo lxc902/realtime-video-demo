@@ -100,6 +100,176 @@ async def health():
     }
 
 
+# ============================================================
+# RESTful API（HTTP 轮询模式，替代 WebSocket）
+# ============================================================
+import base64
+from fastapi import HTTPException
+from fastapi.responses import Response
+from pydantic import BaseModel
+from typing import Optional, List
+import uuid
+import threading
+
+# 存储活跃的生成会话
+active_sessions = {}
+session_lock = threading.Lock()
+
+class StartGenerationRequest(BaseModel):
+    prompt: str
+    num_blocks: int = 25
+    num_denoising_steps: int = 4
+    strength: float = 0.45
+    seed: Optional[int] = None
+    start_frame: Optional[str] = None  # base64 encoded
+
+class FrameRequest(BaseModel):
+    session_id: str
+    image: Optional[str] = None  # base64 encoded
+    prompt: Optional[str] = None
+    strength: Optional[float] = None
+
+class GenerationSession:
+    def __init__(self, session_id: str, model_instance):
+        self.session_id = session_id
+        self.model = model_instance
+        self.initialized = False
+        self.current_block = 0
+        self.num_blocks = 25
+        self.pending_frames = []  # 待发送的帧
+        self.lock = threading.Lock()
+
+@app.post("/api/generate/start")
+async def api_start_generation(req: StartGenerationRequest):
+    """开始生成会话"""
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded yet")
+    
+    session_id = str(uuid.uuid4())[:8]
+    
+    # 创建会话
+    session = GenerationSession(session_id, model)
+    session.num_blocks = req.num_blocks
+    
+    # 处理起始帧
+    start_frame = None
+    if req.start_frame:
+        start_frame_bytes = base64.b64decode(req.start_frame)
+        start_frame = model.process_frame_bytes(start_frame_bytes)
+    
+    # 初始化生成
+    await asyncio.to_thread(
+        model.initialize_generation,
+        prompt=req.prompt,
+        start_frame=start_frame,
+        num_inference_steps=req.num_denoising_steps,
+        strength=req.strength,
+        seed=req.seed
+    )
+    
+    session.initialized = True
+    
+    # 生成第一个 block
+    frames = await asyncio.to_thread(
+        model.generate_next_block,
+        input_frame=None
+    )
+    
+    # 转换帧为 base64
+    for frame in frames:
+        frame_bytes = model.frame_to_bytes(frame)
+        session.pending_frames.append(base64.b64encode(frame_bytes).decode())
+    
+    session.current_block = 1
+    
+    with session_lock:
+        active_sessions[session_id] = session
+    
+    print(f"[HTTP] Session {session_id} started, generated block 0")
+    
+    return {
+        "session_id": session_id,
+        "status": "started",
+        "frames_ready": len(session.pending_frames)
+    }
+
+@app.post("/api/generate/frame")
+async def api_generate_frame(req: FrameRequest):
+    """发送帧并获取生成的帧"""
+    with session_lock:
+        session = active_sessions.get(req.session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # 更新参数
+    if req.prompt:
+        session.model.prompt = req.prompt
+    if req.strength:
+        session.model.strength = req.strength
+    
+    # 如果有输入帧，生成下一个 block
+    if req.image and session.current_block < session.num_blocks:
+        input_frame_bytes = base64.b64decode(req.image)
+        input_frame = session.model.process_frame_bytes(input_frame_bytes)
+        
+        frames = await asyncio.to_thread(
+            session.model.generate_next_block,
+            input_frame=input_frame
+        )
+        
+        with session.lock:
+            for frame in frames:
+                frame_bytes = session.model.frame_to_bytes(frame)
+                session.pending_frames.append(base64.b64encode(frame_bytes).decode())
+        
+        session.current_block += 1
+    
+    # 返回待发送的帧
+    with session.lock:
+        frames_to_send = session.pending_frames[:5]  # 每次最多返回5帧
+        session.pending_frames = session.pending_frames[5:]
+    
+    return {
+        "session_id": req.session_id,
+        "current_block": session.current_block,
+        "total_blocks": session.num_blocks,
+        "frames": frames_to_send,
+        "complete": session.current_block >= session.num_blocks and len(session.pending_frames) == 0
+    }
+
+@app.get("/api/generate/frames/{session_id}")
+async def api_get_frames(session_id: str, count: int = 5):
+    """获取生成的帧（不发送新输入）"""
+    with session_lock:
+        session = active_sessions.get(session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    with session.lock:
+        frames_to_send = session.pending_frames[:count]
+        session.pending_frames = session.pending_frames[count:]
+    
+    return {
+        "session_id": session_id,
+        "frames": frames_to_send,
+        "frames_remaining": len(session.pending_frames),
+        "complete": session.current_block >= session.num_blocks and len(session.pending_frames) == 0
+    }
+
+@app.post("/api/generate/stop/{session_id}")
+async def api_stop_generation(session_id: str):
+    """停止生成会话"""
+    with session_lock:
+        if session_id in active_sessions:
+            del active_sessions[session_id]
+            print(f"[HTTP] Session {session_id} stopped")
+            return {"status": "stopped"}
+    
+    return {"status": "not_found"}
+
+
 @app.websocket("/ws/video-gen")
 async def websocket_video_gen(websocket: WebSocket):
     """WebSocket 处理 - 使用本地 GPU"""
