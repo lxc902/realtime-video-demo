@@ -22,6 +22,9 @@ export HF_HOME="$SCRIPT_DIR/tmp/.hf_home"
 export HUGGINGFACE_HUB_CACHE="$SCRIPT_DIR/tmp/.hf_home/hub"
 export TRANSFORMERS_CACHE="$SCRIPT_DIR/tmp/.hf_home/transformers"
 
+# PyTorch CUDA 内存优化
+export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True,garbage_collection_threshold:0.6"
+
 # 检查并创建虚拟环境
 if [ ! -d "$VENV_DIR" ]; then
     echo "📦 创建虚拟环境到 $VENV_DIR ..."
