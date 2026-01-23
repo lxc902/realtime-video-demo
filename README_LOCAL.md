@@ -79,6 +79,26 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 在运行终端按 `Ctrl+C` 即可停止服务。
 
+## 备份和恢复模型
+
+### 备份到 Google Cloud Storage
+
+```bash
+bash upload.sh
+```
+
+这会自动打包并上传模型到你的 GCS bucket，生成公开下载链接。
+
+### 从备份恢复
+
+```bash
+bash download.sh
+```
+
+按提示输入备份文件名即可恢复模型。
+
+**注意**: 需要安装 `gsutil` (Google Cloud SDK) 才能使用上传功能。下载功能只需要 `wget`。
+
 ## 许可证
 
 KREA 模型遵循其原始许可证。详见: https://huggingface.co/krea/krea-realtime-video

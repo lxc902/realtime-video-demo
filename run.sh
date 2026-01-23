@@ -131,15 +131,13 @@ if [ "$NEED_INSTALL" = true ]; then
         pip install ftfy -q
     fi
     
-    # Optional: flash-attention for better performance (may take time to compile)
-    echo ""
-    read -p "是否安装 flash-attention? (提升性能但需编译 5-10 分钟) [y/N]: " -n 1 -r
-    echo ""
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "  - Installing flash-attention..."
+    # Optional: flash-attention for better performance
+    if [ "$SKIP_FLASH_ATTN" = false ]; then
+        echo "  - Installing flash-attention (for better performance, ~5-10 min)..."
+        echo "    提示: 使用 'bash run.sh --fast' 可跳过此步骤"
         pip install flash-attn --no-build-isolation 2>&1 | grep -E "(Installing|Successfully|error)" || echo "    (flash-attn install failed, will use standard attention)"
     else
-        echo "  - Skipping flash-attention (will use standard attention)"
+        echo "  - Skipping flash-attention (--fast mode)"
     fi
     
     echo ""
