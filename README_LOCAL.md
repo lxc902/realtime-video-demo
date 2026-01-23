@@ -1,3 +1,14 @@
+使用方法
+直接运行即可，脚本会自动设置好所有路径：
+bash run.sh
+第一次运行时，会：
+创建 ./tmp/venv 虚拟环境
+创建 ./tmp/.hf_home HuggingFace 缓存目录
+下载模型到 ./tmp/.hf_home/hub/（约 14GB）
+启动服务
+现在您不会再遇到磁盘空间不足的问题了！🎉
+
+
 # KREA Realtime Video - 本地 GPU 版本
 
 本项目已修改为使用本地 GPU 运行 KREA 模型，无需 FAL API Key。
@@ -102,3 +113,5 @@ bash download.sh
 ## 许可证
 
 KREA 模型遵循其原始许可证。详见: https://huggingface.co/krea/krea-realtime-video
+
+
