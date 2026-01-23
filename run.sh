@@ -13,13 +13,14 @@ echo "KREA Realtime Video - Local GPU"
 echo "================================="
 echo ""
 
-# 设置虚拟环境路径
-VENV_DIR="./tmp/venv"
+# 设置虚拟环境路径（使用绝对路径）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_DIR="$SCRIPT_DIR/tmp/venv"
 
-# 设置 HuggingFace 缓存目录到本地 tmp
-export HF_HOME="./tmp/.hf_home"
-export HUGGINGFACE_HUB_CACHE="./tmp/.hf_home/hub"
-export TRANSFORMERS_CACHE="./tmp/.hf_home/transformers"
+# 设置 HuggingFace 缓存目录到本地 tmp（必须使用绝对路径）
+export HF_HOME="$SCRIPT_DIR/tmp/.hf_home"
+export HUGGINGFACE_HUB_CACHE="$SCRIPT_DIR/tmp/.hf_home/hub"
+export TRANSFORMERS_CACHE="$SCRIPT_DIR/tmp/.hf_home/transformers"
 
 # 检查并创建虚拟环境
 if [ ! -d "$VENV_DIR" ]; then
