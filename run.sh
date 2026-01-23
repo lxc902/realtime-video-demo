@@ -121,6 +121,11 @@ echo ""
 
 if [ "$NEED_INSTALL" = true ]; then
     echo "📦 Installing missing dependencies..."
+    echo "🔍 调试信息:"
+    echo "   which python3: $(which python3)"
+    echo "   which pip: $(which pip)"
+    echo "   \$PYTHON: $PYTHON"
+    echo "   测试 pip 安装位置: $($PYTHON -m pip --version)"
     echo ""
     
     # Install only what's missing
