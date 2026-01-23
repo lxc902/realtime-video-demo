@@ -104,25 +104,12 @@ class KreaLocalInference:
             except ImportError as e:
                 print(f"   ❌ 量化加载失败: {e}")
                 print("   请确保安装了 bitsandbytes: pip install bitsandbytes")
-                print("   回退到标准加载...")
-                self.pipe.load_components(
-                    trust_remote_code=True,
-                    device_map=device,
-                    torch_dtype={"default": dtype, "vae": torch.float16},
-                )
+                raise RuntimeError(f"量化加载失败，缺少依赖: {e}")
             except Exception as e:
                 print(f"   ❌ 量化加载失败: {e}")
                 import traceback
                 traceback.print_exc()
-                print("   回退到标准加载...")
-                try:
-                    self.pipe.load_components(
-                        trust_remote_code=True,
-                        device_map=device,
-                        torch_dtype={"default": dtype, "vae": torch.float16},
-                    )
-                except:
-                    pass
+                raise RuntimeError(f"量化加载失败: {e}")
         else:
             # 标准加载（无量化）
             self.pipe.load_components(
