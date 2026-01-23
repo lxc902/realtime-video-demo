@@ -49,16 +49,33 @@ app.add_middleware(CSPMiddleware)
 # Track active WebSocket connections
 active_websockets = set()
 
-# 全局模型实例 (懒加载)
+# 全局模型实例
 model = None
 
-def get_or_load_model():
-    """获取或加载模型"""
+def load_model_on_startup():
+    """启动时加载模型"""
     global model
-    if model is None:
-        print("首次加载模型，这可能需要几分钟...")
-        model = get_model()
-    return model
+    print("")
+    print("=" * 60)
+    print("🔥 Loading KREA model to GPU...")
+    print("   This will take 1-2 minutes on first run")
+    print("=" * 60)
+    print("")
+    model = get_model()
+    print("")
+    print("=" * 60)
+    print("✅ Model loaded successfully!")
+    print("🌐 Server is ready to accept connections")
+    print("=" * 60)
+    print("")
+
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时的事件"""
+    import asyncio
+    # 在后台线程加载模型，避免阻塞启动
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, load_model_on_startup)
 
 
 @app.get("/", response_class=HTMLResponse)
