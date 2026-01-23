@@ -12,29 +12,27 @@
 
 ## 快速开始
 
-### 1. 安装依赖
+### 一键启动
 
 ```bash
-bash install_local.sh
+bash run.sh
 ```
 
-这将安装：
-- PyTorch (CUDA 版本)
-- Diffusers (最新开发版)
-- 其他必要依赖
+就这么简单！`run.sh` 会自动：
+1. ✅ 检测并安装所有依赖（首次运行）
+2. ✅ 显示 GPU 信息
+3. ✅ 下载 KREA 模型（首次运行，~14GB）
+4. ✅ 启动服务器
 
-### 2. 启动服务
-
-```bash
-bash start_local.sh
-```
-
-**注意**: 首次运行会自动从 HuggingFace 下载模型 (~14GB)，需要：
+**首次运行需要**：
 - 良好的网络连接
-- 约 5-10 分钟下载时间
+- 约 10-15 分钟（依赖安装 + 模型下载）
 - 足够的磁盘空间 (~20GB)
 
-### 3. 访问界面
+**后续启动**：
+- 只需 1-2 分钟（加载模型到 GPU）
+
+### 访问界面
 
 打开浏览器访问: http://YOUR_SERVER_IP:7860
 
@@ -46,11 +44,10 @@ bash start_local.sh
 
 ## 文件说明
 
+- `run.sh` - 🚀 一键启动脚本（自动安装依赖）
 - `app_local.py` - 使用本地 GPU 的 FastAPI 服务器
 - `local_inference.py` - KREA 模型推理模块
-- `install_local.sh` - 依赖安装脚本
-- `start_local.sh` - 服务启动脚本
-- `app.py` - 原 FAL API 版本 (备份)
+- `app.py` - 原 FAL API 版本 (备份，已废弃)
 
 ## 故障排除
 
@@ -75,13 +72,9 @@ export HF_ENDPOINT=https://hf-mirror.com
 2. 检查是否启用了 `torch.compile`
 3. 减少 `num_inference_steps` (默认 4，可以降到 2)
 
-## 切换回 FAL API 模式
+## 停止服务
 
-如果需要切换回 FAL API:
-```bash
-# 使用原来的启动脚本
-bash start.sh
-```
+在运行终端按 `Ctrl+C` 即可停止服务。
 
 ## 许可证
 
