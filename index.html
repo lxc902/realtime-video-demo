@@ -537,7 +537,7 @@
                     <div class="status-bar">
                         <div>
                             <span id="statusPill" class="status-pill status-disconnected">Disconnected</span>
-                            <span style="margin-left: 15px;">Frames: <strong id="frameCount">0</strong> / <strong id="maxFrames">474</strong></span>
+                            <span style="margin-left: 15px;">Frames: <strong id="frameCount">0</strong> / <strong id="maxFrames">54</strong></span>
                         </div>
                         <div>
                             <label style="display: inline; margin: 0;">Playback:</label>
@@ -602,9 +602,9 @@
                             </div>
 
                             <div class="form-group">
-                                <label>Max Frames (Blocks): <span class="range-value" id="numBlocksValue">25</span> → ~<span id="estimatedFrames">294</span> frames</label>
-                                <input type="range" id="numBlocks" min="10" max="50" step="5" value="25">
-                                <div class="hint">Each block generates ~12 frames</div>
+                                <label>Max Frames (Blocks): <span class="range-value" id="numBlocksValue">5</span> → ~<span id="estimatedFrames">54</span> frames</label>
+                                <input type="range" id="numBlocks" min="3" max="25" step="1" value="5">
+                                <div class="hint">Each block generates ~12 frames (lower = less VRAM)</div>
                             </div>
 
                             <div class="form-group">
@@ -764,7 +764,7 @@
             httpSessionId: null,
             httpPollingInterval: null,
             frameCount: 0,
-            maxFrames: 474,
+            maxFrames: 54,  // 5 blocks * 12 frames - 6
             ws: null,
             frameBuffer: [],
             allFrames: [], // Store all frames for replay
@@ -1037,7 +1037,7 @@
             },
 
             startHttpPolling() {
-                // 每 200ms 轮询获取新帧
+                // 每 333ms 轮询获取新帧（约 3fps）
                 this.httpPollingInterval = setInterval(async () => {
                     if (!this.httpSessionId || !this.isGenerating) {
                         this.stopHttpPolling();
@@ -1072,11 +1072,11 @@
                     } catch (error) {
                         console.error('Polling error:', error);
                     }
-                }, 200);
+                }, 333);  // 约 3fps
             },
 
             startHttpFrameSending() {
-                // 每 200ms 发送一帧（约 5fps）
+                // 每 333ms 发送一帧（约 3fps）
                 this.frameExtractionInterval = setInterval(async () => {
                     if (!this.httpSessionId || !this.isGenerating) {
                         this.stopFrameExtraction();
@@ -1113,7 +1113,7 @@
                     } catch (error) {
                         console.error('Frame sending error:', error);
                     }
-                }, 200);
+                }, 333);  // 约 3fps
             },
 
             stopHttpPolling() {
