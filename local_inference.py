@@ -38,43 +38,76 @@ class KreaLocalInference:
             repo_id = model_path
             print(f"从自定义路径加载: {model_path}")
         
-        # 准备量化配置
-        quantization_config = None
+        # 加载模型
+        self.pipe = ModularPipeline.from_pretrained(repo_id, trust_remote_code=True)
+        
+        # 如果使用量化，需要单独加载 transformer
         if quantization:
             print(f"🔧 启用 {quantization.upper()} 量化...")
             try:
-                from transformers import BitsAndBytesConfig
+                from diffusers import BitsAndBytesConfig as DiffusersBitsAndBytesConfig
+                from diffusers import AutoModel
+                
                 if quantization == "int8":
-                    quantization_config = BitsAndBytesConfig(
-                        load_in_8bit=True,
-                    )
+                    quant_config = DiffusersBitsAndBytesConfig(load_in_8bit=True)
                     print("   使用 8-bit 量化 (预计显存 ~24GB)")
                 elif quantization == "int4":
-                    quantization_config = BitsAndBytesConfig(
+                    quant_config = DiffusersBitsAndBytesConfig(
                         load_in_4bit=True,
                         bnb_4bit_compute_dtype=torch.bfloat16,
                         bnb_4bit_quant_type="nf4",
                     )
                     print("   使用 4-bit 量化 (预计显存 ~12GB)")
-            except ImportError:
-                print("   ❌ 量化需要 bitsandbytes 库")
-                print("   请运行: pip install bitsandbytes")
-                quantization_config = None
-        
-        # 加载模型
-        self.pipe = ModularPipeline.from_pretrained(repo_id, trust_remote_code=True)
-        
-        # 加载组件（带量化配置）
-        load_kwargs = {
-            "trust_remote_code": True,
-            "device_map": device,
-            "torch_dtype": {"default": dtype, "vae": torch.float16},
-        }
-        
-        if quantization_config:
-            load_kwargs["quantization_config"] = quantization_config
-        
-        self.pipe.load_components(**load_kwargs)
+                else:
+                    quant_config = None
+                
+                if quant_config:
+                    # 单独加载量化的 transformer
+                    print("   正在加载量化 transformer...")
+                    transformer_quantized = AutoModel.from_pretrained(
+                        repo_id,
+                        subfolder="transformer",
+                        quantization_config=quant_config,
+                        torch_dtype=dtype,
+                        trust_remote_code=True,
+                    )
+                    
+                    # 加载其他组件（不量化）
+                    print("   正在加载其他组件...")
+                    self.pipe.load_components(
+                        trust_remote_code=True,
+                        device_map=device,
+                        torch_dtype={"default": dtype, "vae": torch.float16},
+                    )
+                    
+                    # 替换 transformer 为量化版本
+                    self.pipe.transformer = transformer_quantized
+                    print("   ✅ 量化 transformer 已加载")
+                    
+            except ImportError as e:
+                print(f"   ❌ 量化加载失败: {e}")
+                print("   请确保安装了 bitsandbytes: pip install bitsandbytes")
+                print("   回退到标准加载...")
+                self.pipe.load_components(
+                    trust_remote_code=True,
+                    device_map=device,
+                    torch_dtype={"default": dtype, "vae": torch.float16},
+                )
+            except Exception as e:
+                print(f"   ❌ 量化加载失败: {e}")
+                print("   回退到标准加载...")
+                self.pipe.load_components(
+                    trust_remote_code=True,
+                    device_map=device,
+                    torch_dtype={"default": dtype, "vae": torch.float16},
+                )
+        else:
+            # 标准加载（无量化）
+            self.pipe.load_components(
+                trust_remote_code=True,
+                device_map=device,
+                torch_dtype={"default": dtype, "vae": torch.float16},
+            )
         
         # 检查关键组件是否加载成功
         if not hasattr(self.pipe, 'transformer') or self.pipe.transformer is None:
@@ -88,9 +121,13 @@ class KreaLocalInference:
                 "  然后重启服务"
             )
         
-        # 优化: 融合投影层
-        for block in self.pipe.transformer.blocks:
-            block.self_attn.fuse_projections()
+        # 优化: 融合投影层（量化模式下跳过，因为不兼容）
+        if not quantization:
+            print("🔧 融合投影层...")
+            for block in self.pipe.transformer.blocks:
+                block.self_attn.fuse_projections()
+        else:
+            print("⚠️  量化模式下跳过 fuse_projections（不兼容）")
         
         print("模型加载完成！")
         
