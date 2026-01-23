@@ -9,7 +9,7 @@ echo ""
 
 # 配置
 BUCKET="gs://lxcpublic"
-MODEL_DIR="/workspace/.hf_home/hub"
+MODEL_DIR="./tmp/.hf_home/hub"  # 使用本地 tmp 目录
 BACKUP_NAME="krea-models-$(date +%Y%m%d-%H%M%S).tar.gz"
 TEMP_DIR="./tmp"  # 使用项目本地目录
 
@@ -78,7 +78,7 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "🔗 使用方式:"
     echo "   wget https://storage.googleapis.com/lxcpublic/$BACKUP_NAME"
-    echo "   tar -xzf $BACKUP_NAME -C /workspace/.hf_home/hub/"
+    echo "   tar -xzf $BACKUP_NAME -C ./tmp/.hf_home/hub/"
     echo ""
     echo "✅ 完成！"
 else

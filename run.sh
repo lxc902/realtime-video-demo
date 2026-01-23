@@ -16,6 +16,11 @@ echo ""
 # 设置虚拟环境路径
 VENV_DIR="./tmp/venv"
 
+# 设置 HuggingFace 缓存目录到本地 tmp
+export HF_HOME="./tmp/.hf_home"
+export HUGGINGFACE_HUB_CACHE="./tmp/.hf_home/hub"
+export TRANSFORMERS_CACHE="./tmp/.hf_home/transformers"
+
 # 检查并创建虚拟环境
 if [ ! -d "$VENV_DIR" ]; then
     echo "📦 创建虚拟环境到 $VENV_DIR ..."
@@ -24,6 +29,10 @@ if [ ! -d "$VENV_DIR" ]; then
     echo "✅ 虚拟环境创建完成"
     echo ""
 fi
+
+# 创建 HuggingFace 缓存目录
+mkdir -p "$HF_HOME"
+echo "📂 HuggingFace 缓存目录: $HF_HOME"
 
 # 激活虚拟环境
 echo "🔧 激活虚拟环境..."

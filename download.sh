@@ -9,7 +9,7 @@ echo ""
 
 # 配置
 BUCKET_URL="https://storage.googleapis.com/lxcpublic"
-TARGET_DIR="/workspace/.hf_home/hub"
+fTARGET_DIR="./tmp/.hf_home/hub"  # 使用本地 tmp 目录
 
 # 显示可用的备份文件
 echo "📋 可用的备份文件:"
