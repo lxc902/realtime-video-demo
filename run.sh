@@ -110,9 +110,20 @@ if [ "$NEED_INSTALL" = true ]; then
         pip install msgpack -q
     fi
     
-    # Install KREA model dependencies
-    echo "  - Installing KREA model dependencies..."
-    pip install einops imageio ftfy -q
+    if ! check_package einops; then
+        echo "  - Installing einops..."
+        pip install einops -q
+    fi
+    
+    if ! check_package imageio; then
+        echo "  - Installing imageio..."
+        pip install imageio -q
+    fi
+    
+    if ! check_package ftfy; then
+        echo "  - Installing ftfy..."
+        pip install ftfy -q
+    fi
     
     # Optional: flash-attention for better performance (may take time to compile)
     echo "  - Installing flash-attention (optional, may take a while)..."

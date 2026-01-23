@@ -45,8 +45,11 @@ class KreaLocalInference:
         )
         
         # 优化: 融合投影层
-        for block in self.pipe.transformer.blocks:
-            block.self_attn.fuse_projections()
+        if hasattr(self.pipe, 'transformer') and self.pipe.transformer is not None:
+            for block in self.pipe.transformer.blocks:
+                block.self_attn.fuse_projections()
+        else:
+            print("警告: transformer 未正确加载，性能可能受影响")
         
         print("模型加载完成！")
         
