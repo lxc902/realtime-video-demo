@@ -52,6 +52,27 @@ else
     echo "  ✓ msgpack"
 fi
 
+if ! check_package einops; then
+    echo "  ❌ einops not found"
+    NEED_INSTALL=true
+else
+    echo "  ✓ einops"
+fi
+
+if ! check_package imageio; then
+    echo "  ❌ imageio not found"
+    NEED_INSTALL=true
+else
+    echo "  ✓ imageio"
+fi
+
+if ! check_package ftfy; then
+    echo "  ❌ ftfy not found"
+    NEED_INSTALL=true
+else
+    echo "  ✓ ftfy"
+fi
+
 echo ""
 
 if [ "$NEED_INSTALL" = true ]; then
