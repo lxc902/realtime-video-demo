@@ -47,14 +47,23 @@ echo ""
 
 # 检查是否安装了 gsutil
 if ! command -v gsutil &> /dev/null; then
-    echo "❌ 错误: gsutil 未安装"
+    echo "⚠️  gsutil 未安装，正在自动安装..."
+    
+    # 优先尝试 pip 安装
+    if command -v pip &> /dev/null; then
+        pip install gsutil
+    elif command -v pip3 &> /dev/null; then
+        pip3 install gsutil
+    else
+        # 回退到 apt 安装
+        apt-get update && apt-get install -y apt-transport-https ca-certificates gnupg curl
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+        echo "deb https://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
+        apt-get update && apt-get install -y google-cloud-sdk
+    fi
+    
+    echo "✅ gsutil 安装完成"
     echo ""
-    echo "请安装 Google Cloud SDK:"
-    echo "  curl https://sdk.cloud.google.com | bash"
-    echo "  exec -l \$SHELL"
-    echo "  gcloud init"
-    echo ""
-    exit 1
 fi
 
 echo "🗜️  正在打包并直接上传（不占用本地空间）..."
