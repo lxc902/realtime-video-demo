@@ -74,7 +74,12 @@ class KreaLocalInference:
                     self.pipe.transformer = transformer_quantized
                     
                     # 2. 获取所有组件名称，排除 transformer
-                    all_component_names = [spec.name for spec in self.pipe._component_specs]
+                    # _component_specs 可能是字符串列表或 ComponentSpec 对象列表
+                    specs = self.pipe._component_specs
+                    if specs and hasattr(specs[0], 'name'):
+                        all_component_names = [spec.name for spec in specs]
+                    else:
+                        all_component_names = list(specs) if specs else []
                     components_to_load = [name for name in all_component_names if name != "transformer"]
                     print(f"   [2/2] 正在加载其他组件: {components_to_load}")
                     
