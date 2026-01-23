@@ -3,11 +3,41 @@ from typing import Optional
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 import httpx
 import websockets
 
 app = FastAPI()
 templates = Jinja2Templates(directory=".")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Add CSP middleware
+class CSPMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        # Only add CSP to HTML responses
+        if "text/html" in response.headers.get("content-type", ""):
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                "font-src 'self' https://fonts.gstatic.com; "
+                "connect-src 'self' wss: https:; "
+                "img-src 'self' data: blob:; "
+                "media-src 'self' blob:;"
+            )
+        return response
+
+app.add_middleware(CSPMiddleware)
 
 # Track active WebSocket connections
 active_websockets = set()
