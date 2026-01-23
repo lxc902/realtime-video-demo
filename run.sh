@@ -2,6 +2,12 @@
 
 set -e  # Exit on error
 
+# Parse arguments
+SKIP_FLASH_ATTN=false
+if [ "$1" = "--fast" ]; then
+    SKIP_FLASH_ATTN=true
+fi
+
 echo "================================="
 echo "KREA Realtime Video - Local GPU"
 echo "================================="
