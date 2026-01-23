@@ -33,8 +33,9 @@ echo "📥 下载模型..."
 echo "   从: $DOWNLOAD_URL"
 echo ""
 
-# 下载到临时目录
-wget -O /tmp/$BACKUP_NAME $DOWNLOAD_URL
+# 下载到临时目录（使用项目本地目录）
+mkdir -p ./tmp
+wget -O ./tmp/$BACKUP_NAME $DOWNLOAD_URL
 
 if [ $? -ne 0 ]; then
     echo "❌ 下载失败"
@@ -48,7 +49,7 @@ echo ""
 # 解压
 echo "📦 解压模型到 $TARGET_DIR ..."
 mkdir -p $TARGET_DIR
-tar -xzf /tmp/$BACKUP_NAME -C $TARGET_DIR
+tar -xzf ./tmp/$BACKUP_NAME -C $TARGET_DIR
 
 echo ""
 echo "✅ 解压完成！"
@@ -56,7 +57,7 @@ echo ""
 
 # 清理
 echo "🧹 清理临时文件..."
-rm /tmp/$BACKUP_NAME
+rm ./tmp/$BACKUP_NAME
 
 echo ""
 echo "✅ 模型恢复完成！"

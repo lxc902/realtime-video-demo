@@ -13,6 +13,23 @@ echo "KREA Realtime Video - Local GPU"
 echo "================================="
 echo ""
 
+# 设置虚拟环境路径
+VENV_DIR="./tmp/venv"
+
+# 检查并创建虚拟环境
+if [ ! -d "$VENV_DIR" ]; then
+    echo "📦 创建虚拟环境到 $VENV_DIR ..."
+    mkdir -p ./tmp
+    python3 -m venv "$VENV_DIR"
+    echo "✅ 虚拟环境创建完成"
+    echo ""
+fi
+
+# 激活虚拟环境
+echo "🔧 激活虚拟环境..."
+source "$VENV_DIR/bin/activate"
+echo ""
+
 # Function to check if a Python package is installed
 check_package() {
     python3 -c "import $1" 2>/dev/null

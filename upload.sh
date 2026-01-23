@@ -11,7 +11,7 @@ echo ""
 BUCKET="gs://lxcpublic"
 MODEL_DIR="/workspace/.hf_home/hub"
 BACKUP_NAME="krea-models-$(date +%Y%m%d-%H%M%S).tar.gz"
-TEMP_DIR="/workspace"  # 使用 /workspace 而不是 /tmp，空间更大
+TEMP_DIR="./tmp"  # 使用项目本地目录
 
 echo "📦 准备打包模型..."
 echo ""
@@ -23,9 +23,10 @@ if [ ! -d "$MODEL_DIR/models--krea--krea-realtime-video" ]; then
     exit 1
 fi
 
-# 检查 /workspace 空间
-AVAILABLE_SPACE=$(df -BG /workspace | tail -1 | awk '{print $4}' | sed 's/G//')
-echo "📊 /workspace 可用空间: ${AVAILABLE_SPACE}GB"
+# 检查 ./tmp 空间
+mkdir -p ./tmp
+AVAILABLE_SPACE=$(df -BG . | tail -1 | awk '{print $4}' | sed 's/G//')
+echo "📊 当前目录可用空间: ${AVAILABLE_SPACE}GB"
 
 if [ "$AVAILABLE_SPACE" -lt 25 ]; then
     echo "⚠️  警告: 空间可能不足，建议至少 25GB"
