@@ -48,7 +48,7 @@ echo ""
 
 # 使用虚拟环境的 Python 和 pip
 PYTHON="$VENV_DIR/bin/python3"
-PIP="$VENV_DIR/bin/pip"
+PIP="$PYTHON -m pip"
 
 # Function to check if a Python package is installed
 check_package() {
@@ -58,7 +58,6 @@ check_package() {
 # Check Python version
 echo "✓ Python: $($PYTHON --version)"
 echo "✓ Python 位置: $($PYTHON -c 'import sys; print(sys.executable)')"
-echo "✓ Pip 位置: $PIP"
 
 # Check CUDA/GPU
 echo "✓ GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)"
