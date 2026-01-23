@@ -15,6 +15,7 @@ import msgpack
 
 # 导入本地推理模块
 from local_inference import get_model
+from config import MODEL_PATH
 
 app = FastAPI()
 templates = Jinja2Templates(directory=".")
@@ -58,10 +59,14 @@ def load_model_on_startup():
     print("")
     print("=" * 60)
     print("🔥 Loading KREA model to GPU...")
+    if MODEL_PATH:
+        print(f"   From: {MODEL_PATH}")
+    else:
+        print("   From: HuggingFace (krea/krea-realtime-video)")
     print("   This will take 1-2 minutes on first run")
     print("=" * 60)
     print("")
-    model = get_model()
+    model = get_model(model_path=MODEL_PATH)
     print("")
     print("=" * 60)
     print("✅ Model loaded successfully!")

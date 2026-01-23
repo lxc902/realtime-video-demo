@@ -11,14 +11,32 @@ import numpy as np
 import io
 
 class KreaLocalInference:
-    def __init__(self, device="cuda", dtype=torch.bfloat16):
-        """初始化本地 KREA 模型"""
+    def __init__(self, device="cuda", dtype=torch.bfloat16, model_path=None):
+        """初始化本地 KREA 模型
+        
+        Args:
+            device: 设备 (cuda/cpu)
+            dtype: 数据类型
+            model_path: 自定义模型路径，可以是：
+                       - 本地路径: "/path/to/model"
+                       - HuggingFace repo: "krea/krea-realtime-video"
+                       - None: 使用默认 HuggingFace repo
+        """
         print("正在加载 KREA Realtime Video 模型...")
         self.device = device
         self.dtype = dtype
         
+        # 确定模型路径
+        if model_path is None:
+            # 默认使用 HuggingFace
+            repo_id = "krea/krea-realtime-video"
+            print(f"从 HuggingFace 加载: {repo_id}")
+        else:
+            # 使用自定义路径
+            repo_id = model_path
+            print(f"从自定义路径加载: {model_path}")
+        
         # 加载模型
-        repo_id = "krea/krea-realtime-video"
         self.pipe = ModularPipeline.from_pretrained(repo_id, trust_remote_code=True)
         self.pipe.load_components(
             trust_remote_code=True,
@@ -107,9 +125,16 @@ class KreaLocalInference:
 # 单例模式 - 避免重复加载模型
 _model_instance = None
 
-def get_model():
-    """获取模型单例"""
+def get_model(model_path=None):
+    """获取模型单例
+    
+    Args:
+        model_path: 自定义模型路径 (可选)
+                   - 本地路径: "/path/to/model"
+                   - HuggingFace repo: "krea/krea-realtime-video"
+                   - None: 使用默认
+    """
     global _model_instance
     if _model_instance is None:
-        _model_instance = KreaLocalInference()
+        _model_instance = KreaLocalInference(model_path=model_path)
     return _model_instance
