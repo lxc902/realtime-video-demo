@@ -3,13 +3,13 @@
 set -e  # Exit on error
 
 # Parse arguments
-SKIP_FLASH_ATTN=false
+INSTALL_FLASH_ATTN=false
 QUANTIZATION=""
 
 for arg in "$@"; do
     case $arg in
-        --fast)
-            SKIP_FLASH_ATTN=true
+        --with-flash-attn)
+            INSTALL_FLASH_ATTN=true
             ;;
         --int8)
             QUANTIZATION="int8"
@@ -210,13 +210,12 @@ if [ "$NEED_INSTALL" = true ]; then
         $PIP install ftfy -q
     fi
     
-    # Optional: flash-attention for better performance
-    if [ "$SKIP_FLASH_ATTN" = false ]; then
+    # Optional: flash-attention for better performance (disabled by default)
+    if [ "$INSTALL_FLASH_ATTN" = true ]; then
         echo "  - Installing flash-attention (for better performance, ~5-10 min)..."
-        echo "    提示: 使用 'bash run.sh --fast' 可跳过此步骤"
         $PIP install flash-attn --no-build-isolation 2>&1 | grep -E "(Installing|Successfully|error)" || echo "    (flash-attn install failed, will use standard attention)"
     else
-        echo "  - Skipping flash-attention (--fast mode)"
+        echo "  - Skipping flash-attention (use --with-flash-attn to install)"
     fi
     
     # bitsandbytes for quantization support
