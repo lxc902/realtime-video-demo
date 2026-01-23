@@ -62,8 +62,8 @@ class KreaLocalInference:
                     quant_config = None
                 
                 if quant_config:
-                    # 单独加载量化的 transformer
-                    print("   正在加载量化 transformer...")
+                    # 1. 先加载量化的 transformer（最大的组件，约 24GB/12GB）
+                    print("   [1/2] 正在加载量化 transformer...")
                     transformer_quantized = AutoModel.from_pretrained(
                         repo_id,
                         subfolder="transformer",
@@ -72,17 +72,23 @@ class KreaLocalInference:
                         trust_remote_code=True,
                     )
                     
-                    # 加载其他组件（不量化）
-                    print("   正在加载其他组件...")
+                    # 提前设置 transformer，避免 load_components 重新加载
+                    self.pipe.transformer = transformer_quantized
+                    
+                    # 2. 加载其他组件（VAE, scheduler 等，相对较小）
+                    # load_components 会跳过已存在的组件（transformer）
+                    print("   [2/2] 正在加载其他组件...")
                     self.pipe.load_components(
                         trust_remote_code=True,
                         device_map=device,
                         torch_dtype={"default": dtype, "vae": torch.float16},
                     )
                     
-                    # 替换 transformer 为量化版本
+                    # 确保 transformer 是我们的量化版本
                     self.pipe.transformer = transformer_quantized
-                    print("   ✅ 量化 transformer 已加载")
+                    torch.cuda.empty_cache()
+                    
+                    print("   ✅ 量化模型加载完成")
                     
             except ImportError as e:
                 print(f"   ❌ 量化加载失败: {e}")
@@ -95,12 +101,17 @@ class KreaLocalInference:
                 )
             except Exception as e:
                 print(f"   ❌ 量化加载失败: {e}")
+                import traceback
+                traceback.print_exc()
                 print("   回退到标准加载...")
-                self.pipe.load_components(
-                    trust_remote_code=True,
-                    device_map=device,
-                    torch_dtype={"default": dtype, "vae": torch.float16},
-                )
+                try:
+                    self.pipe.load_components(
+                        trust_remote_code=True,
+                        device_map=device,
+                        torch_dtype={"default": dtype, "vae": torch.float16},
+                    )
+                except:
+                    pass
         else:
             # 标准加载（无量化）
             self.pipe.load_components(
