@@ -45,8 +45,11 @@ bash run.sh
 ## 文件说明
 
 - `run.sh` - 🚀 一键启动脚本（自动安装依赖）
+- `upload.sh` - ☁️ 备份模型到 Google Cloud Storage
+- `download.sh` - 📥 从 Google Cloud Storage 恢复模型
 - `app_local.py` - 使用本地 GPU 的 FastAPI 服务器
 - `local_inference.py` - KREA 模型推理模块
+- `config.py` - 配置文件（支持自定义模型路径）
 - `app.py` - 原 FAL API 版本 (备份，已废弃)
 
 ## 故障排除
