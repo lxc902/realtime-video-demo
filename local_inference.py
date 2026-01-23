@@ -71,23 +71,22 @@ class KreaLocalInference:
                         torch_dtype=dtype,
                         trust_remote_code=True,
                     )
-                    
-                    # 提前设置 transformer，避免 load_components 重新加载
                     self.pipe.transformer = transformer_quantized
                     
-                    # 2. 加载其他组件（VAE, scheduler 等，相对较小）
-                    # load_components 会跳过已存在的组件（transformer）
-                    print("   [2/2] 正在加载其他组件...")
+                    # 2. 获取所有组件名称，排除 transformer
+                    all_component_names = [spec.name for spec in self.pipe.component_specs]
+                    components_to_load = [name for name in all_component_names if name != "transformer"]
+                    print(f"   [2/2] 正在加载其他组件: {components_to_load}")
+                    
+                    # 只加载非 transformer 的组件
                     self.pipe.load_components(
+                        names=components_to_load,
                         trust_remote_code=True,
                         device_map=device,
                         torch_dtype={"default": dtype, "vae": torch.float16},
                     )
                     
-                    # 确保 transformer 是我们的量化版本
-                    self.pipe.transformer = transformer_quantized
                     torch.cuda.empty_cache()
-                    
                     print("   ✅ 量化模型加载完成")
                     
             except ImportError as e:
