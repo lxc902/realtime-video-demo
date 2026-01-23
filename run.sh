@@ -216,15 +216,6 @@ echo ""
 # Start the server
 echo "🚀 Starting KREA Realtime Video server..."
 echo ""
-
-# 清理可能损坏的缓存
-if [ -d "$HF_HOME/hub/models--krea--krea-realtime-video" ]; then
-    echo "🧹 清理旧的模型缓存..."
-    rm -rf "$HF_HOME/hub/models--krea--krea-realtime-video"
-    echo "✓ 缓存已清理，将重新下载模型"
-    echo ""
-fi
-
 echo "📝 Note: First run will download the model (~14GB)"
 echo "    This may take 5-10 minutes depending on your network"
 echo ""
