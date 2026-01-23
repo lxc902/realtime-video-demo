@@ -3,63 +3,60 @@
 set -e
 
 echo "==========================================="
-echo "从 Google Cloud Storage 下载 KREA 模型"
+echo "下载 KREA 模型"
 echo "==========================================="
 echo ""
 
 # 配置
-BUCKET_URL="https://storage.googleapis.com/lxcpublic"
-fTARGET_DIR="./tmp/.hf_home/hub"  # 使用本地 tmp 目录
+GCS_URL="https://storage.googleapis.com/lxcpublic/krea-models-20260123-222800.tar.gz"
+TARGET_DIR="./tmp/.hf_home/hub"
 
-# 显示可用的备份文件
-echo "📋 可用的备份文件:"
-echo ""
-echo "请访问查看所有备份:"
-echo "  https://storage.googleapis.com/lxcpublic/"
-echo ""
-
-# 提示用户输入文件名
-read -p "请输入要下载的文件名（例如: krea-models-20260123-210000.tar.gz）: " BACKUP_NAME
-
-if [ -z "$BACKUP_NAME" ]; then
-    echo "❌ 错误: 未输入文件名"
-    exit 1
+# 检查模型是否已存在
+if [ -d "$TARGET_DIR/models--krea--krea-realtime-video" ]; then
+    echo "✅ 模型已存在，跳过下载"
+    exit 0
 fi
 
-DOWNLOAD_URL="$BUCKET_URL/$BACKUP_NAME"
-
-echo ""
-echo "📥 下载模型..."
-echo "   从: $DOWNLOAD_URL"
+echo "📥 尝试从 Google Cloud Storage 下载..."
+echo "   URL: $GCS_URL"
 echo ""
 
-# 下载到临时目录（使用项目本地目录）
+# 创建目录
 mkdir -p ./tmp
-wget -O ./tmp/$BACKUP_NAME $DOWNLOAD_URL
+mkdir -p $TARGET_DIR
 
-if [ $? -ne 0 ]; then
-    echo "❌ 下载失败"
-    exit 1
+# 尝试从 GCS 下载
+GCS_SUCCESS=false
+
+# 使用 wget 或 curl 下载
+if command -v wget &> /dev/null; then
+    echo "   使用 wget 下载..."
+    if wget --spider -q "$GCS_URL" 2>/dev/null; then
+        wget -O ./tmp/krea-models.tar.gz "$GCS_URL" && GCS_SUCCESS=true
+    fi
+elif command -v curl &> /dev/null; then
+    echo "   使用 curl 下载..."
+    if curl --head --silent --fail "$GCS_URL" > /dev/null 2>&1; then
+        curl -L -o ./tmp/krea-models.tar.gz "$GCS_URL" && GCS_SUCCESS=true
+    fi
 fi
 
-echo ""
-echo "✅ 下载完成"
-echo ""
-
-# 解压
-echo "📦 解压模型到 $TARGET_DIR ..."
-mkdir -p $TARGET_DIR
-tar -xzf ./tmp/$BACKUP_NAME -C $TARGET_DIR
-
-echo ""
-echo "✅ 解压完成！"
-echo ""
-
-# 清理
-echo "🧹 清理临时文件..."
-rm ./tmp/$BACKUP_NAME
-
-echo ""
-echo "✅ 模型恢复完成！"
-echo ""
-echo "现在可以运行: bash run.sh"
+if [ "$GCS_SUCCESS" = true ]; then
+    echo ""
+    echo "✅ GCS 下载成功"
+    echo ""
+    echo "📦 解压模型..."
+    tar -xzf ./tmp/krea-models.tar.gz -C $TARGET_DIR
+    
+    echo ""
+    echo "🧹 清理临时文件..."
+    rm -f ./tmp/krea-models.tar.gz
+    
+    echo ""
+    echo "✅ 模型下载完成！"
+else
+    echo ""
+    echo "⚠️  GCS 下载失败或不可用"
+    echo "   将在运行时从 HuggingFace 自动下载"
+    echo ""
+fi

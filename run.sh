@@ -247,6 +247,11 @@ echo "🖥️  GPU Information:"
 nvidia-smi --query-gpu=index,name,memory.total,memory.free --format=csv,noheader
 echo ""
 
+# 预下载模型（优先从 GCS，失败则让 HuggingFace 自动下载）
+echo "📦 检查模型..."
+bash download.sh
+echo ""
+
 # 设置量化环境变量
 if [ -n "$QUANTIZATION" ]; then
     export QUANTIZATION="$QUANTIZATION"
@@ -257,8 +262,8 @@ fi
 # Start the server
 echo "🚀 Starting KREA Realtime Video server..."
 echo ""
-echo "📝 Note: First run will download the model (~14GB)"
-echo "    This may take 5-10 minutes depending on your network"
+echo "📝 Note: 模型下载约 14GB，加载后需要 ~47GB 显存"
+echo "    (优先从 GCS 下载，失败则从 HuggingFace 下载)"
 echo ""
 if [ -n "$QUANTIZATION" ]; then
     echo "💾 使用 ${QUANTIZATION^^} 量化 (显存占用更少)"
