@@ -73,13 +73,14 @@ class KreaLocalInference:
                     )
                     self.pipe.transformer = transformer_quantized
                     
-                    # 2. 获取所有组件名称，排除 transformer
-                    # _component_specs 可能是字典或列表
+                    # 2. 只加载需要从预训练模型加载的组件
+                    # 排除 transformer（已加载）和配置类组件（不需要预训练）
+                    config_only_components = {"transformer", "guider", "video_processor", "scheduler"}
+                    
                     specs = self.pipe._component_specs
                     if isinstance(specs, dict):
                         all_component_names = list(specs.keys())
                     elif specs:
-                        # 如果是列表，检查元素类型
                         first = next(iter(specs), None)
                         if hasattr(first, 'name'):
                             all_component_names = [spec.name for spec in specs]
@@ -87,7 +88,8 @@ class KreaLocalInference:
                             all_component_names = list(specs)
                     else:
                         all_component_names = []
-                    components_to_load = [name for name in all_component_names if name != "transformer"]
+                    
+                    components_to_load = [name for name in all_component_names if name not in config_only_components]
                     print(f"   [2/2] 正在加载其他组件: {components_to_load}")
                     
                     # 只加载非 transformer 的组件
