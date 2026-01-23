@@ -126,8 +126,15 @@ if [ "$NEED_INSTALL" = true ]; then
     fi
     
     # Optional: flash-attention for better performance (may take time to compile)
-    echo "  - Installing flash-attention (optional, may take a while)..."
-    pip install flash-attn --no-build-isolation -q 2>/dev/null || echo "    (flash-attn install failed, will use slower attention)"
+    echo ""
+    read -p "是否安装 flash-attention? (提升性能但需编译 5-10 分钟) [y/N]: " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "  - Installing flash-attention..."
+        pip install flash-attn --no-build-isolation 2>&1 | grep -E "(Installing|Successfully|error)" || echo "    (flash-attn install failed, will use standard attention)"
+    else
+        echo "  - Skipping flash-attention (will use standard attention)"
+    fi
     
     echo ""
     echo "✅ Dependencies installed!"
