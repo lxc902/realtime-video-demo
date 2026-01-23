@@ -44,12 +44,21 @@ class KreaLocalInference:
             torch_dtype={"default": dtype, "vae": torch.float16},
         )
         
+        # 检查关键组件是否加载成功
+        if not hasattr(self.pipe, 'transformer') or self.pipe.transformer is None:
+            raise RuntimeError(
+                "❌ 模型加载失败: transformer 组件未正确加载\n"
+                "可能原因:\n"
+                "1. 缺少依赖包（einops, imageio, ftfy）\n"
+                "2. diffusers 版本不兼容\n"
+                "解决方法:\n"
+                "  pip install einops imageio ftfy\n"
+                "  然后重启服务"
+            )
+        
         # 优化: 融合投影层
-        if hasattr(self.pipe, 'transformer') and self.pipe.transformer is not None:
-            for block in self.pipe.transformer.blocks:
-                block.self_attn.fuse_projections()
-        else:
-            print("警告: transformer 未正确加载，性能可能受影响")
+        for block in self.pipe.transformer.blocks:
+            block.self_attn.fuse_projections()
         
         print("模型加载完成！")
         
