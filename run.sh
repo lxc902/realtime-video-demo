@@ -208,4 +208,4 @@ echo "================================="
 echo ""
 
 # Run the server
-uvicorn app_local:app --host 0.0.0.0 --port 7860
+$PYTHON -m uvicorn app_local:app --host 0.0.0.0 --port 7860
