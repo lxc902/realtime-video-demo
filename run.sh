@@ -216,6 +216,15 @@ echo ""
 # Start the server
 echo "🚀 Starting KREA Realtime Video server..."
 echo ""
+
+# 修复 KREA 模型配置中的类名问题
+if [ -d "$HF_HOME/hub/models--krea--krea-realtime-video" ]; then
+    echo "🔧 检查并修复模型配置..."
+    find "$HF_HOME/hub/models--krea--krea-realtime-video" -name "modular_*.json" -exec sed -i 's/WanRTBlocks/WanAutoBlocks/g' {} \; 2>/dev/null || true
+    echo "✓ 配置检查完成"
+    echo ""
+fi
+
 echo "📝 Note: First run will download the model (~14GB)"
 echo "    This may take 5-10 minutes depending on your network"
 echo ""
