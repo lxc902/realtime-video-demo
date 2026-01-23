@@ -11,7 +11,7 @@ import numpy as np
 import io
 
 class KreaLocalInference:
-    def __init__(self, device="cuda", dtype=torch.bfloat16, model_path=None):
+    def __init__(self, device="cuda", dtype=torch.bfloat16, model_path=None, quantization=None):
         """初始化本地 KREA 模型
         
         Args:
@@ -21,10 +21,12 @@ class KreaLocalInference:
                        - 本地路径: "/path/to/model"
                        - HuggingFace repo: "krea/krea-realtime-video"
                        - None: 使用默认 HuggingFace repo
+            quantization: 量化类型 (None, "int8", "int4")
         """
         print("正在加载 KREA Realtime Video 模型...")
         self.device = device
         self.dtype = dtype
+        self.quantization = quantization
         
         # 确定模型路径
         if model_path is None:
@@ -36,13 +38,43 @@ class KreaLocalInference:
             repo_id = model_path
             print(f"从自定义路径加载: {model_path}")
         
+        # 准备量化配置
+        quantization_config = None
+        if quantization:
+            print(f"🔧 启用 {quantization.upper()} 量化...")
+            try:
+                from transformers import BitsAndBytesConfig
+                if quantization == "int8":
+                    quantization_config = BitsAndBytesConfig(
+                        load_in_8bit=True,
+                    )
+                    print("   使用 8-bit 量化 (预计显存 ~24GB)")
+                elif quantization == "int4":
+                    quantization_config = BitsAndBytesConfig(
+                        load_in_4bit=True,
+                        bnb_4bit_compute_dtype=torch.bfloat16,
+                        bnb_4bit_quant_type="nf4",
+                    )
+                    print("   使用 4-bit 量化 (预计显存 ~12GB)")
+            except ImportError:
+                print("   ❌ 量化需要 bitsandbytes 库")
+                print("   请运行: pip install bitsandbytes")
+                quantization_config = None
+        
         # 加载模型
         self.pipe = ModularPipeline.from_pretrained(repo_id, trust_remote_code=True)
-        self.pipe.load_components(
-            trust_remote_code=True,
-            device_map=device,
-            torch_dtype={"default": dtype, "vae": torch.float16},
-        )
+        
+        # 加载组件（带量化配置）
+        load_kwargs = {
+            "trust_remote_code": True,
+            "device_map": device,
+            "torch_dtype": {"default": dtype, "vae": torch.float16},
+        }
+        
+        if quantization_config:
+            load_kwargs["quantization_config"] = quantization_config
+        
+        self.pipe.load_components(**load_kwargs)
         
         # 检查关键组件是否加载成功
         if not hasattr(self.pipe, 'transformer') or self.pipe.transformer is None:
@@ -137,7 +169,7 @@ class KreaLocalInference:
 # 单例模式 - 避免重复加载模型
 _model_instance = None
 
-def get_model(model_path=None):
+def get_model(model_path=None, quantization=None):
     """获取模型单例
     
     Args:
@@ -145,8 +177,12 @@ def get_model(model_path=None):
                    - 本地路径: "/path/to/model"
                    - HuggingFace repo: "krea/krea-realtime-video"
                    - None: 使用默认
+        quantization: 量化类型 (可选)
+                     - None: 不量化 (需要 ~54GB+ 显存)
+                     - "int8": 8位量化 (需要 ~24GB 显存)
+                     - "int4": 4位量化 (需要 ~12GB 显存)
     """
     global _model_instance
     if _model_instance is None:
-        _model_instance = KreaLocalInference(model_path=model_path)
+        _model_instance = KreaLocalInference(model_path=model_path, quantization=quantization)
     return _model_instance

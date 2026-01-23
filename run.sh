@@ -4,12 +4,27 @@ set -e  # Exit on error
 
 # Parse arguments
 SKIP_FLASH_ATTN=false
-if [ "$1" = "--fast" ]; then
-    SKIP_FLASH_ATTN=true
-fi
+QUANTIZATION=""
+
+for arg in "$@"; do
+    case $arg in
+        --fast)
+            SKIP_FLASH_ATTN=true
+            ;;
+        --int8)
+            QUANTIZATION="int8"
+            ;;
+        --int4)
+            QUANTIZATION="int4"
+            ;;
+    esac
+done
 
 echo "================================="
 echo "KREA Realtime Video - Local GPU"
+if [ -n "$QUANTIZATION" ]; then
+    echo "Quantization: ${QUANTIZATION^^}"
+fi
 echo "================================="
 echo ""
 
@@ -121,6 +136,16 @@ else
     echo "  ✓ ftfy"
 fi
 
+# 如果使用量化，检查 bitsandbytes
+if [ -n "$QUANTIZATION" ]; then
+    if ! check_package bitsandbytes; then
+        echo "  ❌ bitsandbytes not found (required for quantization)"
+        NEED_INSTALL=true
+    else
+        echo "  ✓ bitsandbytes"
+    fi
+fi
+
 echo ""
 
 if [ "$NEED_INSTALL" = true ]; then
@@ -194,6 +219,12 @@ if [ "$NEED_INSTALL" = true ]; then
         echo "  - Skipping flash-attention (--fast mode)"
     fi
     
+    # bitsandbytes for quantization support
+    if [ -n "$QUANTIZATION" ] && ! check_package bitsandbytes; then
+        echo "  - Installing bitsandbytes (for ${QUANTIZATION^^} quantization)..."
+        $PIP install bitsandbytes -q
+    fi
+    
     echo ""
     echo "✅ Dependencies installed!"
     echo "📊 安装位置: $($PYTHON -c 'import site; print(site.getsitepackages()[0])')"
@@ -217,11 +248,25 @@ echo "🖥️  GPU Information:"
 nvidia-smi --query-gpu=index,name,memory.total,memory.free --format=csv,noheader
 echo ""
 
+# 设置量化环境变量
+if [ -n "$QUANTIZATION" ]; then
+    export QUANTIZATION="$QUANTIZATION"
+    echo "🔧 量化模式: ${QUANTIZATION^^}"
+    echo ""
+fi
+
 # Start the server
 echo "🚀 Starting KREA Realtime Video server..."
 echo ""
 echo "📝 Note: First run will download the model (~14GB)"
 echo "    This may take 5-10 minutes depending on your network"
+echo ""
+if [ -n "$QUANTIZATION" ]; then
+    echo "💾 使用 ${QUANTIZATION^^} 量化 (显存占用更少)"
+else
+    echo "⚠️  未启用量化，需要 ~54GB+ 显存"
+    echo "   如果 OOM，请使用: bash run.sh --int8 或 --int4"
+fi
 echo ""
 echo "🌐 Server will be available at: http://0.0.0.0:7860"
 echo ""

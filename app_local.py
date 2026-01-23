@@ -15,7 +15,7 @@ import msgpack
 
 # 导入本地推理模块
 from local_inference import get_model
-from config import MODEL_PATH
+from config import MODEL_PATH, QUANTIZATION
 
 app = FastAPI()
 templates = Jinja2Templates(directory=".")
@@ -63,10 +63,14 @@ def load_model_on_startup():
         print(f"   From: {MODEL_PATH}")
     else:
         print("   From: HuggingFace (krea/krea-realtime-video)")
+    if QUANTIZATION:
+        print(f"   Quantization: {QUANTIZATION.upper()}")
+    else:
+        print("   Quantization: None (full precision)")
     print("   This will take 1-2 minutes on first run")
     print("=" * 60)
     print("")
-    model = get_model(model_path=MODEL_PATH)
+    model = get_model(model_path=MODEL_PATH, quantization=QUANTIZATION)
     print("")
     print("=" * 60)
     print("✅ Model loaded successfully!")

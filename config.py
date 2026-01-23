@@ -1,5 +1,5 @@
 """
-配置文件 - 模型路径设置
+配置文件 - 模型路径和量化设置
 """
 import os
 
@@ -16,3 +16,17 @@ if MODEL_PATH and not os.path.exists(MODEL_PATH):
     print(f"警告: 指定的模型路径不存在: {MODEL_PATH}")
     print(f"将使用 HuggingFace 默认路径")
     MODEL_PATH = None
+
+# 量化配置
+# 可选值: None, "int8", "int4"
+# - None: 不量化 (需要 ~54GB+ 显存)
+# - "int8": 8位量化 (需要 ~24GB 显存)
+# - "int4": 4位量化 (需要 ~12GB 显存)
+QUANTIZATION = os.getenv("QUANTIZATION", None)
+
+if QUANTIZATION:
+    QUANTIZATION = QUANTIZATION.lower()
+    if QUANTIZATION not in ("int8", "int4"):
+        print(f"警告: 不支持的量化类型: {QUANTIZATION}")
+        print(f"支持的类型: int8, int4")
+        QUANTIZATION = None
