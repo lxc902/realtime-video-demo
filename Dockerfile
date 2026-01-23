@@ -9,13 +9,12 @@ WORKDIR /app
 RUN pip install --no-cache-dir \
     fastapi==0.104.1 \
     uvicorn[standard]==0.24.0 \
-    huggingface-hub==0.20.1 \
     python-multipart==0.0.6 \
     jinja2==3.1.2 \
     httpx==0.25.2 \
     websockets==12.0
 
-# Create data directory with proper permissions
+# Create data directory with proper permissions (optional, for future use)
 RUN mkdir -p /data && chown -R user:user /data
 
 # Copy application files

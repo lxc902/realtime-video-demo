@@ -25,35 +25,6 @@
             padding: 20px;
         }
 
-        /* Login Strip */
-        .login-strip {
-            background: #fef3c7;
-            border-bottom: 2px solid #f59e0b;
-            padding: 15px 20px;
-            box-shadow: 0 3px 0 0 #d97706;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .login-strip-content {
-            max-width: 1600px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .login-message {
-            color: #78350f;
-            font-weight: 500;
-        }
-
-        .app-grayed {
-            opacity: 0.4;
-            pointer-events: none;
-            filter: grayscale(50%);
-        }
 
         .btn {
             padding: 10px 20px;
@@ -148,64 +119,6 @@
             color: #78350f;
         }
 
-        /* User Bar */
-        .user-bar {
-            background: #fafaf9;
-            border-radius: 8px;
-            border: 1px solid #d6d3d1;
-            padding: 15px 20px;
-            margin-top: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0px 3px 0px 0px #d6d3d1;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: 2px solid #f59e0b;
-        }
-
-        .user-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .badge-pro {
-            background: #f59e0b;
-            color: white;
-        }
-
-        .badge-free {
-            background: #78716c;
-            color: #e7e5e4;
-        }
-
-        .btn-logout {
-            padding: 8px 16px;
-            background: #78716c;
-            color: #fafaf9;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-        }
-
-        .btn-logout:hover {
-            background: #57534e;
-        }
 
         #spinner, #placeholder {
             position: absolute;
@@ -502,25 +415,6 @@
             display: none;
         }
 
-        .limit-warning {
-            background: #fee2e2;
-            border: 1px solid #fca5a5;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .upgrade-link {
-            color: #f59e0b;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .upgrade-link:hover {
-            text-decoration: underline;
-        }
-
         /* Accordion */
         .accordion {
             margin-top: 15px;
@@ -566,104 +460,9 @@
             padding: 15px 0;
         }
 
-        /* Modal */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .modal-overlay:not(.hidden) {
-            display: flex;
-        }
-
-        .modal {
-            background: #fafaf9;
-            border-radius: 12px;
-            border: 1px solid #d6d3d1;
-            padding: 30px;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.3);
-        }
-
-        .modal h2 {
-            color: #1c1917;
-            margin-bottom: 15px;
-            font-size: 1.5rem;
-        }
-
-        .modal p {
-            color: #57534e;
-            margin-bottom: 20px;
-            line-height: 1.5;
-        }
-
-        .modal-options {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .modal-option {
-            padding: 15px;
-            border: 2px solid #d6d3d1;
-            border-radius: 8px;
-            text-align: left;
-            background: #fafaf9;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-        }
-
-        .modal-option:hover {
-            border-color: #f59e0b;
-            background: #fef3c7;
-        }
-
-        .modal-option h3 {
-            color: #1c1917;
-            font-size: 1rem;
-            margin-bottom: 5px;
-        }
-
-        .modal-option p {
-            color: #78716c;
-            font-size: 0.85rem;
-            margin: 0;
-        }
-
-        .modal-fal-key {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #d6d3d1;
-        }
-
-        .modal-fal-key h3 {
-            color: #1c1917;
-            font-size: 1rem;
-            margin-bottom: 10px;
-        }
-
-        .modal-fal-key .form-group {
-            margin-bottom: 10px;
-        }
-
         @media (max-width: 1024px) {
             .video-grid {
                 grid-template-columns: 1fr;
-            }
-
-            .user-bar {
-                flex-direction: column;
-                gap: 15px;
             }
 
             .mode-toggle {
@@ -674,20 +473,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- Login Strip (Hidden when authenticated) -->
-        <div id="loginStrip" class="login-strip hidden">
-            <div class="login-strip-content">
-                <div class="login-message">
-                    Sign in with Hugging Face to start generating videos
-                </div>
-                <button class="btn btn-primary" onclick="auth.loginWithOAuth()">
-                    Sign in with Hugging Face
-                </button>
-            </div>
-        </div>
-
-        <!-- App Container (Grayed out when not authenticated) -->
-        <div id="appContainer">
             <header>
                 <h1>KREA Realtime Video</h1>
                 <div class="header-links">
@@ -836,68 +621,6 @@
                 <div id="errorBox" class="error-box hidden"></div>
                 <div id="infoBox" class="info-box hidden"></div>
             </div>
-
-            <!-- Limit Reached Modal -->
-            <div id="limitModal" class="modal-overlay hidden">
-                <div class="modal">
-                    <h2>Daily Limit Reached</h2>
-                    <p>You've used all your generations for today. Here are your options:</p>
-
-                    <div class="modal-options">
-                        <!-- Subscribe to PRO (Free users only) -->
-                        <a href="https://huggingface.co/subscribe/pro" target="_blank" class="modal-option" id="proOption">
-                            <h3>Subscribe to PRO</h3>
-                            <p>Get more generations per day with Hugging Face PRO</p>
-                        </a>
-
-                        <!-- Run Locally -->
-                        <a href="https://huggingface.co/krea/krea-realtime-video" target="_blank" class="modal-option">
-                            <h3>Run Locally</h3>
-                            <p>Download and run the model on your own hardware</p>
-                        </a>
-
-                        <!-- Use API -->
-                        <a href="https://fal.ai" target="_blank" class="modal-option">
-                            <h3>Use with API</h3>
-                            <p>Integrate into your own applications with FAL API</p>
-                        </a>
-                    </div>
-
-                    <!-- FAL Key Input -->
-                    <div class="modal-fal-key">
-                        <h3>Or use your own FAL API Key</h3>
-                        <div class="form-group">
-                            <label>FAL API Key <a href="https://fal.ai/dashboard/keys" target="_blank" style="color: #f59e0b; font-size: 0.75rem;">(Get your key)</a></label>
-                            <input type="password" id="falKeyInput" placeholder="Enter your FAL API key">
-                        </div>
-                        <button class="btn btn-primary" style="width: 100%;" onclick="limitModal.saveFalKey()">
-                            Save & Continue
-                        </button>
-                        <p style="font-size: 0.75rem; color: #78716c; margin-top: 10px;">
-                            Your key is stored locally and never sent to our servers
-                        </p>
-                    </div>
-
-                    <button onclick="limitModal.close()" style="margin-top: 20px; background: transparent; border: none; color: #78716c; cursor: pointer; width: 100%;">
-                        Close
-                    </button>
-                </div>
-            </div>
-
-            <!-- User Bar (Hidden when not authenticated) -->
-            <div id="userBar" class="user-bar hidden">
-                <div class="user-info">
-                    <img id="userAvatar" src="" alt="Avatar" class="user-avatar">
-                    <div class="user-details">
-                        <h3 id="userFullname" style="font-size: 1rem; margin-bottom: 3px;"></h3>
-                        <span id="userBadge" class="user-badge"></span>
-                    </div>
-                </div>
-                <div style="text-align: right;">
-                    <button class="btn-logout" onclick="auth.logout()">Logout</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Hidden elements for video processing -->
@@ -905,165 +628,7 @@
     <canvas id="extractionCanvas" style="display: none;"></canvas>
 
     <script>
-        const OAUTH_CLIENT_ID = "{{ oauth_client_id }}";
-        const AUTH_STORAGE_KEY = 'HF_AUTH_STATE';
         const FAL_KEY_STORAGE = 'FAL_API_KEY';
-
-        // Limit Modal Manager
-        const limitModal = {
-            show(isPro) {
-                // Show/hide PRO option based on user tier
-                const proOption = document.getElementById('proOption');
-                if (isPro) {
-                    proOption.style.display = 'none';
-                } else {
-                    proOption.style.display = 'block';
-                }
-
-                // Check if FAL key already saved
-                const savedKey = localStorage.getItem(FAL_KEY_STORAGE);
-                if (savedKey) {
-                    document.getElementById('falKeyInput').value = '••••••••••••';
-                }
-
-                document.getElementById('limitModal').classList.remove('hidden');
-            },
-
-            close() {
-                const modal = document.getElementById('limitModal');
-                if (modal) {
-                    modal.classList.add('hidden');
-                }
-            },
-
-            saveFalKey() {
-                const key = document.getElementById('falKeyInput').value.trim();
-                if (!key || key === '••••••••••••') {
-                    app.showError('Please enter a valid FAL API key');
-                    return;
-                }
-
-                localStorage.setItem(FAL_KEY_STORAGE, key);
-                app.showInfo('FAL API key saved! You can now use unlimited generations.');
-                auth.hasFalKey = true;
-                this.close();
-            },
-
-            hasFalKey() {
-                return !!localStorage.getItem(FAL_KEY_STORAGE);
-            },
-
-            getFalKey() {
-                return localStorage.getItem(FAL_KEY_STORAGE);
-            }
-        };
-
-        // Authentication Manager
-        const auth = {
-            token: null,
-            user: null,
-            canStart: false,
-            sessionsUsed: 0,
-            sessionsLimit: 2,
-            hasFalKey: false,
-
-            async init() {
-                // Check if user has FAL key
-                this.hasFalKey = limitModal.hasFalKey();
-
-                // Try to restore saved auth from localStorage
-                const saved = localStorage.getItem(AUTH_STORAGE_KEY);
-                if (saved) {
-                    try {
-                        const authState = JSON.parse(saved);
-                        await this.validateAndSetAuth(authState.token);
-                    } catch (e) {
-                        console.error('Failed to restore auth:', e);
-                        this.clearAuth();
-                    }
-                } else {
-                    this.showLoginStrip();
-                }
-            },
-
-            async validateAndSetAuth(token) {
-                try {
-                    const response = await fetch('/api/whoami', {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Token validation failed with status: ' + response.status);
-                    }
-
-                    const data = await response.json();
-                    this.token = token;
-                    this.user = data;
-                    this.canStart = data.can_start;
-                    this.sessionsUsed = data.sessions_used;
-                    this.sessionsLimit = data.sessions_limit;
-
-                    // Save to localStorage
-                    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token, user: data }));
-
-                    this.updateUI();
-                    app.init();
-                } catch (error) {
-                    console.error('Auth validation failed:', error);
-                    this.clearAuth();
-                    throw error;
-                }
-            },
-
-            loginWithOAuth() {
-                window.location.href = '/api/auth/login';
-            },
-
-            logout() {
-                this.clearAuth();
-                window.location.reload();
-            },
-
-            clearAuth() {
-                this.token = null;
-                this.user = null;
-                this.canStart = false;
-                localStorage.removeItem(AUTH_STORAGE_KEY);
-                this.showLoginStrip();
-            },
-
-            showLoginStrip() {
-                document.getElementById('loginStrip').classList.remove('hidden');
-                document.getElementById('appContainer').classList.add('app-grayed');
-                document.getElementById('userBar').classList.add('hidden');
-            },
-
-            updateUI() {
-                // Hide login strip, show app
-                document.getElementById('loginStrip').classList.add('hidden');
-                document.getElementById('appContainer').classList.remove('app-grayed');
-
-                // Show user bar
-                const userBar = document.getElementById('userBar');
-                userBar.classList.remove('hidden');
-
-                // Update user info
-                if (this.user.avatar) {
-                    document.getElementById('userAvatar').src = this.user.avatar;
-                }
-                document.getElementById('userFullname').textContent = this.user.fullname;
-
-                const badge = document.getElementById('userBadge');
-                badge.textContent = this.user.is_pro ? 'PRO' : 'FREE';
-                badge.className = 'user-badge ' + (this.user.is_pro ? 'badge-pro' : 'badge-free');
-
-                // No longer show banner - modal will appear when user tries to generate
-            },
-
-            getAuthHeaders() {
-                return this.token ? { 'Authorization': `Bearer ${this.token}` } : {};
-            }
-        };
 
         // MsgPack Encoder
         const createMsgpackEncoder = (() => {
@@ -1213,11 +778,11 @@
             idleTimeout: null,
             lastFrameTime: null,
 
-            init() {
+            async init() {
                 this.setupEventListeners();
                 this.updateEstimatedFrames();
                 // Auto-start webcam since it's the default mode
-                this.setMode('webcam');
+                await this.setMode('webcam');
             },
 
             toggleAccordion() {
@@ -1369,40 +934,6 @@
                 if (this.isGenerating) {
                     this.disconnect();
                 } else {
-                    if (!auth.token) {
-                        this.showError('Please sign in first');
-                        return;
-                    }
-
-                    // Check if user has FAL key - if so, skip HF generation limits
-                    if (!auth.hasFalKey) {
-                        // Record session and check limits
-                        try {
-                            const response = await fetch('/api/start-session', {
-                                method: 'POST',
-                                headers: auth.getAuthHeaders()
-                            });
-                            if (!response.ok) {
-                                const data = await response.json();
-                                // If limit reached, show modal
-                                if (response.status === 429) {
-                                    limitModal.show(auth.user.is_pro);
-                                    return;
-                                }
-                                this.showError(data.detail || 'Failed to start session');
-                                return;
-                            }
-                            // Update session count
-                            const sessionData = await response.json();
-                            auth.sessionsUsed = sessionData.sessions_used;
-                            auth.sessionsLimit = sessionData.sessions_limit;
-                            auth.canStart = sessionData.sessions_used < sessionData.sessions_limit;
-                        } catch (error) {
-                            this.showError('Failed to start session');
-                            return;
-                        }
-                    }
-
                     const prompt = document.getElementById('prompt').value.trim();
                     if (!prompt) {
                         this.showError('Please enter a prompt');
@@ -1440,7 +971,7 @@
                     let wsUrl = `${protocol}//${window.location.host}/ws/video-gen`;
 
                     // If user has their own FAL key, pass it as query param
-                    const userFalKey = limitModal.getFalKey();
+                    const userFalKey = localStorage.getItem(FAL_KEY_STORAGE);
                     if (userFalKey) {
                         wsUrl += `?user_fal_key=${encodeURIComponent(userFalKey)}`;
                     }
@@ -1493,7 +1024,7 @@
                             if (btn) {
                                 btn.textContent = 'Start Generation';
                                 btn.className = 'btn btn-primary';
-                                btn.disabled = !auth.canStart;
+                                btn.disabled = false;
                             }
 
                             // Update status - only if not already finished
@@ -2031,7 +1562,7 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', () => {
-            auth.init();
+            app.init();
         });
     </script>
 </body>
