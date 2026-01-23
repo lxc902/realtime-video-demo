@@ -90,7 +90,8 @@ async def health():
     return {
         "status": "ok",
         "mode": "local_gpu",
-        "model_loaded": model is not None
+        "model_loaded": model is not None,
+        "ready": model is not None
     }
 
 
@@ -103,8 +104,12 @@ async def websocket_video_gen(websocket: WebSocket):
     print(f"WebSocket connected. Active connections: {len(active_websockets)}")
     
     try:
-        # 加载模型
-        inference_model = get_or_load_model()
+        # 检查模型是否已加载
+        if model is None:
+            await websocket.close(code=1011, reason="Model not loaded yet, please wait...")
+            return
+        
+        inference_model = model
         
         # 发送 ready 信号
         await websocket.send_text(json.dumps({"status": "ready"}))
