@@ -37,15 +37,28 @@ echo "📂 HuggingFace 缓存目录: $HF_HOME"
 # 激活虚拟环境
 echo "🔧 激活虚拟环境..."
 source "$VENV_DIR/bin/activate"
+
+# 验证虚拟环境是否激活成功
+if [ "$VIRTUAL_ENV" != "" ]; then
+    echo "✅ 虚拟环境已激活: $VIRTUAL_ENV"
+else
+    echo "⚠️  警告: 虚拟环境未正确激活"
+fi
 echo ""
+
+# 使用虚拟环境的 Python 和 pip
+PYTHON="$VENV_DIR/bin/python3"
+PIP="$VENV_DIR/bin/pip"
 
 # Function to check if a Python package is installed
 check_package() {
-    python3 -c "import $1" 2>/dev/null
+    $PYTHON -c "import $1" 2>/dev/null
 }
 
 # Check Python version
-echo "✓ Python: $(python3 --version)"
+echo "✓ Python: $($PYTHON --version)"
+echo "✓ Python 位置: $($PYTHON -c 'import sys; print(sys.executable)')"
+echo "✓ Pip 位置: $PIP"
 
 # Check CUDA/GPU
 echo "✓ GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)"
@@ -114,60 +127,61 @@ if [ "$NEED_INSTALL" = true ]; then
     # Install only what's missing
     if ! check_package torch; then
         echo "  - Installing PyTorch with CUDA support..."
-        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 -q
+        $PIP install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 -q
     fi
     
     if ! check_package diffusers; then
         echo "  - Installing Diffusers (from source)..."
-        pip install git+https://github.com/huggingface/diffusers.git -q
+        $PIP install git+https://github.com/huggingface/diffusers.git -q
     fi
     
     if ! check_package transformers; then
         echo "  - Installing transformers and accelerate..."
-        pip install transformers accelerate safetensors -q
+        $PIP install transformers accelerate safetensors -q
     fi
     
     if ! check_package fastapi; then
         echo "  - Installing FastAPI and utilities..."
-        pip install fastapi uvicorn websockets httpx -q
+        $PIP install fastapi uvicorn websockets httpx -q
     fi
     
     if ! check_package cv2; then
         echo "  - Installing OpenCV and image processing..."
-        pip install opencv-python pillow numpy -q
+        $PIP install opencv-python pillow numpy -q
     fi
     
     if ! check_package msgpack; then
         echo "  - Installing msgpack..."
-        pip install msgpack -q
+        $PIP install msgpack -q
     fi
     
     if ! check_package einops; then
         echo "  - Installing einops..."
-        pip install einops -q
+        $PIP install einops -q
     fi
     
     if ! check_package imageio; then
         echo "  - Installing imageio..."
-        pip install imageio -q
+        $PIP install imageio -q
     fi
     
     if ! check_package ftfy; then
         echo "  - Installing ftfy..."
-        pip install ftfy -q
+        $PIP install ftfy -q
     fi
     
     # Optional: flash-attention for better performance
     if [ "$SKIP_FLASH_ATTN" = false ]; then
         echo "  - Installing flash-attention (for better performance, ~5-10 min)..."
         echo "    提示: 使用 'bash run.sh --fast' 可跳过此步骤"
-        pip install flash-attn --no-build-isolation 2>&1 | grep -E "(Installing|Successfully|error)" || echo "    (flash-attn install failed, will use standard attention)"
+        $PIP install flash-attn --no-build-isolation 2>&1 | grep -E "(Installing|Successfully|error)" || echo "    (flash-attn install failed, will use standard attention)"
     else
         echo "  - Skipping flash-attention (--fast mode)"
     fi
     
     echo ""
     echo "✅ Dependencies installed!"
+    echo "📊 安装位置: $($PYTHON -c 'import site; print(site.getsitepackages()[0])')"
     echo ""
 fi
 
