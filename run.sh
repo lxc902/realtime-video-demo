@@ -139,13 +139,13 @@ else
     echo "  ✓ ftfy"
 fi
 
-# 如果使用量化，检查 bitsandbytes
+# 如果使用量化，检查 torchao
 if [ -n "$QUANTIZATION" ]; then
-    if ! check_package bitsandbytes; then
-        echo "  ❌ bitsandbytes not found (required for quantization)"
+    if ! check_package torchao; then
+        echo "  ❌ torchao not found (required for quantization)"
         NEED_INSTALL=true
     else
-        echo "  ✓ bitsandbytes"
+        echo "  ✓ torchao"
     fi
 fi
 
@@ -221,10 +221,10 @@ if [ "$NEED_INSTALL" = true ]; then
         echo "  - Skipping flash-attention (use --with-flash-attn to install)"
     fi
     
-    # bitsandbytes for quantization support
-    if [ -n "$QUANTIZATION" ] && ! check_package bitsandbytes; then
-        echo "  - Installing bitsandbytes (for ${QUANTIZATION^^} quantization)..."
-        $PIP install bitsandbytes -q
+    # torchao for quantization support (替代 bitsandbytes，兼容性更好)
+    if [ -n "$QUANTIZATION" ] && ! check_package torchao; then
+        echo "  - Installing torchao (for ${QUANTIZATION^^} quantization)..."
+        $PIP install torchao -q
     fi
     
     echo ""
