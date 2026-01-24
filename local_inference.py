@@ -404,35 +404,41 @@ class KreaLocalInference:
         """重置 pipeline 内部的所有缓存，确保新生成完全独立"""
         cleared = []
         
-        # 清理 pipeline blocks 中的缓存
-        if hasattr(self.pipe, 'blocks'):
-            for block in self.pipe.blocks:
-                # 清理 input_frames_cache（KREA 用于累积输入帧）
-                if hasattr(block, 'input_frames_cache'):
-                    block.input_frames_cache = None
-                    cleared.append('input_frames_cache')
-                
-                # 清理 frame_cache_context
-                if hasattr(block, 'frame_cache_context'):
-                    block.frame_cache_context = None
-                    cleared.append('frame_cache_context')
-                
-                # 清理 decoder_cache
-                if hasattr(block, 'decoder_cache'):
-                    block.decoder_cache = None
-                    cleared.append('decoder_cache')
-                
-                # 清理 init_latents
-                if hasattr(block, 'init_latents'):
-                    block.init_latents = None
-                    cleared.append('init_latents')
-        
-        # 清理 pipeline 级别的缓存
-        cache_attrs = [
+        cache_attrs_to_clear = [
             'input_frames_cache', 'frame_cache_context', 'decoder_cache',
             'init_latents', 'kv_cache', 'crossattn_cache', '_cached_latents'
         ]
-        for attr in cache_attrs:
+        
+        # 清理 pipeline blocks 中的缓存
+        if hasattr(self.pipe, 'blocks'):
+            blocks = self.pipe.blocks
+            # 检查是否可迭代
+            if hasattr(blocks, '__iter__'):
+                block_list = list(blocks)
+            else:
+                # 单个 block 对象
+                block_list = [blocks]
+            
+            for block in block_list:
+                for attr in cache_attrs_to_clear:
+                    if hasattr(block, attr):
+                        setattr(block, attr, None)
+                        cleared.append(attr)
+                
+                # 递归清理 block 内部的子模块
+                if hasattr(block, 'blocks') and block.blocks is not None:
+                    try:
+                        sub_blocks = list(block.blocks) if hasattr(block.blocks, '__iter__') else [block.blocks]
+                        for sub_block in sub_blocks:
+                            for attr in cache_attrs_to_clear:
+                                if hasattr(sub_block, attr):
+                                    setattr(sub_block, attr, None)
+                                    cleared.append(f'sub.{attr}')
+                    except Exception:
+                        pass
+        
+        # 清理 pipeline 级别的缓存
+        for attr in cache_attrs_to_clear:
             if hasattr(self.pipe, attr):
                 setattr(self.pipe, attr, None)
                 cleared.append(f'pipe.{attr}')
