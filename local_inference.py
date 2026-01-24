@@ -172,6 +172,7 @@ class KreaLocalInference:
             return
         
         transformer = self.pipe.transformer
+        cleared_count = 0
         
         # 遍历所有子模块，清除 block_mask 相关缓存
         for name, module in transformer.named_modules():
@@ -185,6 +186,7 @@ class KreaLocalInference:
                 try:
                     if hasattr(module, attr_name):
                         setattr(module, attr_name, None)
+                        cleared_count += 1
                 except Exception:
                     pass
             
@@ -206,8 +208,12 @@ class KreaLocalInference:
         if hasattr(transformer, 'reset_caches'):
             try:
                 transformer.reset_caches()
+                cleared_count += 1
             except Exception:
                 pass
+        
+        if cleared_count > 0:
+            print(f"[Cache Reset] Cleared {cleared_count} transformer caches")
     
     def cleanup_inference(self):
         """清理推理过程中的临时显存"""
