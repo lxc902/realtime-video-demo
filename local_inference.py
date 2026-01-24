@@ -74,7 +74,6 @@ class KreaLocalInference:
     def initialize_generation(self, prompt, start_frame=None, num_inference_steps=4, strength=0.45, seed=None):
         """初始化生成过程"""
         # 彻底重置编译缓存，确保新生成使用正确的 block_mask
-        import torch._dynamo
         torch._dynamo.reset()
         
         # 清理 inductor codecache
@@ -164,19 +163,9 @@ class KreaLocalInference:
         deleted = []
         for key in keys_to_delete:
             if key in values:
-                # 先显式删除张量内容
-                val = values[key]
-                if isinstance(val, torch.Tensor):
-                    del val
-                elif isinstance(val, (list, tuple)):
-                    for item in val:
-                        if isinstance(item, torch.Tensor):
-                            del item
-                        elif isinstance(item, dict):
-                            for k, v in list(item.items()):
-                                if isinstance(v, torch.Tensor):
-                                    del item[k]
                 deleted.append(key)
+                # 直接删除，让 Python GC 处理引用计数
+                # 注意：del values[key] 会减少引用计数，配合 gc.collect() 释放内存
                 del values[key]
         
         if deleted:
@@ -241,8 +230,13 @@ class KreaLocalInference:
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
         
-        # 注意：不要在这里调用 torch._dynamo.reset()
-        # 重复编译比缓存复用更耗内存（每次 "Generating block mask" 都需要重新分配编译内存）
+        # 清理 transformer 内部的缓存（kv_cache 可能存储在模块属性中而非 state.values）
+        self._reset_transformer_caches()
+        
+        # 再次 gc 和 empty_cache
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
         
         return new_frames
     
@@ -280,29 +274,37 @@ class KreaLocalInference:
         transformer = self.pipe.transformer
         cleared_count = 0
         
-        # 遍历所有子模块，清除 block_mask 相关缓存
+        # 遍历所有子模块，清除各种缓存
         for name, module in transformer.named_modules():
             # 清除 block_mask 相关属性
             attrs_to_clear = []
             for attr_name in dir(module):
-                if 'block_mask' in attr_name.lower() or 'blockmask' in attr_name.lower():
-                    attrs_to_clear.append(attr_name)
+                attr_lower = attr_name.lower()
+                if any(kw in attr_lower for kw in ['block_mask', 'blockmask', 'kv_cache', 'cache', 'attn_cache']):
+                    if not attr_name.startswith('_') or attr_name.startswith('_kv') or attr_name.startswith('_cache'):
+                        attrs_to_clear.append(attr_name)
             
             for attr_name in attrs_to_clear:
                 try:
                     if hasattr(module, attr_name):
-                        setattr(module, attr_name, None)
-                        cleared_count += 1
+                        val = getattr(module, attr_name)
+                        if val is not None and not callable(val):
+                            setattr(module, attr_name, None)
+                            cleared_count += 1
                 except Exception:
                     pass
             
-            # 清除 kv cache（如果存在）
-            if hasattr(module, 'kv_cache'):
-                module.kv_cache = None
-            if hasattr(module, '_kv_cache'):
-                module._kv_cache = None
-            if hasattr(module, 'cache'):
-                module.cache = None
+            # 显式清除常见的缓存属性
+            cache_attrs = ['kv_cache', '_kv_cache', 'cache', '_cache', 
+                          'k_cache', 'v_cache', 'key_cache', 'value_cache',
+                          'crossattn_cache', '_crossattn_cache']
+            for attr in cache_attrs:
+                if hasattr(module, attr):
+                    try:
+                        setattr(module, attr, None)
+                        cleared_count += 1
+                    except Exception:
+                        pass
         
         # 清除 transformer 级别的缓存
         if hasattr(transformer, 'block_mask'):
@@ -324,7 +326,6 @@ class KreaLocalInference:
     def cleanup_inference(self):
         """清理推理过程中的临时显存"""
         # 彻底重置 torch.compile 和 inductor 缓存
-        import torch._dynamo
         torch._dynamo.reset()
         
         # 清理 inductor codecache（更彻底的清理）
@@ -367,7 +368,6 @@ class KreaLocalInference:
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
         
-        import gc
         gc.collect()
 
 

@@ -186,6 +186,10 @@ import time
 active_sessions = {}
 session_lock = threading.Lock()
 
+# 全局推理锁 - 确保同一时间只有一个请求在使用模型
+# 这是必要的，因为所有 session 共享同一个 model 实例
+inference_lock = threading.Lock()
+
 # Session 超时时间（秒）- 超过此时间没有活动的 session 会被自动清理
 SESSION_TIMEOUT = 60
 
@@ -240,23 +244,22 @@ async def api_start_generation(req: StartGenerationRequest):
         start_frame_bytes = base64.b64decode(req.start_frame)
         start_frame = model.process_frame_bytes(start_frame_bytes)
     
-    # 初始化生成
-    await asyncio.to_thread(
-        model.initialize_generation,
-        prompt=req.prompt,
-        start_frame=start_frame,
-        num_inference_steps=req.num_denoising_steps,
-        strength=req.strength,
-        seed=req.seed
-    )
+    # 使用推理锁确保同一时间只有一个请求在使用模型
+    def init_and_generate():
+        with inference_lock:
+            model.initialize_generation(
+                prompt=req.prompt,
+                start_frame=start_frame,
+                num_inference_steps=req.num_denoising_steps,
+                strength=req.strength,
+                seed=req.seed
+            )
+            # 生成第一个 block
+            return model.generate_next_block(input_frame=None)
+    
+    frames = await asyncio.to_thread(init_and_generate)
     
     session.initialized = True
-    
-    # 生成第一个 block
-    frames = await asyncio.to_thread(
-        model.generate_next_block,
-        input_frame=None
-    )
     
     # 转换帧为 base64
     for frame in frames:
@@ -288,21 +291,22 @@ async def api_generate_frame(req: FrameRequest):
     # 更新活动时间
     session.touch()
     
-    # 更新参数
-    if req.prompt:
-        session.model.prompt = req.prompt
-    if req.strength:
-        session.model.strength = req.strength
-    
     # 如果有输入帧，生成下一个 block
     if req.image and session.current_block < session.num_blocks:
         input_frame_bytes = base64.b64decode(req.image)
         input_frame = session.model.process_frame_bytes(input_frame_bytes)
         
-        frames = await asyncio.to_thread(
-            session.model.generate_next_block,
-            input_frame=input_frame
-        )
+        # 使用推理锁确保同一时间只有一个请求在使用模型
+        def generate_with_lock():
+            with inference_lock:
+                # 更新参数（在锁内更新，避免并发问题）
+                if req.prompt:
+                    session.model.prompt = req.prompt
+                if req.strength:
+                    session.model.strength = req.strength
+                return session.model.generate_next_block(input_frame=input_frame)
+        
+        frames = await asyncio.to_thread(generate_with_lock)
         
         with session.lock:
             for frame in frames:
@@ -407,25 +411,23 @@ async def websocket_video_gen(websocket: WebSocket):
                 
                 print(f"Initializing: prompt='{prompt}', num_blocks={num_blocks}")
                 
-                # 初始化生成
-                await asyncio.to_thread(
-                    inference_model.initialize_generation,
-                    prompt=prompt,
-                    start_frame=start_frame,
-                    num_inference_steps=num_inference_steps,
-                    strength=strength,
-                    seed=seed
-                )
+                # 使用推理锁初始化生成并生成第一个 block
+                def init_and_generate_first():
+                    with inference_lock:
+                        inference_model.initialize_generation(
+                            prompt=prompt,
+                            start_frame=start_frame,
+                            num_inference_steps=num_inference_steps,
+                            strength=strength,
+                            seed=seed
+                        )
+                        print(f"Generating block 0/{num_blocks}")
+                        return inference_model.generate_next_block(input_frame=None)
+                
+                frames = await asyncio.to_thread(init_and_generate_first)
                 
                 initialized = True
                 current_block = 0
-                
-                # 立即生成第一个 block
-                print(f"Generating block 0/{num_blocks}")
-                frames = await asyncio.to_thread(
-                    inference_model.generate_next_block,
-                    input_frame=None
-                )
                 
                 # 发送帧
                 for frame in frames:
@@ -453,12 +455,7 @@ async def websocket_video_gen(websocket: WebSocket):
                 input_frame_bytes = message["image"]
                 strength = message.get("strength", 0.45)
                 
-                # 更新 strength
-                inference_model.strength = strength
-                
-                # 可能还有 prompt 更新
-                if "prompt" in message:
-                    inference_model.prompt = message["prompt"]
+                # 更新 num_blocks（这个不需要锁）
                 if "num_blocks" in message:
                     num_blocks = message["num_blocks"]
                 
@@ -466,10 +463,15 @@ async def websocket_video_gen(websocket: WebSocket):
                 if current_block < num_blocks:
                     input_frame = inference_model.process_frame_bytes(input_frame_bytes)
                     
-                    frames = await asyncio.to_thread(
-                        inference_model.generate_next_block,
-                        input_frame=input_frame
-                    )
+                    # 使用推理锁
+                    def generate_with_lock():
+                        with inference_lock:
+                            inference_model.strength = strength
+                            if "prompt" in message:
+                                inference_model.prompt = message["prompt"]
+                            return inference_model.generate_next_block(input_frame=input_frame)
+                    
+                    frames = await asyncio.to_thread(generate_with_lock)
                     
                     # 发送帧
                     for frame in frames:
