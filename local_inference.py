@@ -241,9 +241,8 @@ class KreaLocalInference:
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
         
-        # 重置 torch.compile 缓存，防止编译图累积
-        # 注意：这会影响性能，但能防止内存泄漏
-        torch._dynamo.reset()
+        # 注意：不要在这里调用 torch._dynamo.reset()
+        # 重复编译比缓存复用更耗内存（每次 "Generating block mask" 都需要重新分配编译内存）
         
         return new_frames
     
