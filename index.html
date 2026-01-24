@@ -2042,16 +2042,18 @@
                     return;
                 }
 
-                this.showInfo(`Exporting ${this.allFrames.length} frames...`);
+                const fps = parseInt(document.getElementById('playbackFps').value) || 8;
+                const totalFrames = this.allFrames.length;
+                const videoDuration = (totalFrames / fps).toFixed(1);
+                
+                this.showInfo(`Loading ${totalFrames} frames...`);
                 
                 try {
-                    const fps = parseInt(document.getElementById('playbackFps').value) || 8;
-                    
                     // 创建离屏 canvas
                     const offscreenCanvas = document.createElement('canvas');
                     const ctx = offscreenCanvas.getContext('2d');
                     
-                    // 预加载所有帧为 bitmap（并行加载加速）
+                    // 预加载所有帧为 bitmap（并行加载）
                     const bitmapPromises = this.allFrames.map(frameData => {
                         const blob = new Blob([frameData], { type: 'image/jpeg' });
                         return createImageBitmap(blob);
@@ -2065,8 +2067,8 @@
                     // 先绘制第一帧
                     ctx.drawImage(bitmaps[0], 0, 0);
                     
-                    // 使用 captureStream 指定目标帧率
-                    const stream = offscreenCanvas.captureStream(fps);
+                    // 使用 captureStream(0) 手动控制帧捕获
+                    const stream = offscreenCanvas.captureStream(0);
                     const videoTrack = stream.getVideoTracks()[0];
                     const chunks = [];
                     const recorder = new MediaRecorder(stream, {
@@ -2099,22 +2101,29 @@
                     // 开始录制
                     recorder.start(50);
                     
-                    // 按照 playback fps 的间隔绘制帧
-                    // 这样视频时长 = frames / fps 秒
+                    // 按目标帧率间隔绘制帧，显示进度
                     const frameInterval = 1000 / fps;
-                    const totalDuration = (bitmaps.length / fps).toFixed(1);
-                    this.showInfo(`Exporting ${bitmaps.length} frames at ${fps}fps (${totalDuration}s)...`);
+                    this.showInfo(`Encoding: 0/${totalFrames} (0%) - ${videoDuration}s video`);
                     
                     for (let i = 0; i < bitmaps.length; i++) {
                         ctx.drawImage(bitmaps[i], 0, 0);
                         if (videoTrack.requestFrame) {
                             videoTrack.requestFrame();
                         }
+                        
+                        // 更新进度（每 10 帧更新一次）
+                        if (i % 10 === 0 || i === bitmaps.length - 1) {
+                            const percent = Math.round((i + 1) / totalFrames * 100);
+                            this.showInfo(`Encoding: ${i + 1}/${totalFrames} (${percent}%)`);
+                        }
+                        
                         // 按照目标帧率等待
                         await new Promise(r => setTimeout(r, frameInterval));
                     }
                     
-                    // 短暂等待确保最后帧被捕获
+                    this.showInfo('Finalizing video...');
+                    
+                    // 等待确保最后帧被捕获
                     await new Promise(r => setTimeout(r, 200));
                     
                     recorder.stop();
@@ -2125,7 +2134,7 @@
                     }
                     
                     await downloadPromise;
-                    this.showInfo('Download complete!');
+                    this.showInfo(`Downloaded! (${videoDuration}s at ${fps}fps)`);
                     
                 } catch (error) {
                     console.error('Download error:', error);
