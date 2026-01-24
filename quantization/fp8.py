@@ -131,7 +131,6 @@ def load_fp8(pipe, repo_id, device, dtype):
     from huggingface_hub import hf_hub_download
     from safetensors.torch import load_file
     from diffusers import AutoModel
-    from accelerate import init_empty_weights
     
     # 检查硬件支持
     supports_fp8, compute_cap, msg = check_fp8_support()
@@ -171,19 +170,8 @@ def load_fp8(pipe, repo_id, device, dtype):
         torch_dtype={"default": dtype, "vae": torch.float16},
     )
     
-    # 3. 加载 transformer 结构（meta device，不占内存）
-    print("   [3/4] 加载 transformer 结构（空壳）...")
-    
-    with init_empty_weights():
-        transformer = AutoModel.from_pretrained(
-            repo_id,
-            subfolder="transformer",
-            torch_dtype=dtype,
-            trust_remote_code=True,
-        )
-    
-    # 4. 加载 FP8 权重
-    print("   [4/4] 加载 FP8 权重并应用优化...")
+    # 3. 加载 FP8 权重
+    print("   [3/4] 加载 FP8 权重...")
     fp8_state_dict = load_file(fp8_path)
     
     # 提取 scale_weights
@@ -198,22 +186,35 @@ def load_fp8(pipe, repo_id, device, dtype):
         "img_emb", "modulation", "text_embedding"
     }
     
+    # 4. 加载 transformer 结构到 CPU，然后替换权重
+    print("   [4/4] 加载 transformer 并替换权重...")
+    
+    # 先加载到 CPU（避免 OOM）
+    transformer = AutoModel.from_pretrained(
+        repo_id,
+        subfolder="transformer",
+        torch_dtype=dtype,
+        trust_remote_code=True,
+        device_map="cpu",
+    )
+    
     # 构建 module name -> module 的映射
     module_dict = {name: module for name, module in transformer.named_modules()}
     
-    # 遍历 state_dict 的所有键，确保所有权重都被加载
-    loaded_keys = set()
+    # 遍历 state_dict 的所有键，替换权重
+    loaded_fp8_count = 0
+    loaded_bf16_count = 0
+    
     for key, value in fp8_state_dict.items():
         # 跳过 scale_weight
         if "scale_weight" in key or "weight_scale" in key:
             continue
         
-        # 解析 key: "blocks.0.self_attn.q.weight" -> module_name="blocks.0.self_attn.q", param_name="weight"
+        # 解析 key
         parts = key.rsplit(".", 1)
         if len(parts) == 2:
             module_name, param_name = parts
         else:
-            # 顶层参数
             module_name, param_name = "", key
         
         # 判断是否保持原精度
@@ -225,27 +226,24 @@ def load_fp8(pipe, repo_id, device, dtype):
             module = module_dict[module_name]
             is_linear_weight = isinstance(module, nn.Linear) and param_name == "weight"
         
-        # 决定目标 dtype
+        # 决定目标 dtype 和设备
         if is_linear_weight and not keep_original:
-            # Linear 层的 weight 保持 FP8 格式
+            # Linear 层的 weight 保持 FP8 格式，直接放到 GPU
             target_value = value.to(device)
+            loaded_fp8_count += 1
         else:
-            # 其他所有参数转换为 bf16
+            # 其他所有参数转换为 bf16，放到 GPU
             target_value = value.to(device, dtype)
+            loaded_bf16_count += 1
         
         # 设置参数
-        if module_name == "":
-            # 顶层参数
-            if hasattr(transformer, param_name):
-                setattr(transformer, param_name, nn.Parameter(target_value, requires_grad=False))
-                loaded_keys.add(key)
+        if module_name == "" and hasattr(transformer, param_name):
+            setattr(transformer, param_name, nn.Parameter(target_value, requires_grad=False))
         elif module_name in module_dict:
             module = module_dict[module_name]
-            if hasattr(module, param_name):
-                setattr(module, param_name, nn.Parameter(target_value, requires_grad=False))
-                loaded_keys.add(key)
+            setattr(module, param_name, nn.Parameter(target_value, requires_grad=False))
     
-    print(f"   ✅ 已加载 {len(loaded_keys)} 个参数到 GPU")
+    print(f"   ✅ 已加载 {loaded_fp8_count} 个 FP8 参数 + {loaded_bf16_count} 个 BF16 参数")
     
     # 清理显存
     del fp8_state_dict
