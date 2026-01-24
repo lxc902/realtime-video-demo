@@ -2099,14 +2099,19 @@
                     // 开始录制
                     recorder.start(50);
                     
-                    // 快速绘制所有帧（最小间隔，让编码器尽快处理）
+                    // 按照 playback fps 的间隔绘制帧
+                    // 这样视频时长 = frames / fps 秒
+                    const frameInterval = 1000 / fps;
+                    const totalDuration = (bitmaps.length / fps).toFixed(1);
+                    this.showInfo(`Exporting ${bitmaps.length} frames at ${fps}fps (${totalDuration}s)...`);
+                    
                     for (let i = 0; i < bitmaps.length; i++) {
                         ctx.drawImage(bitmaps[i], 0, 0);
                         if (videoTrack.requestFrame) {
                             videoTrack.requestFrame();
                         }
-                        // 最小等待，只是为了让浏览器有机会处理
-                        await new Promise(r => setTimeout(r, 20));
+                        // 按照目标帧率等待
+                        await new Promise(r => setTimeout(r, frameInterval));
                     }
                     
                     // 短暂等待确保最后帧被捕获
