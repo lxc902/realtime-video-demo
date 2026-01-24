@@ -256,7 +256,7 @@ class KreaLocalInference:
             
             if generator is not None:
                 kwargs["generator"] = generator
-            
+             
             # 根据 KREA 官方代码 (before_denoise.py)：
             # - T2V 模式：不需要 video/video_stream 参数
             # - V2V 模式：使用 video 参数（整个预录视频）
