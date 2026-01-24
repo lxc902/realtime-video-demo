@@ -71,10 +71,31 @@ class KreaLocalInference:
         
     def initialize_generation(self, prompt, start_frame=None, num_inference_steps=4, strength=0.45, seed=None):
         """初始化生成过程"""
-        # 重置 torch.compile 缓存，确保新生成使用正确的 block_mask
-        # 解决 flex_attention block_mask 尺寸不匹配问题
+        # 彻底重置编译缓存，确保新生成使用正确的 block_mask
         import torch._dynamo
         torch._dynamo.reset()
+        
+        # 清理 inductor codecache
+        try:
+            import torch._inductor
+            if hasattr(torch._inductor, 'codecache'):
+                if hasattr(torch._inductor.codecache, 'PyCodeCache'):
+                    torch._inductor.codecache.PyCodeCache.clear()
+                if hasattr(torch._inductor.codecache, 'FxGraphCache'):
+                    torch._inductor.codecache.FxGraphCache.clear()
+        except Exception:
+            pass
+        
+        # 重置 flex_attention 相关的编译缓存
+        try:
+            from torch.nn.attention.flex_attention import _flex_attention_cache
+            if hasattr(_flex_attention_cache, 'clear'):
+                _flex_attention_cache.clear()
+        except Exception:
+            pass
+        
+        # 重置 transformer 内部的 block_mask 缓存
+        self._reset_transformer_caches()
         
         self.state = PipelineState()
         self.current_frames = []
@@ -145,11 +166,76 @@ class KreaLocalInference:
         image.save(buf, format='JPEG', quality=90)
         return buf.getvalue()
     
+    def _reset_transformer_caches(self):
+        """重置 transformer 内部的 block_mask 和 kv cache"""
+        if not hasattr(self.pipe, 'transformer') or self.pipe.transformer is None:
+            return
+        
+        transformer = self.pipe.transformer
+        
+        # 遍历所有子模块，清除 block_mask 相关缓存
+        for name, module in transformer.named_modules():
+            # 清除 block_mask 相关属性
+            attrs_to_clear = []
+            for attr_name in dir(module):
+                if 'block_mask' in attr_name.lower() or 'blockmask' in attr_name.lower():
+                    attrs_to_clear.append(attr_name)
+            
+            for attr_name in attrs_to_clear:
+                try:
+                    if hasattr(module, attr_name):
+                        setattr(module, attr_name, None)
+                except Exception:
+                    pass
+            
+            # 清除 kv cache（如果存在）
+            if hasattr(module, 'kv_cache'):
+                module.kv_cache = None
+            if hasattr(module, '_kv_cache'):
+                module._kv_cache = None
+            if hasattr(module, 'cache'):
+                module.cache = None
+        
+        # 清除 transformer 级别的缓存
+        if hasattr(transformer, 'block_mask'):
+            transformer.block_mask = None
+        if hasattr(transformer, '_block_mask'):
+            transformer._block_mask = None
+        if hasattr(transformer, 'kv_cache'):
+            transformer.kv_cache = None
+        if hasattr(transformer, 'reset_caches'):
+            try:
+                transformer.reset_caches()
+            except Exception:
+                pass
+    
     def cleanup_inference(self):
         """清理推理过程中的临时显存"""
-        # 重置 torch.compile 缓存（解决 block_mask 尺寸不匹配问题）
+        # 彻底重置 torch.compile 和 inductor 缓存
         import torch._dynamo
         torch._dynamo.reset()
+        
+        # 清理 inductor codecache（更彻底的清理）
+        try:
+            import torch._inductor
+            if hasattr(torch._inductor, 'codecache'):
+                if hasattr(torch._inductor.codecache, 'PyCodeCache'):
+                    torch._inductor.codecache.PyCodeCache.clear()
+                if hasattr(torch._inductor.codecache, 'FxGraphCache'):
+                    torch._inductor.codecache.FxGraphCache.clear()
+        except Exception:
+            pass
+        
+        # 重置 flex_attention 相关的编译缓存
+        try:
+            from torch.nn.attention.flex_attention import _flex_attention_cache
+            if hasattr(_flex_attention_cache, 'clear'):
+                _flex_attention_cache.clear()
+        except Exception:
+            pass
+        
+        # 重置 transformer 内部的 block_mask 缓存
+        self._reset_transformer_caches()
         
         # 清理状态
         if self.state is not None:

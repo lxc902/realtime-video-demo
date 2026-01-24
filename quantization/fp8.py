@@ -36,27 +36,25 @@ def fp8_linear_forward(cls, base_dtype, input):
     weight_dtype = cls.weight.dtype
     
     if weight_dtype in [torch.float8_e4m3fn, torch.float8_e5m2]:
+        # 获取或创建 scale_weight
+        scale_weight = getattr(cls, 'scale_weight', None)
+        if scale_weight is None:
+            scale_weight = torch.ones((), device=input.device, dtype=torch.float32)
+        else:
+            scale_weight = scale_weight.to(input.device).squeeze()
+
+        scale_input = torch.ones((), device=input.device, dtype=torch.float32)
+        
+        # Clamp 输入到 FP8 e4m3fn 的有效范围
+        input = torch.clamp(input, min=-448, max=448)
+        
+        bias = cls.bias.to(base_dtype) if cls.bias is not None else None
+        
         if len(input.shape) == 3:
+            # 3D 输入: [batch, seq, features]
             input_shape = input.shape
-
-            # 获取或创建 scale_weight
-            scale_weight = getattr(cls, 'scale_weight', None)
-            if scale_weight is None:
-                scale_weight = torch.ones((), device=input.device, dtype=torch.float32)
-            else:
-                scale_weight = scale_weight.to(input.device).squeeze()
-
-            scale_input = torch.ones((), device=input.device, dtype=torch.float32)
-
-            # Clamp 输入到 FP8 e4m3fn 的有效范围
-            input = torch.clamp(input, min=-448, max=448, out=input)
-            
-            # 转换输入为 FP8
             inn = input.reshape(-1, input_shape[2]).to(torch.float8_e4m3fn).contiguous()
-
-            bias = cls.bias.to(base_dtype) if cls.bias is not None else None
-
-            # 使用 scaled_mm 进行 FP8 矩阵乘法
+            
             o = torch._scaled_mm(
                 inn, 
                 cls.weight.t(), 
@@ -65,10 +63,26 @@ def fp8_linear_forward(cls, base_dtype, input):
                 scale_a=scale_input, 
                 scale_b=scale_weight
             )
-
             return o.reshape((-1, input_shape[1], cls.weight.shape[0]))
+        
+        elif len(input.shape) == 2:
+            # 2D 输入: [batch, features]
+            inn = input.to(torch.float8_e4m3fn).contiguous()
+            
+            o = torch._scaled_mm(
+                inn, 
+                cls.weight.t(), 
+                out_dtype=base_dtype, 
+                bias=bias, 
+                scale_a=scale_input, 
+                scale_b=scale_weight
+            )
+            return o
+        
         else:
-            return cls.original_forward(input.to(base_dtype))
+            # 其他维度：将权重转换为 base_dtype 进行计算
+            weight_bf16 = cls.weight.to(base_dtype)
+            return torch.nn.functional.linear(input.to(base_dtype), weight_bf16, bias)
     else:
         return cls.original_forward(input)
 
