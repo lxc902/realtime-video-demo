@@ -113,30 +113,38 @@ class KreaLocalInference:
         
     def generate_next_block(self, input_frame=None):
         """生成下一个 block 的帧"""
-        kwargs = {
-            "state": self.state,
-            "prompt": [self.prompt],
-            "num_inference_steps": self.num_inference_steps,
-            "strength": self.strength,
-            "block_idx": self.block_idx,
-        }
-        
-        if self.generator is not None:
-            kwargs["generator"] = self.generator
+        # 使用 inference_mode 比 no_grad 更激进，完全禁用 autograd 追踪
+        with torch.inference_mode():
+            kwargs = {
+                "state": self.state,
+                "prompt": [self.prompt],
+                "num_inference_steps": self.num_inference_steps,
+                "strength": self.strength,
+                "block_idx": self.block_idx,
+            }
             
-        # 如果是 video-to-video 或 webcam 模式，添加输入帧
-        if input_frame is not None:
-            kwargs["video"] = input_frame
-        elif self.start_frame is not None and self.block_idx == 0:
-            kwargs["video"] = self.start_frame
+            if self.generator is not None:
+                kwargs["generator"] = self.generator
+                
+            # 如果是 video-to-video 或 webcam 模式，添加输入帧
+            if input_frame is not None:
+                kwargs["video"] = input_frame
+            elif self.start_frame is not None and self.block_idx == 0:
+                kwargs["video"] = self.start_frame
+                
+            # 生成
+            self.state = self.pipe(**kwargs)
             
-        # 生成
-        self.state = self.pipe(**kwargs)
+            # 提取生成的帧
+            new_frames = self.state.values["videos"][0]
+            self.current_frames.extend(new_frames)
+            self.block_idx += 1
         
-        # 提取生成的帧
-        new_frames = self.state.values["videos"][0]
-        self.current_frames.extend(new_frames)
-        self.block_idx += 1
+        # 显式删除临时变量
+        del kwargs
+        
+        # 每帧推理后清理中间张量，防止内存累积
+        torch.cuda.empty_cache()
         
         return new_frames
     

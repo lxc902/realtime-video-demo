@@ -43,7 +43,11 @@ def fp8_linear_forward(cls, base_dtype, input):
         else:
             scale_weight = scale_weight.to(input.device).squeeze()
 
-        scale_input = torch.ones((), device=input.device, dtype=torch.float32)
+        # 复用预创建的 scale_input，避免每次 forward 创建新张量
+        scale_input = getattr(cls, '_scale_input_cache', None)
+        if scale_input is None or scale_input.device != input.device:
+            scale_input = torch.ones((), device=input.device, dtype=torch.float32)
+            cls._scale_input_cache = scale_input
         
         # Clamp 输入到 FP8 e4m3fn 的有效范围
         input = torch.clamp(input, min=-448, max=448)

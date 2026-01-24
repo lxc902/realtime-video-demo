@@ -4,6 +4,7 @@ INT8 量化加载
 需要 ~28GB 显存
 """
 import torch
+import gc
 
 
 def load_int8(pipe, repo_id, device, dtype):
@@ -49,9 +50,11 @@ def load_int8(pipe, repo_id, device, dtype):
         filter_fn=linear_only_filter
     )
     
-    # 4. 清理显存
+    # 4. 清理显存和 CPU 内存
     print("   [3/3] 清理显存缓存...")
+    gc.collect()
     torch.cuda.empty_cache()
+    torch.cuda.synchronize()
     
     # 量化模式下跳过 fuse_projections
     print("   ⚠️  量化模式下跳过 fuse_projections（不兼容）")

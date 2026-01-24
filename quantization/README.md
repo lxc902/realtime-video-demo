@@ -59,19 +59,20 @@ Pro96 每帧消耗 9GB vs Ada48 的 2GB，可能原因：
 3. **更大的并行度**：Blackwell 有更多 CUDA 核心，需要更大的中间激活批次
 4. **新架构驱动优化**：Blackwell 驱动可能更激进地预分配 memory pool
 
-## 优化建议
+## 已实施的优化
 
-### 立即可做
+1. ✅ **FP8 scale_input 复用** (`fp8.py`)：预创建 `_scale_input_cache` 并复用，避免每次 forward 创建新张量
+2. ✅ **每帧清理显存** (`local_inference.py`)：`generate_next_block` 结束时调用 `torch.cuda.empty_cache()`
+3. ✅ **使用 inference_mode** (`local_inference.py`)：用 `torch.inference_mode()` 包装推理，比 `no_grad` 更激进
+4. ✅ **显式删除临时变量** (`local_inference.py`)：推理后 `del kwargs`
+5. ✅ **INT8 加载后清理** (`int8.py`)：量化完成后 `gc.collect()` + `torch.cuda.synchronize()`
 
-1. 在 `fp8_linear_forward` 中复用 `scale_input` 而不是每次创建
-2. 每 N 帧强制调用 `torch.cuda.empty_cache()`
-3. 在推理循环中添加显式的 `del` 和 `gc.collect()`
-
-### 需要深入研究
+## 待深入研究
 
 1. 调查 `torch._scaled_mm` 的内存行为
 2. 检查 flex_attention 缓存是否有官方的清理方法
 3. 考虑使用 `torch.cuda.memory_stats()` 进行详细的内存分析
+4. Blackwell 架构上 PyTorch 的 FP8 实现可能需要特殊优化
 
 ## 相关代码文件
 
