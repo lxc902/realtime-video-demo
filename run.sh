@@ -252,7 +252,11 @@ echo ""
 
 # 预下载模型（优先从 GCS，失败则让 HuggingFace 自动下载）
 echo "📦 检查模型..."
-bash download.sh
+if [ "$QUANTIZATION" = "fp8" ]; then
+    bash download.sh --fp8
+else
+    bash download.sh
+fi
 echo ""
 
 # 设置量化环境变量
