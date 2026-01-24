@@ -3,6 +3,7 @@ KREA Realtime Video - 本地 GPU 推理模块
 使用 diffusers 库在本地 GPU 上运行 KREA 模型
 """
 import torch
+import gc
 from diffusers import ModularPipeline
 from diffusers.modular_pipelines import PipelineState
 from PIL import Image
@@ -122,21 +123,32 @@ class KreaLocalInference:
         
         解决方案：清理所有大缓存，让 pipeline 重新计算。牺牲速度换取内存稳定。
         """
-        if self.state is None or not hasattr(self.state, 'values'):
-            return
-        
-        values = self.state.values
-        if not values:
-            return
+        # 强制 Python 垃圾回收
+        gc.collect()
         
         # 强制清理 GPU 缓存
-        torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
         
         # 调试：打印 GPU 内存使用
         if torch.cuda.is_available():
             allocated = torch.cuda.memory_allocated() / 1024 / 1024 / 1024
             reserved = torch.cuda.memory_reserved() / 1024 / 1024 / 1024
             print(f"[Debug] block_idx={self.block_idx}, GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
+        
+        if self.state is None or not hasattr(self.state, 'values'):
+            print(f"  [Cleanup] state is None or has no values")
+            return
+        
+        values = self.state.values
+        if not values:
+            print(f"  [Cleanup] state.values is empty")
+            return
+        
+        # 诊断：打印 state.values 中的所有 key
+        all_keys = list(values.keys())
+        print(f"  [Cleanup] state.values keys: {all_keys}")
         
         # 删除所有大缓存（这些会导致 deepcopy OOM）
         keys_to_delete = [
@@ -150,14 +162,33 @@ class KreaLocalInference:
         deleted = []
         for key in keys_to_delete:
             if key in values:
+                # 先显式删除张量内容
+                val = values[key]
+                if isinstance(val, torch.Tensor):
+                    del val
+                elif isinstance(val, (list, tuple)):
+                    for item in val:
+                        if isinstance(item, torch.Tensor):
+                            del item
+                        elif isinstance(item, dict):
+                            for k, v in list(item.items()):
+                                if isinstance(v, torch.Tensor):
+                                    del item[k]
                 deleted.append(key)
                 del values[key]
         
         if deleted:
             print(f"  [Cleanup] Deleted: {deleted}")
+        else:
+            print(f"  [Cleanup] Nothing to delete from target keys")
+        
+        # 强制 Python 垃圾回收
+        gc.collect()
         
         # 再次清理 GPU 缓存
-        torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
         
         # 打印清理后的内存
         if torch.cuda.is_available():
@@ -200,8 +231,18 @@ class KreaLocalInference:
         # 显式删除临时变量
         del kwargs
         
+        # 强制 Python 垃圾回收
+        gc.collect()
+        
         # 每帧推理后清理中间张量，防止内存累积
-        torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+        
+        # 重置 torch.compile 缓存，防止编译图累积
+        # 注意：这会影响性能，但能防止内存泄漏
+        import torch._dynamo
+        torch._dynamo.reset()
         
         return new_frames
     

@@ -56,12 +56,24 @@ Pro96 每帧消耗 9GB vs Ada48 的 2GB，可能原因：
 
 ## 已实施的优化
 
-1. ✅ **清理 state 中的大张量** (`local_inference.py`)：`_cleanup_state_tensors()` 在调用 pipe 前清理 videos 等大张量，避免 deepcopy OOM
+1. ✅ **清理 state 中的大张量** (`local_inference.py`)：`_cleanup_state_tensors()` 在调用 pipe 前清理 videos, kv_cache, crossattn_cache, decoder_cache 等大张量，避免 deepcopy OOM
 2. ✅ **FP8 scale_input 复用** (`fp8.py`)：预创建 `_scale_input_cache` 并复用，避免每次 forward 创建新张量
-3. ✅ **每帧清理显存** (`local_inference.py`)：`generate_next_block` 结束时调用 `torch.cuda.empty_cache()`
+3. ✅ **每帧清理显存** (`local_inference.py`)：`generate_next_block` 结束时调用 `gc.collect()` + `torch.cuda.empty_cache()` + `torch.cuda.synchronize()`
 4. ✅ **使用 inference_mode** (`local_inference.py`)：用 `torch.inference_mode()` 包装推理，比 `no_grad` 更激进
 5. ✅ **显式删除临时变量** (`local_inference.py`)：推理后 `del kwargs`
 6. ✅ **INT8 加载后清理** (`int8.py`)：量化完成后 `gc.collect()` + `torch.cuda.synchronize()`
+7. ✅ **每帧重置 dynamo 缓存** (`local_inference.py`)：`generate_next_block` 结束时调用 `torch._dynamo.reset()` 防止编译缓存累积
+8. ✅ **诊断信息增强** (`local_inference.py`)：打印 state.values 中的 key，便于调试内存问题
+
+## 重要警告
+
+⚠️ **无量化 BF16 模式需要 54GB+ 显存**，即使在 96GB GPU 上也很紧张。强烈建议使用量化：
+
+```bash
+# 推荐用法
+bash run.sh --fp8   # FP8 量化，~25GB 显存
+bash run.sh --int8  # INT8 量化，~26GB 显存
+```
 
 ## 待深入研究
 
