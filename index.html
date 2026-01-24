@@ -629,6 +629,17 @@
     <!-- Hidden elements for video processing -->
     <video id="hiddenVideo" style="display: none;" muted playsinline></video>
     <canvas id="extractionCanvas" style="display: none;"></canvas>
+    
+    <!-- 下载进度条（浮动） -->
+    <div id="downloadProgress" style="display: none; position: fixed; bottom: 20px; right: 20px; background: #1c1917; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 1000; min-width: 250px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span id="downloadProgressText">Preparing...</span>
+            <span id="downloadProgressPercent">0%</span>
+        </div>
+        <div style="background: #333; border-radius: 4px; height: 6px; overflow: hidden;">
+            <div id="downloadProgressBar" style="background: #22c55e; height: 100%; width: 0%; transition: width 0.1s;"></div>
+        </div>
+    </div>
 
     <script>
         const FAL_KEY_STORAGE = 'FAL_API_KEY';
@@ -786,6 +797,7 @@
             generationFinished: false,
             idleTimeout: null,
             lastFrameTime: null,
+            isDownloading: false,
 
             async init() {
                 this.setupEventListeners();
@@ -2041,12 +2053,31 @@
                     this.showError('No frames to download');
                     return;
                 }
-
+                
+                // 如果已经在下载，不重复
+                if (this.isDownloading) {
+                    this.showInfo('Download already in progress...');
+                    return;
+                }
+                
+                this.isDownloading = true;
+                const progressDiv = document.getElementById('downloadProgress');
+                const progressText = document.getElementById('downloadProgressText');
+                const progressPercent = document.getElementById('downloadProgressPercent');
+                const progressBar = document.getElementById('downloadProgressBar');
+                
                 const fps = parseInt(document.getElementById('playbackFps').value) || 8;
                 const totalFrames = this.allFrames.length;
                 const videoDuration = (totalFrames / fps).toFixed(1);
                 
-                this.showInfo(`Loading ${totalFrames} frames...`);
+                // 显示进度条
+                progressDiv.style.display = 'block';
+                progressText.textContent = 'Loading frames...';
+                progressPercent.textContent = '0%';
+                progressBar.style.width = '0%';
+                
+                // 复制帧数据（允许用户继续操作）
+                const framesToExport = [...this.allFrames];
                 
                 try {
                     // 创建离屏 canvas
@@ -2054,11 +2085,13 @@
                     const ctx = offscreenCanvas.getContext('2d');
                     
                     // 预加载所有帧为 bitmap（并行加载）
-                    const bitmapPromises = this.allFrames.map(frameData => {
+                    const bitmapPromises = framesToExport.map(frameData => {
                         const blob = new Blob([frameData], { type: 'image/jpeg' });
                         return createImageBitmap(blob);
                     });
                     const bitmaps = await Promise.all(bitmapPromises);
+                    
+                    progressText.textContent = 'Encoding video...';
                     
                     // 设置 canvas 尺寸
                     offscreenCanvas.width = bitmaps[0].width;
@@ -2101,44 +2134,52 @@
                     // 开始录制
                     recorder.start(50);
                     
-                    // 按目标帧率间隔绘制帧，显示进度
+                    // 按目标帧率间隔绘制帧（使用 setTimeout 让 UI 响应）
                     const frameInterval = 1000 / fps;
-                    this.showInfo(`Encoding: 0/${totalFrames} (0%) - ${videoDuration}s video`);
                     
-                    for (let i = 0; i < bitmaps.length; i++) {
+                    const encodeFrame = async (i) => {
+                        if (i >= bitmaps.length) {
+                            // 完成
+                            progressText.textContent = 'Finalizing...';
+                            await new Promise(r => setTimeout(r, 200));
+                            recorder.stop();
+                            
+                            // 清理
+                            for (const bitmap of bitmaps) {
+                                if (bitmap.close) bitmap.close();
+                            }
+                            
+                            await downloadPromise;
+                            
+                            progressDiv.style.display = 'none';
+                            this.showInfo(`Downloaded! (${videoDuration}s at ${fps}fps)`);
+                            this.isDownloading = false;
+                            return;
+                        }
+                        
                         ctx.drawImage(bitmaps[i], 0, 0);
                         if (videoTrack.requestFrame) {
                             videoTrack.requestFrame();
                         }
                         
-                        // 更新进度（每 10 帧更新一次）
-                        if (i % 10 === 0 || i === bitmaps.length - 1) {
-                            const percent = Math.round((i + 1) / totalFrames * 100);
-                            this.showInfo(`Encoding: ${i + 1}/${totalFrames} (${percent}%)`);
-                        }
+                        // 更新进度
+                        const percent = Math.round((i + 1) / totalFrames * 100);
+                        progressPercent.textContent = `${percent}%`;
+                        progressBar.style.width = `${percent}%`;
+                        progressText.textContent = `Encoding ${i + 1}/${totalFrames}`;
                         
-                        // 按照目标帧率等待
-                        await new Promise(r => setTimeout(r, frameInterval));
-                    }
+                        // 继续下一帧（使用 setTimeout 让 UI 有机会更新）
+                        setTimeout(() => encodeFrame(i + 1), frameInterval);
+                    };
                     
-                    this.showInfo('Finalizing video...');
-                    
-                    // 等待确保最后帧被捕获
-                    await new Promise(r => setTimeout(r, 200));
-                    
-                    recorder.stop();
-                    
-                    // 清理
-                    for (const bitmap of bitmaps) {
-                        if (bitmap.close) bitmap.close();
-                    }
-                    
-                    await downloadPromise;
-                    this.showInfo(`Downloaded! (${videoDuration}s at ${fps}fps)`);
+                    // 开始编码（非阻塞）
+                    encodeFrame(0);
                     
                 } catch (error) {
                     console.error('Download error:', error);
                     this.showError('Failed to create video: ' + error.message);
+                    progressDiv.style.display = 'none';
+                    this.isDownloading = false;
                 }
             },
 
