@@ -151,14 +151,14 @@ class KreaLocalInference:
         all_keys = list(values.keys())
         print(f"  [Cleanup] state.values keys: {all_keys}")
         
-        # 只删除输出类张量，保留 kv_cache 等加速缓存
-        # 如果仍然 OOM，可能需要把 kv_cache/crossattn_cache 也加入删除列表
+        # 删除所有大缓存，防止内存泄漏
+        # 注意：删除 kv_cache/crossattn_cache 会影响推理速度，但能防止 OOM
         keys_to_delete = [
             "videos",           # 生成的视频帧（已保存到 self.current_frames）
             "decoder_cache",    # VAE decoder 缓存（55个张量，~500MB）
             "video_stream",     # 视频流输出
-            # "kv_cache",       # attention KV 缓存 - 保留以加速推理
-            # "crossattn_cache",# cross attention 缓存 - 保留以加速推理
+            "kv_cache",         # attention KV 缓存 - 防止累积导致 OOM
+            "crossattn_cache",  # cross attention 缓存 - 防止累积导致 OOM
         ]
         
         deleted = []
