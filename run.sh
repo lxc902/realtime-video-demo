@@ -82,7 +82,65 @@ echo "✓ Python: $($PYTHON --version)"
 echo "✓ Python 位置: $($PYTHON -c 'import sys; print(sys.executable)')"
 
 # Check CUDA/GPU
-echo "✓ GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)"
+GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)
+echo "✓ GPU: $GPU_NAME"
+
+# 检测 GPU 架构（CUDA Compute Capability）
+detect_gpu_arch() {
+    # 尝试用 Python 检测 CUDA capability
+    if check_package torch; then
+        CUDA_CAP=$($PYTHON -c "import torch; print(torch.cuda.get_device_capability()[0] * 10 + torch.cuda.get_device_capability()[1])" 2>/dev/null || echo "0")
+    else
+        # PyTorch 未安装，根据 GPU 名称判断
+        CUDA_CAP="0"
+    fi
+    
+    # 根据 GPU 名称判断架构（作为备选）
+    if [[ "$GPU_NAME" == *"Blackwell"* ]] || [[ "$GPU_NAME" == *"B100"* ]] || [[ "$GPU_NAME" == *"B200"* ]] || [[ "$GPU_NAME" == *"RTX 50"* ]]; then
+        GPU_ARCH="blackwell"
+        CUDA_CAP="120"
+    elif [[ "$GPU_NAME" == *"Ada"* ]] || [[ "$GPU_NAME" == *"RTX 40"* ]] || [[ "$GPU_NAME" == *"L40"* ]] || [[ "$GPU_NAME" == *"RTX 6000 Ada"* ]]; then
+        GPU_ARCH="ada"
+    elif [[ "$GPU_NAME" == *"Hopper"* ]] || [[ "$GPU_NAME" == *"H100"* ]] || [[ "$GPU_NAME" == *"H200"* ]]; then
+        GPU_ARCH="hopper"
+    elif [[ "$GPU_NAME" == *"Ampere"* ]] || [[ "$GPU_NAME" == *"A100"* ]] || [[ "$GPU_NAME" == *"RTX 30"* ]] || [[ "$GPU_NAME" == *"A6000"* ]]; then
+        GPU_ARCH="ampere"
+    else
+        GPU_ARCH="unknown"
+    fi
+    
+    # 根据 CUDA capability 确定架构
+    if [ "$CUDA_CAP" -ge 120 ] 2>/dev/null; then
+        GPU_ARCH="blackwell"
+    elif [ "$CUDA_CAP" -ge 89 ] 2>/dev/null; then
+        GPU_ARCH="ada"
+    elif [ "$CUDA_CAP" -ge 90 ] 2>/dev/null; then
+        GPU_ARCH="hopper"
+    elif [ "$CUDA_CAP" -ge 80 ] 2>/dev/null; then
+        GPU_ARCH="ampere"
+    fi
+    
+    echo "$GPU_ARCH"
+}
+
+GPU_ARCH=$(detect_gpu_arch)
+echo "✓ GPU 架构: $GPU_ARCH"
+
+# 根据 GPU 架构设置软件版本
+if [ "$GPU_ARCH" = "blackwell" ]; then
+    echo "⚠️  检测到 Blackwell 架构 GPU，将使用 PyTorch nightly"
+    PYTORCH_INDEX_URL="https://download.pytorch.org/whl/nightly/cu126"
+    TORCHAO_VERSION=""  # 使用最新版
+    TRANSFORMERS_VERSION=""  # 使用最新版
+    USE_NIGHTLY=true
+else
+    # Ada, Hopper, Ampere 等使用稳定版
+    PYTORCH_INDEX_URL="https://download.pytorch.org/whl/cu121"
+    TORCHAO_VERSION="==0.7.0"  # 兼容 PyTorch 2.5.x
+    TRANSFORMERS_VERSION="==4.44.0"  # 兼容 torchao 0.7.x
+    USE_NIGHTLY=false
+fi
+
 echo ""
 
 # Check and install missing dependencies
@@ -146,24 +204,35 @@ if [ "$QUANTIZATION" = "int8" ] || [ "$QUANTIZATION" = "int4" ]; then
         echo "  ❌ torchao not found (required for ${QUANTIZATION^^} quantization)"
         NEED_INSTALL=true
     else
-        # 检查 torchao 版本是否兼容（需要 0.7.x 配合 PyTorch 2.5.x）
         TORCHAO_VER=$($PYTHON -c "import torchao; print(torchao.__version__)" 2>/dev/null || echo "unknown")
-        if [[ "$TORCHAO_VER" == 0.7* ]]; then
+        if [ "$USE_NIGHTLY" = true ]; then
+            # Blackwell: 任何版本都可以（只要能用）
             echo "  ✓ torchao ($TORCHAO_VER)"
         else
-            echo "  ⚠️  torchao ($TORCHAO_VER) - 需要 0.7.x 版本"
-            NEED_INSTALL=true
+            # 旧架构：需要 0.7.x 配合 PyTorch 2.5.x
+            if [[ "$TORCHAO_VER" == 0.7* ]]; then
+                echo "  ✓ torchao ($TORCHAO_VER)"
+            else
+                echo "  ⚠️  torchao ($TORCHAO_VER) - 需要 0.7.x 版本 (兼容 PyTorch 2.5.x)"
+                NEED_INSTALL=true
+            fi
         fi
     fi
     
-    # 检查 transformers 版本（需要 4.44.x 配合 torchao 0.7.x）
+    # 检查 transformers 版本
     if check_package transformers; then
         TRANSFORMERS_VER=$($PYTHON -c "import transformers; print(transformers.__version__)" 2>/dev/null || echo "unknown")
-        if [[ "$TRANSFORMERS_VER" == 4.44* ]] || [[ "$TRANSFORMERS_VER" == 4.43* ]] || [[ "$TRANSFORMERS_VER" == 4.42* ]]; then
+        if [ "$USE_NIGHTLY" = true ]; then
+            # Blackwell: 任何版本都可以
             echo "  ✓ transformers ($TRANSFORMERS_VER)"
         else
-            echo "  ⚠️  transformers ($TRANSFORMERS_VER) - 需要 4.44.x 版本 (兼容 torchao 0.7.x)"
-            NEED_INSTALL=true
+            # 旧架构：需要 4.44.x 配合 torchao 0.7.x
+            if [[ "$TRANSFORMERS_VER" == 4.44* ]] || [[ "$TRANSFORMERS_VER" == 4.43* ]] || [[ "$TRANSFORMERS_VER" == 4.42* ]]; then
+                echo "  ✓ transformers ($TRANSFORMERS_VER)"
+            else
+                echo "  ⚠️  transformers ($TRANSFORMERS_VER) - 需要 4.44.x 版本 (兼容 torchao 0.7.x)"
+                NEED_INSTALL=true
+            fi
         fi
     fi
 fi
@@ -181,8 +250,22 @@ if [ "$NEED_INSTALL" = true ]; then
     
     # Install only what's missing
     if ! check_package torch; then
-        echo "  - Installing PyTorch with CUDA support..."
-        $PIP install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 -q
+        if [ "$USE_NIGHTLY" = true ]; then
+            echo "  - Installing PyTorch nightly (for Blackwell GPU)..."
+            $PIP install --pre torch torchvision torchaudio --index-url $PYTORCH_INDEX_URL -q
+        else
+            echo "  - Installing PyTorch with CUDA support..."
+            $PIP install torch torchvision torchaudio --index-url $PYTORCH_INDEX_URL -q
+        fi
+    else
+        # 检查已安装的 PyTorch 是否兼容当前 GPU
+        if [ "$GPU_ARCH" = "blackwell" ]; then
+            TORCH_CUDA_OK=$($PYTHON -c "import torch; caps = [int(x) for x in torch.cuda.get_arch_list() if x.startswith('sm_')[-1] if x else []]; print('ok' if any(c >= 120 for c in [int(x.replace('sm_','')) for x in torch.cuda.get_arch_list() if x.startswith('sm_')]) else 'no')" 2>/dev/null || echo "no")
+            if [ "$TORCH_CUDA_OK" != "ok" ]; then
+                echo "  ⚠️  当前 PyTorch 不支持 Blackwell，正在升级到 nightly..."
+                $PIP install --pre torch torchvision torchaudio --index-url $PYTORCH_INDEX_URL -q --force-reinstall
+            fi
+        fi
     fi
     
     if ! check_package diffusers; then
@@ -199,9 +282,13 @@ if [ "$NEED_INSTALL" = true ]; then
     
     if ! check_package transformers; then
         echo "  - Installing transformers and accelerate..."
-        # INT8/INT4 量化需要 transformers 4.44.x（兼容 torchao 0.7.x）
-        if [ "$QUANTIZATION" = "int8" ] || [ "$QUANTIZATION" = "int4" ]; then
-            $PIP install transformers==4.44.0 accelerate safetensors -q
+        # 根据 GPU 架构和量化模式选择版本
+        if [ "$USE_NIGHTLY" = true ]; then
+            # Blackwell 使用最新版
+            $PIP install transformers accelerate safetensors -q
+        elif [ "$QUANTIZATION" = "int8" ] || [ "$QUANTIZATION" = "int4" ]; then
+            # 旧架构 + 量化需要 transformers 4.44.x（兼容 torchao 0.7.x）
+            $PIP install transformers${TRANSFORMERS_VERSION} accelerate safetensors -q
         else
             $PIP install transformers accelerate safetensors -q
         fi
@@ -245,22 +332,31 @@ if [ "$NEED_INSTALL" = true ]; then
         echo "  - Skipping flash-attention (use --with-flash-attn to install)"
     fi
     
-    # INT8/INT4 量化需要 torchao 0.7.x + transformers 4.44.x（兼容 PyTorch 2.5.x）
+    # INT8/INT4 量化依赖安装
     if [ "$QUANTIZATION" = "int8" ] || [ "$QUANTIZATION" = "int4" ]; then
         echo "  - 配置 ${QUANTIZATION^^} 量化依赖..."
         
-        # 检查并安装 torchao 0.7.x
-        TORCHAO_VER=$($PYTHON -c "import torchao; print(torchao.__version__)" 2>/dev/null || echo "none")
-        if [[ "$TORCHAO_VER" != 0.7* ]]; then
-            echo "    安装 torchao==0.7.0 (兼容 PyTorch 2.5.x)..."
-            $PIP install torchao==0.7.0 -q
-        fi
-        
-        # 检查并安装 transformers 4.44.x（兼容 torchao 0.7.x）
-        TRANSFORMERS_VER=$($PYTHON -c "import transformers; print(transformers.__version__)" 2>/dev/null || echo "none")
-        if [[ "$TRANSFORMERS_VER" != 4.44* ]] && [[ "$TRANSFORMERS_VER" != 4.43* ]] && [[ "$TRANSFORMERS_VER" != 4.42* ]]; then
-            echo "    安装 transformers==4.44.0 (兼容 torchao 0.7.x)..."
-            $PIP install transformers==4.44.0 -q
+        if [ "$USE_NIGHTLY" = true ]; then
+            # Blackwell 使用最新版 torchao
+            echo "    Blackwell GPU: 使用最新版 torchao..."
+            if ! check_package torchao; then
+                $PIP install torchao -q
+            fi
+            # transformers 也使用最新版（已在上面安装）
+        else
+            # 旧架构使用 torchao 0.7.x + transformers 4.44.x
+            TORCHAO_VER=$($PYTHON -c "import torchao; print(torchao.__version__)" 2>/dev/null || echo "none")
+            if [[ "$TORCHAO_VER" != 0.7* ]]; then
+                echo "    安装 torchao${TORCHAO_VERSION} (兼容 PyTorch 2.5.x)..."
+                $PIP install torchao${TORCHAO_VERSION} -q
+            fi
+            
+            # 检查并安装 transformers 4.44.x（兼容 torchao 0.7.x）
+            TRANSFORMERS_VER=$($PYTHON -c "import transformers; print(transformers.__version__)" 2>/dev/null || echo "none")
+            if [[ "$TRANSFORMERS_VER" != 4.44* ]] && [[ "$TRANSFORMERS_VER" != 4.43* ]] && [[ "$TRANSFORMERS_VER" != 4.42* ]]; then
+                echo "    安装 transformers${TRANSFORMERS_VERSION} (兼容 torchao 0.7.x)..."
+                $PIP install transformers${TRANSFORMERS_VERSION} -q
+            fi
         fi
         
         echo "    ✅ ${QUANTIZATION^^} 量化依赖已配置"

@@ -250,8 +250,30 @@ def load_fp8(pipe, repo_id, device, dtype):
         print(f"   ⚠️  跳过 {skipped_count} 个未匹配的参数")
     print(f"   ✅ 已加载 {loaded_fp8_count} 个 FP8 参数 + {loaded_bf16_count} 个 BF16 参数")
     
-    # 清理显存并同步 CUDA
+    # 清理显存
     del fp8_state_dict
+    
+    # 将仍在 CPU 上的参数移动到 GPU（FP8 checkpoint 可能不包含所有参数）
+    cpu_to_gpu_count = 0
+    for name, param in transformer.named_parameters():
+        if param.device.type == 'cpu':
+            # 将 CPU 上的参数移动到 GPU，保持 bf16
+            new_param = param.data.to(device, dtype)
+            # 找到参数所属的模块并替换
+            parts = name.rsplit(".", 1)
+            if len(parts) == 2:
+                module_name, param_name = parts
+                if module_name in module_dict:
+                    setattr(module_dict[module_name], param_name, 
+                            nn.Parameter(new_param, requires_grad=False))
+                    cpu_to_gpu_count += 1
+            elif hasattr(transformer, name):
+                setattr(transformer, name, nn.Parameter(new_param, requires_grad=False))
+                cpu_to_gpu_count += 1
+    
+    if cpu_to_gpu_count > 0:
+        print(f"   ✅ 额外移动 {cpu_to_gpu_count} 个 CPU 参数到 GPU")
+    
     torch.cuda.empty_cache()
     torch.cuda.synchronize()
     
