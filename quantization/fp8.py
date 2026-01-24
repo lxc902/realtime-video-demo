@@ -204,6 +204,12 @@ def load_fp8(pipe, repo_id, device, dtype):
     # 获取模型的 state_dict keys 用于匹配
     model_state_dict = transformer.state_dict()
     
+    # 调试：打印 key 格式对比
+    fp8_keys = [k for k in fp8_state_dict.keys() if not ("scale" in k)][:3]
+    model_keys = list(model_state_dict.keys())[:3]
+    print(f"   调试 - FP8 keys 示例: {fp8_keys}")
+    print(f"   调试 - Model keys 示例: {model_keys}")
+    
     # 只替换 FP8 权重（Linear 层的 weight）
     replaced_count = 0
     for model_key in model_state_dict.keys():
