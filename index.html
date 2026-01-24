@@ -2022,31 +2022,38 @@
                     return;
                 }
 
-                this.showInfo('Preparing video for download...');
+                this.showInfo(`Exporting ${this.allFrames.length} frames...`);
                 
                 try {
                     const fps = parseInt(document.getElementById('playbackFps').value) || 8;
-                    const frameInterval = 1000 / fps;
                     
                     // 创建离屏 canvas
                     const offscreenCanvas = document.createElement('canvas');
                     const ctx = offscreenCanvas.getContext('2d');
                     
-                    // 获取第一帧尺寸
-                    const firstBlob = new Blob([this.allFrames[0]], { type: 'image/jpeg' });
-                    const firstBitmap = await createImageBitmap(firstBlob);
-                    offscreenCanvas.width = firstBitmap.width;
-                    offscreenCanvas.height = firstBitmap.height;
-                    firstBitmap.close();
+                    // 预加载所有帧为 bitmap（并行加载加速）
+                    const bitmapPromises = this.allFrames.map(frameData => {
+                        const blob = new Blob([frameData], { type: 'image/jpeg' });
+                        return createImageBitmap(blob);
+                    });
+                    const bitmaps = await Promise.all(bitmapPromises);
                     
-                    // 创建录制器
+                    // 设置 canvas 尺寸
+                    offscreenCanvas.width = bitmaps[0].width;
+                    offscreenCanvas.height = bitmaps[0].height;
+                    
+                    // 先绘制第一帧
+                    ctx.drawImage(bitmaps[0], 0, 0);
+                    
+                    // 使用 captureStream 指定目标帧率
                     const stream = offscreenCanvas.captureStream(fps);
+                    const videoTrack = stream.getVideoTracks()[0];
                     const chunks = [];
                     const recorder = new MediaRecorder(stream, {
                         mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
                             ? 'video/webm;codecs=vp9'
                             : 'video/webm',
-                        videoBitsPerSecond: 5000000  // 5 Mbps
+                        videoBitsPerSecond: 8000000
                     });
                     
                     recorder.ondataavailable = (e) => {
@@ -2055,7 +2062,6 @@
                         }
                     };
                     
-                    // 返回一个 Promise，等待录制完成
                     const downloadPromise = new Promise((resolve, reject) => {
                         recorder.onstop = () => {
                             const blob = new Blob(chunks, { type: 'video/webm' });
@@ -2071,27 +2077,30 @@
                     });
                     
                     // 开始录制
-                    recorder.start();
+                    recorder.start(50);
                     
-                    // 按固定 fps 绘制所有帧
-                    for (let i = 0; i < this.allFrames.length; i++) {
-                        const blob = new Blob([this.allFrames[i]], { type: 'image/jpeg' });
-                        const bitmap = await createImageBitmap(blob);
-                        ctx.drawImage(bitmap, 0, 0);
-                        bitmap.close();
-                        
-                        // 等待一帧的时间（确保录制器捕获）
-                        await new Promise(r => setTimeout(r, frameInterval));
+                    // 快速绘制所有帧（最小间隔，让编码器尽快处理）
+                    for (let i = 0; i < bitmaps.length; i++) {
+                        ctx.drawImage(bitmaps[i], 0, 0);
+                        if (videoTrack.requestFrame) {
+                            videoTrack.requestFrame();
+                        }
+                        // 最小等待，只是为了让浏览器有机会处理
+                        await new Promise(r => setTimeout(r, 20));
                     }
                     
-                    // 多等一会儿确保最后一帧被捕获
-                    await new Promise(r => setTimeout(r, frameInterval * 2));
+                    // 短暂等待确保最后帧被捕获
+                    await new Promise(r => setTimeout(r, 200));
                     
-                    // 停止录制
                     recorder.stop();
                     
+                    // 清理
+                    for (const bitmap of bitmaps) {
+                        if (bitmap.close) bitmap.close();
+                    }
+                    
                     await downloadPromise;
-                    this.showInfo('Video downloaded successfully');
+                    this.showInfo('Download complete!');
                     
                 } catch (error) {
                     console.error('Download error:', error);
