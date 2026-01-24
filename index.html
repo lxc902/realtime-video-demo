@@ -764,9 +764,11 @@
             mode: 'webcam',
             isGenerating: false,
             useHttpMode: true,  // 默认使用 HTTP 模式（更兼容）
+            useSSEMode: true,   // 使用 SSE 流式模式（推荐）
             httpSessionId: null,
             httpPollingInterval: null,
             t2vGenerationInterval: null,  // T2V 模式生成间隔
+            eventSource: null,  // SSE 连接
             frameCount: 0,
             maxFrames: 54,  // 5 blocks * 12 frames - 6
             ws: null,
@@ -985,6 +987,11 @@
             },
 
             async startHttpGeneration() {
+                // 优先使用 SSE 流式模式
+                if (this.useSSEMode) {
+                    return this.startSSEGeneration();
+                }
+                
                 try {
                     this.showInfo('Starting HTTP generation...');
                     
@@ -1039,6 +1046,100 @@
                 } catch (error) {
                     this.showError('Failed to start: ' + error.message);
                     console.error('HTTP generation error:', error);
+                    this.isGenerating = false;
+                    this.updateUI();
+                }
+            },
+            
+            async startSSEGeneration() {
+                try {
+                    this.showInfo('Starting stream generation...');
+                    
+                    // 准备参数
+                    const payload = {
+                        prompt: document.getElementById('prompt').value,
+                        num_blocks: parseInt(document.getElementById('numBlocks').value),
+                        num_denoising_steps: 4,
+                        strength: parseFloat(document.getElementById('strength').value) || 0.45
+                    };
+
+                    // 获取起始帧（webcam 或 video 模式）
+                    if (this.mode === 'webcam' && this.webcamStream) {
+                        const frame = await this.captureWebcamFrame();
+                        if (frame) {
+                            payload.start_frame = this.arrayBufferToBase64(frame);
+                        }
+                    } else if (this.mode === 'video' && this.currentVideoFile) {
+                        const frame = await this.captureVideoFrame();
+                        if (frame) {
+                            payload.start_frame = this.arrayBufferToBase64(frame);
+                        }
+                    }
+
+                    // 使用 fetch + ReadableStream 处理 SSE（因为需要 POST）
+                    const response = await fetch('/api/generate/stream', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+
+                    this.showInfo('Stream connected, generating...');
+                    
+                    // 更新状态
+                    const statusPill = document.getElementById('statusPill');
+                    statusPill.className = 'status-pill status-connected';
+                    statusPill.textContent = 'Generating';
+
+                    // 读取 SSE 流
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        buffer += decoder.decode(value, { stream: true });
+                        
+                        // 解析 SSE 事件
+                        const lines = buffer.split('\n\n');
+                        buffer = lines.pop() || ''; // 保留不完整的部分
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    
+                                    if (data.type === 'frame') {
+                                        // 显示帧
+                                        const frameBytes = this.base64ToArrayBuffer(data.data);
+                                        await this.displayFrame(frameBytes);
+                                    } else if (data.type === 'complete') {
+                                        this.showInfo('Generation complete!');
+                                        this.generationFinished = true;
+                                    } else if (data.type === 'error') {
+                                        this.showError('Generation error: ' + data.message);
+                                    }
+                                } catch (e) {
+                                    console.error('SSE parse error:', e, line);
+                                }
+                            }
+                        }
+                    }
+
+                    // 流结束
+                    if (!this.generationFinished) {
+                        this.showInfo('Stream ended');
+                    }
+                    this.disconnect();
+
+                } catch (error) {
+                    this.showError('Stream error: ' + error.message);
+                    console.error('SSE generation error:', error);
                     this.isGenerating = false;
                     this.updateUI();
                 }
@@ -1848,6 +1949,12 @@
                     fetch(`/api/generate/stop/${this.httpSessionId}`, { method: 'POST' }).catch(() => {});
                     this.httpSessionId = null;
                 }
+                
+                // 清理 SSE 模式
+                if (this.eventSource) {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                }
 
                 // 清理 WebSocket 模式
                 if (this.ws) {
@@ -1907,20 +2014,87 @@
                 this.showInfo('Replaying video');
             },
 
-            downloadVideo() {
-                if (this.recordedChunks.length === 0) {
-                    this.showError('No video data to download');
+            async downloadVideo() {
+                if (this.allFrames.length === 0) {
+                    this.showError('No frames to download');
                     return;
                 }
 
-                const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `generated-video-${Date.now()}.webm`;
-                a.click();
-                URL.revokeObjectURL(url);
-                this.showInfo('Video downloaded successfully');
+                this.showInfo('Preparing video for download...');
+                
+                try {
+                    const fps = parseInt(document.getElementById('playbackFps').value) || 8;
+                    const frameInterval = 1000 / fps;
+                    
+                    // 创建离屏 canvas
+                    const offscreenCanvas = document.createElement('canvas');
+                    const ctx = offscreenCanvas.getContext('2d');
+                    
+                    // 获取第一帧尺寸
+                    const firstBlob = new Blob([this.allFrames[0]], { type: 'image/jpeg' });
+                    const firstBitmap = await createImageBitmap(firstBlob);
+                    offscreenCanvas.width = firstBitmap.width;
+                    offscreenCanvas.height = firstBitmap.height;
+                    firstBitmap.close();
+                    
+                    // 创建录制器
+                    const stream = offscreenCanvas.captureStream(fps);
+                    const chunks = [];
+                    const recorder = new MediaRecorder(stream, {
+                        mimeType: MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+                            ? 'video/webm;codecs=vp9'
+                            : 'video/webm',
+                        videoBitsPerSecond: 5000000  // 5 Mbps
+                    });
+                    
+                    recorder.ondataavailable = (e) => {
+                        if (e.data && e.data.size > 0) {
+                            chunks.push(e.data);
+                        }
+                    };
+                    
+                    // 返回一个 Promise，等待录制完成
+                    const downloadPromise = new Promise((resolve, reject) => {
+                        recorder.onstop = () => {
+                            const blob = new Blob(chunks, { type: 'video/webm' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `generated-video-${Date.now()}.webm`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            resolve();
+                        };
+                        recorder.onerror = reject;
+                    });
+                    
+                    // 开始录制
+                    recorder.start();
+                    
+                    // 按固定 fps 绘制所有帧
+                    for (let i = 0; i < this.allFrames.length; i++) {
+                        const blob = new Blob([this.allFrames[i]], { type: 'image/jpeg' });
+                        const bitmap = await createImageBitmap(blob);
+                        ctx.drawImage(bitmap, 0, 0);
+                        bitmap.close();
+                        
+                        // 等待一帧的时间（确保录制器捕获）
+                        await new Promise(r => setTimeout(r, frameInterval));
+                    }
+                    
+                    // 多等一会儿确保最后一帧被捕获
+                    await new Promise(r => setTimeout(r, frameInterval * 2));
+                    
+                    // 停止录制
+                    recorder.stop();
+                    
+                    await downloadPromise;
+                    this.showInfo('Video downloaded successfully');
+                    
+                } catch (error) {
+                    console.error('Download error:', error);
+                    this.showError('Failed to create video: ' + error.message);
+                }
             },
 
             updateUI() {

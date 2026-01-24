@@ -7,7 +7,7 @@ import asyncio
 import json
 from typing import Optional
 from fastapi import FastAPI, Request, WebSocket
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -478,6 +478,268 @@ async def api_stop_generation(session_id: str):
             return {"status": "stopped"}
     
     return {"status": "not_found"}
+
+
+class StreamGenerationRequest(BaseModel):
+    prompt: str
+    num_blocks: int = 25
+    num_denoising_steps: int = 4
+    strength: float = 0.45
+    seed: Optional[int] = None
+    start_frame: Optional[str] = None  # base64 encoded
+
+
+@app.post("/api/generate/stream")
+async def api_stream_generation(req: StreamGenerationRequest):
+    """SSE 流式生成 - 每生成一个 block 立即推送帧"""
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded yet")
+    
+    async def generate_stream():
+        """生成器函数，产出 SSE 事件"""
+        session_id = str(uuid.uuid4())[:8]
+        print(f"[SSE] Starting stream session {session_id}")
+        
+        try:
+            # 处理起始帧
+            start_frame = None
+            start_frames_list = None
+            if req.start_frame:
+                start_frame_bytes = base64.b64decode(req.start_frame)
+                start_frame = model.process_frame_bytes(start_frame_bytes)
+                start_frames_list = [start_frame] * V2V_INITIAL_FRAMES
+            
+            # 初始化 state
+            state = None
+            generator = None
+            
+            def init_generation():
+                nonlocal state, generator
+                with inference_lock:
+                    state, generator = model.initialize_generation_with_state(
+                        prompt=req.prompt,
+                        start_frame=start_frame,
+                        num_inference_steps=req.num_denoising_steps,
+                        strength=req.strength,
+                        seed=req.seed
+                    )
+            
+            await asyncio.to_thread(init_generation)
+            
+            # 生成每个 block 并立即推送
+            for block_idx in range(req.num_blocks):
+                def generate_block():
+                    nonlocal state
+                    with inference_lock:
+                        input_frames = start_frames_list if block_idx == 0 and start_frames_list else None
+                        new_state, frames = model.generate_next_block_with_state(
+                            state=state,
+                            prompt=req.prompt,
+                            strength=req.strength,
+                            block_idx=block_idx,
+                            generator=generator,
+                            input_frame=input_frames,
+                            start_frame=None,
+                            num_blocks=req.num_blocks
+                        )
+                        state = new_state
+                        return frames
+                
+                frames = await asyncio.to_thread(generate_block)
+                
+                # 立即推送每一帧
+                for frame in frames:
+                    frame_bytes = model.frame_to_bytes(frame)
+                    frame_b64 = base64.b64encode(frame_bytes).decode()
+                    event_data = json.dumps({
+                        "type": "frame",
+                        "block": block_idx,
+                        "total_blocks": req.num_blocks,
+                        "data": frame_b64
+                    })
+                    yield f"data: {event_data}\n\n"
+                
+                print(f"[SSE] Session {session_id}: sent block {block_idx + 1}/{req.num_blocks}")
+            
+            # 发送完成事件
+            complete_data = json.dumps({"type": "complete"})
+            yield f"data: {complete_data}\n\n"
+            print(f"[SSE] Session {session_id}: generation complete")
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            error_data = json.dumps({"type": "error", "message": str(e)})
+            yield f"data: {error_data}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # 禁用 nginx 缓冲
+        }
+    )
+
+
+@app.post("/api/generate/stream/v2v")
+async def api_stream_v2v_generation(req: StreamGenerationRequest):
+    """SSE 流式 V2V 生成 - 支持实时输入帧"""
+    if model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded yet")
+    
+    # 创建 session 用于 V2V（需要接收后续帧）
+    session_id = str(uuid.uuid4())[:8]
+    session = GenerationSession(session_id, model)
+    session.num_blocks = req.num_blocks
+    session.prompt = req.prompt
+    session.strength = req.strength
+    
+    # 处理起始帧
+    if req.start_frame:
+        start_frame_bytes = base64.b64decode(req.start_frame)
+        start_frame = model.process_frame_bytes(start_frame_bytes)
+        session.start_frame = start_frame
+        # 填充初始帧缓存
+        session.input_frame_buffer = [start_frame] * V2V_INITIAL_FRAMES
+    
+    with session_lock:
+        active_sessions[session_id] = session
+    
+    async def generate_v2v_stream():
+        """V2V 流式生成"""
+        try:
+            # 初始化
+            def init_generation():
+                with inference_lock:
+                    state, generator = model.initialize_generation_with_state(
+                        prompt=req.prompt,
+                        start_frame=session.start_frame,
+                        num_inference_steps=req.num_denoising_steps,
+                        strength=req.strength,
+                        seed=req.seed
+                    )
+                    session.state = state
+                    session.generator = generator
+                    session.block_idx = 0
+            
+            await asyncio.to_thread(init_generation)
+            
+            # 先发送 session_id，前端需要用它来发送后续帧
+            init_data = json.dumps({
+                "type": "init",
+                "session_id": session_id
+            })
+            yield f"data: {init_data}\n\n"
+            
+            # 生成 blocks
+            while session.block_idx < session.num_blocks:
+                # 检查是否有足够的帧
+                min_frames = V2V_INITIAL_FRAMES if session.block_idx <= 1 else V2V_SUBSEQUENT_FRAMES
+                
+                # 等待帧（带超时）
+                wait_count = 0
+                while len(session.input_frame_buffer) < min_frames and wait_count < 100:
+                    await asyncio.sleep(0.1)
+                    wait_count += 1
+                
+                if len(session.input_frame_buffer) < min_frames:
+                    # 超时，使用可用的帧或复制
+                    if session.input_frame_buffer:
+                        while len(session.input_frame_buffer) < min_frames:
+                            session.input_frame_buffer.append(session.input_frame_buffer[-1])
+                    elif session.start_frame is not None:
+                        session.input_frame_buffer = [session.start_frame] * min_frames
+                    else:
+                        break
+                
+                # 生成 block
+                def generate_block():
+                    with inference_lock:
+                        input_frames = session.input_frame_buffer.copy()
+                        session.input_frame_buffer = []
+                        
+                        new_state, frames = model.generate_next_block_with_state(
+                            state=session.state,
+                            prompt=session.prompt,
+                            strength=session.strength,
+                            block_idx=session.block_idx,
+                            generator=session.generator,
+                            input_frame=input_frames,
+                            start_frame=None,
+                            num_blocks=session.num_blocks
+                        )
+                        session.state = new_state
+                        session.block_idx += 1
+                        return frames
+                
+                session.is_generating = True
+                try:
+                    frames = await asyncio.to_thread(generate_block)
+                finally:
+                    session.is_generating = False
+                
+                # 推送帧
+                for frame in frames:
+                    frame_bytes = model.frame_to_bytes(frame)
+                    frame_b64 = base64.b64encode(frame_bytes).decode()
+                    event_data = json.dumps({
+                        "type": "frame",
+                        "block": session.block_idx - 1,
+                        "total_blocks": session.num_blocks,
+                        "data": frame_b64
+                    })
+                    yield f"data: {event_data}\n\n"
+                
+                print(f"[SSE-V2V] Session {session_id}: sent block {session.block_idx}/{session.num_blocks}")
+            
+            complete_data = json.dumps({"type": "complete"})
+            yield f"data: {complete_data}\n\n"
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            error_data = json.dumps({"type": "error", "message": str(e)})
+            yield f"data: {error_data}\n\n"
+        finally:
+            # 清理 session
+            with session_lock:
+                if session_id in active_sessions:
+                    del active_sessions[session_id]
+    
+    return StreamingResponse(
+        generate_v2v_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@app.post("/api/generate/stream/frame/{session_id}")
+async def api_stream_add_frame(session_id: str, image: str = None):
+    """向 V2V 流式 session 添加输入帧"""
+    with session_lock:
+        session = active_sessions.get(session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session.touch()
+    
+    if image:
+        frame_bytes = base64.b64decode(image)
+        frame = session.model.process_frame_bytes(frame_bytes)
+        session.input_frame_buffer.append(frame)
+    
+    return {
+        "status": "ok",
+        "buffer_size": len(session.input_frame_buffer),
+        "block_idx": session.block_idx
+    }
 
 
 @app.websocket("/ws/video-gen")
