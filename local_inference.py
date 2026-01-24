@@ -262,39 +262,41 @@ class KreaLocalInference:
             # - V2V 模式：使用 video 参数（整个预录视频）
             # - Streaming V2V 模式：使用 video_stream 参数（PIL Image 列表）
             #
-            # 关键发现：WanRTAutoBeforeDenoiseStep 根据 block_trigger_inputs 选择模式：
-            # - ["video", "video_stream", None] 对应 ["video-to-video", "stream-to-video", "text-to-video"]
-            # 不能在 block_idx=0 用 video 然后 block_idx=1 用 video_stream，会导致模式切换冲突！
+            # 关键问题：
+            # 1. Streaming 模式的 VAE temporal compression 需要足够多的帧
+            # 2. 官方示例每次传入 12 帧
+            # 3. 如果帧不够，编码后的 latents 帧数 < num_frames_per_block，会报错
             #
-            # 对于实时 webcam 流：始终使用 video_stream（从 block_idx=0 开始）
+            # 解决方案：确保传入足够的帧到 video_stream
             
             has_input = (input_frame is not None) or (start_frame is not None)
             
             if has_input:
-                # Streaming V2V 模式：始终使用 video_stream
+                # Streaming V2V 模式：使用 video_stream
                 # video_stream 期望 PIL Image 列表
                 from PIL import Image
                 import numpy as np
                 
                 frame_to_use = input_frame if input_frame is not None else start_frame
                 
-                if isinstance(frame_to_use, np.ndarray):
-                    # numpy array -> PIL Image
-                    pil_image = Image.fromarray(frame_to_use)
-                    kwargs["video_stream"] = [pil_image]
-                elif isinstance(frame_to_use, Image.Image):
-                    kwargs["video_stream"] = [frame_to_use]
-                elif isinstance(frame_to_use, list):
-                    # 已经是列表，确保元素是 PIL Image
-                    pil_list = []
+                # 转换为 PIL Image 列表
+                pil_list = []
+                if isinstance(frame_to_use, list):
                     for f in frame_to_use:
                         if isinstance(f, np.ndarray):
                             pil_list.append(Image.fromarray(f))
+                        elif isinstance(f, Image.Image):
+                            pil_list.append(f)
                         else:
                             pil_list.append(f)
-                    kwargs["video_stream"] = pil_list
+                elif isinstance(frame_to_use, np.ndarray):
+                    pil_list.append(Image.fromarray(frame_to_use))
+                elif isinstance(frame_to_use, Image.Image):
+                    pil_list.append(frame_to_use)
                 else:
-                    kwargs["video_stream"] = [frame_to_use]
+                    pil_list.append(frame_to_use)
+                
+                kwargs["video_stream"] = pil_list
                 
             # 生成
             new_state = self.pipe(**kwargs)

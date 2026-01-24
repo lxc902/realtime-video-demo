@@ -225,6 +225,12 @@ class GenerationSession:
         self.strength = 0.45
         self.generator = None
         self.block_idx = 0
+        
+        # 帧缓存：streaming 模式需要缓存多帧再处理
+        # KREA 官方示例每次传入 12 帧
+        self.input_frame_buffer = []
+        self.frames_per_chunk = 12  # 每次处理的帧数
+        self.start_frame = None  # 保存起始帧
     
     def touch(self):
         """更新最后活动时间"""
@@ -253,6 +259,7 @@ async def api_start_generation(req: StartGenerationRequest):
     if req.start_frame:
         start_frame_bytes = base64.b64decode(req.start_frame)
         start_frame = model.process_frame_bytes(start_frame_bytes)
+        session.start_frame = start_frame  # 保存到 session
     
     # 使用推理锁确保同一时间只有一个请求在使用模型
     def init_and_generate():
@@ -336,53 +343,77 @@ async def api_generate_frame(req: FrameRequest):
             "generating": True  # 告诉前端正在生成中
         }
     
-    # 生成下一个 block（T2V 模式不需要输入帧，V2V 模式需要）
+    # 生成下一个 block
     if session.current_block < session.num_blocks:
-        # 处理输入帧（V2V 模式）
-        input_frame = None
-        if req.image:
-            input_frame_bytes = base64.b64decode(req.image)
-            input_frame = session.model.process_frame_bytes(input_frame_bytes)
-        
         # 更新 session 参数
         if req.prompt:
             session.prompt = req.prompt
         if req.strength:
             session.strength = req.strength
         
-        # 使用推理锁确保同一时间只有一个请求在使用模型
-        def generate_with_lock():
-            with inference_lock:
-                new_state, frames = session.model.generate_next_block_with_state(
-                    state=session.state,
-                    prompt=session.prompt,
-                    strength=session.strength,
-                    block_idx=session.block_idx,
-                    generator=session.generator,
-                    input_frame=input_frame,
-                    start_frame=None,
-                    num_blocks=session.num_blocks
-                )
-                session.state = new_state
-                session.block_idx += 1
-                return frames
+        # 处理输入帧（V2V 模式）
+        input_frames_for_generation = None
+        should_generate = True
         
-        session.is_generating = True
-        try:
-            frames = await asyncio.to_thread(generate_with_lock)
+        if req.image:
+            input_frame_bytes = base64.b64decode(req.image)
+            input_frame = session.model.process_frame_bytes(input_frame_bytes)
             
-            with session.lock:
-                for frame in frames:
-                    frame_bytes = session.model.frame_to_bytes(frame)
-                    session.pending_frames.append(base64.b64encode(frame_bytes).decode())
+            # 添加到帧缓存
+            session.input_frame_buffer.append(input_frame)
             
-            session.current_block += 1
-        except Exception as e:
-            print(f"[HTTP] Session {req.session_id} generation error: {e}")
-            import traceback
-            traceback.print_exc()
-        finally:
-            session.is_generating = False
+            # Streaming V2V 需要足够的帧（VAE temporal compression 约 4:1）
+            # 官方示例每次传入 12 帧
+            # 我们缓存帧，凑够一定数量后再生成
+            min_frames_needed = 12  # 确保 VAE 编码后有足够帧
+            
+            if len(session.input_frame_buffer) >= min_frames_needed:
+                # 有足够帧，传入所有缓存的帧
+                input_frames_for_generation = session.input_frame_buffer.copy()
+                # 保留最近的几帧用于下次（overlap）
+                session.input_frame_buffer = session.input_frame_buffer[-4:]
+            else:
+                # 帧不够，跳过生成，等待更多帧
+                should_generate = False
+                print(f"[HTTP] Session {req.session_id}: buffering frames {len(session.input_frame_buffer)}/{min_frames_needed}")
+        
+        # T2V 模式：不需要输入帧，直接生成
+        # V2V 模式：需要足够的帧才生成
+        
+        if should_generate:
+            # 使用推理锁确保同一时间只有一个请求在使用模型
+            def generate_with_lock():
+                with inference_lock:
+                    new_state, frames = session.model.generate_next_block_with_state(
+                        state=session.state,
+                        prompt=session.prompt,
+                        strength=session.strength,
+                        block_idx=session.block_idx,
+                        generator=session.generator,
+                        input_frame=input_frames_for_generation if input_frames_for_generation else None,
+                        start_frame=session.start_frame if session.block_idx == 0 else None,
+                        num_blocks=session.num_blocks
+                    )
+                    session.state = new_state
+                    session.block_idx += 1
+                    return frames
+            
+            session.is_generating = True
+            try:
+                frames = await asyncio.to_thread(generate_with_lock)
+                
+                with session.lock:
+                    for frame in frames:
+                        frame_bytes = session.model.frame_to_bytes(frame)
+                        session.pending_frames.append(base64.b64encode(frame_bytes).decode())
+                
+                session.current_block += 1
+            except Exception as e:
+                print(f"[HTTP] Session {req.session_id} generation error: {e}")
+                import traceback
+                traceback.print_exc()
+            finally:
+                session.is_generating = False
     
     # 返回待发送的帧
     with session.lock:
