@@ -78,6 +78,27 @@ def load_model_on_startup():
     print("=" * 60)
     print("")
 
+async def cleanup_expired_sessions():
+    """后台任务：定期清理超时的 HTTP sessions"""
+    while True:
+        await asyncio.sleep(30)  # 每 30 秒检查一次
+        
+        expired_sessions = []
+        with session_lock:
+            for session_id, session in list(active_sessions.items()):
+                if session.is_expired():
+                    expired_sessions.append((session_id, session))
+        
+        # 清理超时的 sessions
+        for session_id, session in expired_sessions:
+            with session_lock:
+                if session_id in active_sessions:
+                    # 清理推理显存
+                    if hasattr(session.model, 'cleanup_inference'):
+                        session.model.cleanup_inference()
+                    del active_sessions[session_id]
+                    print(f"[Cleanup] Session {session_id} expired and cleaned (timeout: {SESSION_TIMEOUT}s)")
+
 @app.on_event("startup")
 async def startup_event():
     """应用启动时的事件"""
@@ -85,6 +106,9 @@ async def startup_event():
     # 在后台线程加载模型，避免阻塞启动
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, load_model_on_startup)
+    
+    # 启动后台清理任务
+    asyncio.create_task(cleanup_expired_sessions())
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -104,6 +128,48 @@ async def health():
     }
 
 
+@app.post("/api/clear-cache")
+async def clear_inference_cache():
+    """清理推理缓存（不影响模型加载）"""
+    import gc
+    
+    cleaned_sessions = 0
+    
+    # 清理所有活跃的 HTTP sessions
+    with session_lock:
+        for session_id, session in list(active_sessions.items()):
+            if hasattr(session.model, 'cleanup_inference'):
+                session.model.cleanup_inference()
+            del active_sessions[session_id]
+            cleaned_sessions += 1
+    
+    # 清理全局模型的推理状态
+    if model is not None and hasattr(model, 'cleanup_inference'):
+        model.cleanup_inference()
+    
+    # 强制垃圾回收
+    gc.collect()
+    
+    # 获取当前显存状态
+    import torch
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        allocated = torch.cuda.memory_allocated() / 1024**3
+        reserved = torch.cuda.memory_reserved() / 1024**3
+        print(f"[Clear Cache] Sessions cleaned: {cleaned_sessions}, GPU memory: {allocated:.2f}GB allocated, {reserved:.2f}GB reserved")
+        return {
+            "status": "ok",
+            "sessions_cleaned": cleaned_sessions,
+            "gpu_memory_allocated_gb": round(allocated, 2),
+            "gpu_memory_reserved_gb": round(reserved, 2)
+        }
+    
+    return {
+        "status": "ok",
+        "sessions_cleaned": cleaned_sessions
+    }
+
+
 # ============================================================
 # RESTful API（HTTP 轮询模式，替代 WebSocket）
 # ============================================================
@@ -114,10 +180,14 @@ from pydantic import BaseModel
 from typing import Optional, List
 import uuid
 import threading
+import time
 
 # 存储活跃的生成会话
 active_sessions = {}
 session_lock = threading.Lock()
+
+# Session 超时时间（秒）- 超过此时间没有活动的 session 会被自动清理
+SESSION_TIMEOUT = 60
 
 class StartGenerationRequest(BaseModel):
     prompt: str
@@ -142,6 +212,15 @@ class GenerationSession:
         self.num_blocks = 25
         self.pending_frames = []  # 待发送的帧
         self.lock = threading.Lock()
+        self.last_activity = time.time()  # 最后活动时间
+    
+    def touch(self):
+        """更新最后活动时间"""
+        self.last_activity = time.time()
+    
+    def is_expired(self):
+        """检查 session 是否超时"""
+        return time.time() - self.last_activity > SESSION_TIMEOUT
 
 @app.post("/api/generate/start")
 async def api_start_generation(req: StartGenerationRequest):
@@ -206,6 +285,9 @@ async def api_generate_frame(req: FrameRequest):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
+    # 更新活动时间
+    session.touch()
+    
     # 更新参数
     if req.prompt:
         session.model.prompt = req.prompt
@@ -251,6 +333,9 @@ async def api_get_frames(session_id: str, count: int = 5):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
+    # 更新活动时间
+    session.touch()
+    
     with session.lock:
         frames_to_send = session.pending_frames[:count]
         session.pending_frames = session.pending_frames[count:]
@@ -267,8 +352,12 @@ async def api_stop_generation(session_id: str):
     """停止生成会话"""
     with session_lock:
         if session_id in active_sessions:
+            session = active_sessions[session_id]
+            # 清理推理显存
+            if hasattr(session.model, 'cleanup_inference'):
+                session.model.cleanup_inference()
             del active_sessions[session_id]
-            print(f"[HTTP] Session {session_id} stopped")
+            print(f"[HTTP] Session {session_id} stopped, memory cleaned")
             return {"status": "stopped"}
     
     return {"status": "not_found"}
@@ -398,6 +487,10 @@ async def websocket_video_gen(websocket: WebSocket):
         traceback.print_exc()
     finally:
         active_websockets.discard(websocket)
+        # 清理推理显存
+        if model is not None and hasattr(model, 'cleanup_inference'):
+            model.cleanup_inference()
+            print("Inference memory cleaned")
         print(f"WebSocket disconnected. Active connections: {len(active_websockets)}")
 
 

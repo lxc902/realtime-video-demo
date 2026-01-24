@@ -576,6 +576,9 @@
                     <button id="startStopBtn" class="btn btn-primary" onclick="app.toggleGeneration()" style="flex: 1;">
                         Start Generation
                     </button>
+                    <button id="clearCacheBtn" class="btn btn-secondary" onclick="app.clearInferenceCache()" title="Clear inference cache (free GPU memory)">
+                        🗑️ Clear Cache
+                    </button>
                 </div>
 
                 <!-- Advanced Settings Accordion -->
@@ -1734,6 +1737,33 @@
                     textBtn.disabled = this.isGenerating;
                     videoBtn.disabled = this.isGenerating;
                     webcamBtn.disabled = this.isGenerating;
+                }
+            },
+
+            async clearInferenceCache() {
+                const btn = document.getElementById('clearCacheBtn');
+                const originalText = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = '⏳ Clearing...';
+                
+                try {
+                    const response = await fetch('/api/clear-cache', { method: 'POST' });
+                    const data = await response.json();
+                    
+                    if (data.status === 'ok') {
+                        let msg = `Cache cleared! Sessions: ${data.sessions_cleaned}`;
+                        if (data.gpu_memory_allocated_gb !== undefined) {
+                            msg += `, GPU: ${data.gpu_memory_allocated_gb}GB used`;
+                        }
+                        this.showInfo(msg);
+                    } else {
+                        this.showError('Failed to clear cache');
+                    }
+                } catch (error) {
+                    this.showError('Error: ' + error.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
                 }
             },
 

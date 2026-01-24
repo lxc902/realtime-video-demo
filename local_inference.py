@@ -139,6 +139,29 @@ class KreaLocalInference:
         buf = io.BytesIO()
         image.save(buf, format='JPEG', quality=90)
         return buf.getvalue()
+    
+    def cleanup_inference(self):
+        """清理推理过程中的临时显存"""
+        # 清理状态
+        if self.state is not None:
+            # 清理 state 中的 tensors
+            if hasattr(self.state, 'values') and self.state.values:
+                self.state.values.clear()
+            self.state = None
+        
+        # 清理帧列表
+        self.current_frames.clear()
+        
+        # 清理 generator
+        self.generator = None
+        
+        # 强制 CUDA 垃圾回收
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+        
+        import gc
+        gc.collect()
 
 
 # 单例模式
