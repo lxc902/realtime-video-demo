@@ -263,61 +263,44 @@ class KreaLocalInference:
         return buf.getvalue()
     
     def _reset_transformer_caches(self):
-        """重置 transformer 内部的 block_mask 和 kv cache"""
+        """重置 transformer 内部的 block_mask（仅在新 session 时调用）
+        
+        注意：只清理 block_mask，不要清理 kv_cache 等！
+        - block_mask: attention mask，需要为新 session 重新生成
+        - kv_cache: 由 state.values 管理，不要在这里清理
+        - frame_cache: 关键输入数据，绝对不能清理
+        """
         if not hasattr(self.pipe, 'transformer') or self.pipe.transformer is None:
             return
         
         transformer = self.pipe.transformer
         cleared_count = 0
         
-        # 遍历所有子模块，清除各种缓存
+        # 只清理 block_mask 相关属性
         for name, module in transformer.named_modules():
-            # 清除 block_mask 相关属性
-            attrs_to_clear = []
-            for attr_name in dir(module):
-                attr_lower = attr_name.lower()
-                if any(kw in attr_lower for kw in ['block_mask', 'blockmask', 'kv_cache', 'cache', 'attn_cache']):
-                    if not attr_name.startswith('_') or attr_name.startswith('_kv') or attr_name.startswith('_cache'):
-                        attrs_to_clear.append(attr_name)
-            
-            for attr_name in attrs_to_clear:
-                try:
-                    if hasattr(module, attr_name):
+            # 只清理 block_mask，不清理其他缓存
+            for attr_name in ['block_mask', '_block_mask', 'blockmask', '_blockmask']:
+                if hasattr(module, attr_name):
+                    try:
                         val = getattr(module, attr_name)
                         if val is not None and not callable(val):
                             setattr(module, attr_name, None)
                             cleared_count += 1
-                except Exception:
-                    pass
-            
-            # 显式清除常见的缓存属性
-            cache_attrs = ['kv_cache', '_kv_cache', 'cache', '_cache', 
-                          'k_cache', 'v_cache', 'key_cache', 'value_cache',
-                          'crossattn_cache', '_crossattn_cache']
-            for attr in cache_attrs:
-                if hasattr(module, attr):
-                    try:
-                        setattr(module, attr, None)
-                        cleared_count += 1
                     except Exception:
                         pass
         
-        # 清除 transformer 级别的缓存
+        # 清除 transformer 级别的 block_mask
         if hasattr(transformer, 'block_mask'):
             transformer.block_mask = None
+            cleared_count += 1
         if hasattr(transformer, '_block_mask'):
             transformer._block_mask = None
-        if hasattr(transformer, 'kv_cache'):
-            transformer.kv_cache = None
-        if hasattr(transformer, 'reset_caches'):
-            try:
-                transformer.reset_caches()
-                cleared_count += 1
-            except Exception:
-                pass
+            cleared_count += 1
+        
+        # 注意：不要调用 transformer.reset_caches()，它会清理 kv_cache
         
         if cleared_count > 0:
-            print(f"[Cache Reset] Cleared {cleared_count} transformer caches")
+            print(f"[Cache Reset] Cleared {cleared_count} block_mask caches")
     
     def cleanup_inference(self):
         """清理推理过程中的临时显存"""
