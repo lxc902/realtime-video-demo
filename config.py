@@ -48,8 +48,8 @@ if QUANTIZATION:
 V2V_INITIAL_FRAMES = int(os.getenv("V2V_INITIAL_FRAMES", "12"))
 
 # 后续 V2V 生成需要的最小帧数（pipeline 内部已有缓存）
-# 值越大质量越好但延迟越高，建议 1-4
-V2V_SUBSEQUENT_FRAMES = int(os.getenv("V2V_SUBSEQUENT_FRAMES", "3"))
+# 值越大质量越好但延迟越高，建议 1-12
+V2V_SUBSEQUENT_FRAMES = int(os.getenv("V2V_SUBSEQUENT_FRAMES", "6"))
 
 # 每个 chunk 的帧数（用于 video 模式）
 FRAMES_PER_CHUNK = int(os.getenv("FRAMES_PER_CHUNK", "12"))
