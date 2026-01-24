@@ -293,6 +293,15 @@ class KreaLocalInference:
     
     def frame_to_bytes(self, frame):
         """将帧转换为 JPEG 字节"""
+        # 如果已经是 PIL Image，直接保存
+        if isinstance(frame, Image.Image):
+            buf = io.BytesIO()
+            # 确保是 RGB 模式
+            if frame.mode != 'RGB':
+                frame = frame.convert('RGB')
+            frame.save(buf, format='JPEG', quality=90)
+            return buf.getvalue()
+        
         if isinstance(frame, torch.Tensor):
             # Tensor -> numpy
             frame = frame.cpu().numpy()
