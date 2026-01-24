@@ -109,8 +109,11 @@ class KreaLocalInference:
         except Exception:
             pass
         
-        # 重置 transformer 内部的 block_mask 缓存
+        # 重置 transformer 内部的所有缓存（包括 block_mask）
         self._reset_transformer_caches()
+        
+        # 彻底清理 pipeline 内部的所有缓存，确保新生成完全独立
+        self._reset_pipeline_caches()
         
         # 创建新的独立 state
         state = PipelineState()
@@ -123,6 +126,8 @@ class KreaLocalInference:
         
         # 保存常用参数到实例（用于旧 API 兼容）
         self.num_inference_steps = num_inference_steps
+        
+        print(f"[New Session] All caches cleared, starting fresh generation")
         
         return state, generator
         
@@ -353,12 +358,9 @@ class KreaLocalInference:
         return buf.getvalue()
     
     def _reset_transformer_caches(self):
-        """重置 transformer 内部的 block_mask（仅在新 session 时调用）
+        """重置 transformer 内部的 block_mask 和所有缓存
         
-        注意：只清理 block_mask，不要清理 kv_cache 等！
-        - block_mask: attention mask，需要为新 session 重新生成
-        - kv_cache: 由 state.values 管理，不要在这里清理
-        - frame_cache: 关键输入数据，绝对不能清理
+        在新 session 开始时调用，确保完全独立的生成
         """
         if not hasattr(self.pipe, 'transformer') or self.pipe.transformer is None:
             return
@@ -366,9 +368,8 @@ class KreaLocalInference:
         transformer = self.pipe.transformer
         cleared_count = 0
         
-        # 只清理 block_mask 相关属性
+        # 清理 block_mask 相关属性
         for name, module in transformer.named_modules():
-            # 只清理 block_mask，不清理其他缓存
             for attr_name in ['block_mask', '_block_mask', 'blockmask', '_blockmask']:
                 if hasattr(module, attr_name):
                     try:
@@ -387,10 +388,62 @@ class KreaLocalInference:
             transformer._block_mask = None
             cleared_count += 1
         
-        # 注意：不要调用 transformer.reset_caches()，它会清理 kv_cache
+        # 调用 transformer 的 reset_caches（清理 kv_cache 等）
+        if hasattr(transformer, 'reset_caches') and callable(transformer.reset_caches):
+            try:
+                transformer.reset_caches()
+                cleared_count += 1
+                print(f"[Cache Reset] Called transformer.reset_caches()")
+            except Exception as e:
+                print(f"[Cache Reset] transformer.reset_caches() failed: {e}")
         
         if cleared_count > 0:
-            print(f"[Cache Reset] Cleared {cleared_count} block_mask caches")
+            print(f"[Cache Reset] Cleared {cleared_count} transformer caches")
+    
+    def _reset_pipeline_caches(self):
+        """重置 pipeline 内部的所有缓存，确保新生成完全独立"""
+        cleared = []
+        
+        # 清理 pipeline blocks 中的缓存
+        if hasattr(self.pipe, 'blocks'):
+            for block in self.pipe.blocks:
+                # 清理 input_frames_cache（KREA 用于累积输入帧）
+                if hasattr(block, 'input_frames_cache'):
+                    block.input_frames_cache = None
+                    cleared.append('input_frames_cache')
+                
+                # 清理 frame_cache_context
+                if hasattr(block, 'frame_cache_context'):
+                    block.frame_cache_context = None
+                    cleared.append('frame_cache_context')
+                
+                # 清理 decoder_cache
+                if hasattr(block, 'decoder_cache'):
+                    block.decoder_cache = None
+                    cleared.append('decoder_cache')
+                
+                # 清理 init_latents
+                if hasattr(block, 'init_latents'):
+                    block.init_latents = None
+                    cleared.append('init_latents')
+        
+        # 清理 pipeline 级别的缓存
+        cache_attrs = [
+            'input_frames_cache', 'frame_cache_context', 'decoder_cache',
+            'init_latents', 'kv_cache', 'crossattn_cache', '_cached_latents'
+        ]
+        for attr in cache_attrs:
+            if hasattr(self.pipe, attr):
+                setattr(self.pipe, attr, None)
+                cleared.append(f'pipe.{attr}')
+        
+        # 强制垃圾回收
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
+        if cleared:
+            print(f"[Pipeline Reset] Cleared: {list(set(cleared))}")
     
     def cleanup_inference(self):
         """清理推理过程中的临时显存"""
