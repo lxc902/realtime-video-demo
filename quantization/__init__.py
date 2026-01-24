@@ -7,7 +7,7 @@
 - int8: INT8 量化 (~28GB 显存)
 - int4: INT4 量化 (~16GB 显存)
 """
-from .bf16 import load_bf16
+from .base_bf16 import load_bf16
 from .fp8 import load_fp8
 from .int8 import load_int8
 from .int4 import load_int4
