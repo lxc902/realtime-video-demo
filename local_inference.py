@@ -3,6 +3,7 @@ KREA Realtime Video - 本地 GPU 推理模块
 使用 diffusers 库在本地 GPU 上运行 KREA 模型
 """
 import torch
+import torch._dynamo
 import gc
 from diffusers import ModularPipeline
 from diffusers.modular_pipelines import PipelineState
