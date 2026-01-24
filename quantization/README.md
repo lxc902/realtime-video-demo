@@ -2,8 +2,8 @@
 
 ## 测试环境
 
-- **Ada48**: 48GB VRAM (RTX 6000 Ada)
-- **Pro96**: 96GB VRAM (RTX Pro 6000)
+- **Ada48**: 48GB VRAM (RTX 6000 Ada, NVIDIA RTX 6000 Ada Generation, 49140 MiB)
+- **Pro96**: 96GB VRAM (RTX Pro 6000, NVIDIA RTX PRO 6000 Blackwell Workstation Edition, 97887 MiB)
 
 ## 显存使用观察
 
@@ -50,13 +50,14 @@ inn = input.reshape(-1, input_shape[2]).to(torch.float8_e4m3fn).contiguous()
 
 Transformer 使用的 flex_attention 会缓存 block_mask，这些缓存在连续推理时会累积。
 
-### 5. Ada vs Pro 差异解释
+### 5. Ada vs Blackwell 差异解释
 
 Pro96 每帧消耗 9GB vs Ada48 的 2GB，可能原因：
 
-1. **更大的并行度**：Pro96 有更多 CUDA 核心，需要更大的中间激活批次
-2. **不同的内存管理策略**：高端 GPU 的 CUDA 分配器可能更激进地预分配内存
-3. **不同的 Compute Capability**：可能触发不同的 kernel 优化路径
+1. **架构差异**：RTX 6000 Ada 是 Ada Lovelace (CC 8.9)，RTX Pro 6000 是 Blackwell (CC 10.0+)
+2. **不同的 kernel 路径**：`torch._scaled_mm` 在 Blackwell 上可能使用不同的实现
+3. **更大的并行度**：Blackwell 有更多 CUDA 核心，需要更大的中间激活批次
+4. **新架构驱动优化**：Blackwell 驱动可能更激进地预分配 memory pool
 
 ## 优化建议
 
