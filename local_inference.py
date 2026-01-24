@@ -150,6 +150,18 @@ class KreaLocalInference:
         all_keys = list(values.keys())
         print(f"  [Cleanup] state.values keys: {all_keys}")
         
+        # 关键诊断：检查 current_denoised_latents 的状态
+        if 'current_denoised_latents' in values:
+            cdl = values['current_denoised_latents']
+            if cdl is None:
+                print(f"  [WARNING] current_denoised_latents is None!")
+            elif hasattr(cdl, 'shape'):
+                print(f"  [Debug] current_denoised_latents shape: {cdl.shape}")
+            else:
+                print(f"  [Debug] current_denoised_latents type: {type(cdl)}")
+        else:
+            print(f"  [WARNING] current_denoised_latents not in state.values!")
+        
         # 暂时禁用删除，测试推理是否正常
         # TODO: 确认哪些可以安全删除后再启用
         keys_to_delete = [
@@ -189,6 +201,21 @@ class KreaLocalInference:
     
     def generate_next_block(self, input_frame=None):
         """生成下一个 block 的帧"""
+        print(f"\n[generate_next_block] block_idx={self.block_idx}, input_frame={'provided' if input_frame is not None else 'None'}")
+        
+        # 在清理前检查 current_denoised_latents
+        if self.state is not None and hasattr(self.state, 'values') and self.state.values:
+            if 'current_denoised_latents' in self.state.values:
+                cdl = self.state.values['current_denoised_latents']
+                if cdl is None:
+                    print(f"  [BEFORE cleanup] current_denoised_latents is None!")
+                elif hasattr(cdl, 'shape'):
+                    print(f"  [BEFORE cleanup] current_denoised_latents shape: {cdl.shape}")
+            else:
+                print(f"  [BEFORE cleanup] current_denoised_latents not in state.values")
+        else:
+            print(f"  [BEFORE cleanup] state is empty or None")
+        
         # 清理 state 中的大张量，避免 deepcopy OOM
         self._cleanup_state_tensors()
         
@@ -213,6 +240,14 @@ class KreaLocalInference:
                 
             # 生成
             self.state = self.pipe(**kwargs)
+            
+            # 诊断：检查 pipeline 执行后的 current_denoised_latents
+            if hasattr(self.state, 'values') and 'current_denoised_latents' in self.state.values:
+                cdl = self.state.values['current_denoised_latents']
+                if cdl is None:
+                    print(f"  [After pipe] current_denoised_latents is None!")
+                elif hasattr(cdl, 'shape'):
+                    print(f"  [After pipe] current_denoised_latents shape: {cdl.shape}")
             
             # 提取生成的帧
             new_frames = self.state.values["videos"][0]
