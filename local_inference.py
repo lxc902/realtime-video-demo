@@ -124,20 +124,68 @@ class KreaLocalInference:
         if not values:
             return
         
+        # 调试：打印 state 中的所有键和大小
+        if self.block_idx > 0:
+            print(f"[Debug] block_idx={self.block_idx}, state.values keys: {list(values.keys())}")
+            total_gpu_mb = 0
+            for key, val in values.items():
+                if isinstance(val, torch.Tensor):
+                    size_mb = val.numel() * val.element_size() / 1024 / 1024
+                    device = val.device
+                    if device.type == "cuda":
+                        total_gpu_mb += size_mb
+                    print(f"  {key}: {val.shape}, {val.dtype}, {device}, {size_mb:.1f}MB")
+                elif isinstance(val, list) and len(val) > 0:
+                    print(f"  {key}: list[{len(val)}]")
+                    if isinstance(val[0], torch.Tensor):
+                        for i, t in enumerate(val[:3]):  # 只打印前3个
+                            size_mb = t.numel() * t.element_size() / 1024 / 1024
+                            if t.device.type == "cuda":
+                                total_gpu_mb += size_mb
+                            print(f"    [{i}]: {t.shape}, {t.dtype}, {t.device}, {size_mb:.1f}MB")
+                        if len(val) > 3:
+                            print(f"    ... and {len(val) - 3} more")
+            print(f"  Total GPU tensors in state: {total_gpu_mb:.1f}MB")
+            
+            # 打印当前 GPU 内存使用
+            if torch.cuda.is_available():
+                allocated = torch.cuda.memory_allocated() / 1024 / 1024 / 1024
+                reserved = torch.cuda.memory_reserved() / 1024 / 1024 / 1024
+                print(f"  GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
+        
         # 清理 videos 列表中的张量（这是最大的内存消耗）
         if "videos" in values:
             # 将视频张量移到 CPU 或直接删除
             # 因为我们已经在 self.current_frames 中保存了帧
             del values["videos"]
         
-        # 清理其他可能的大张量
-        keys_to_clean = ["latents", "noise", "timesteps", "encoder_hidden_states"]
-        for key in keys_to_clean:
-            if key in values:
-                val = values[key]
-                if isinstance(val, torch.Tensor) and val.device.type == "cuda":
-                    # 移到 CPU 避免 deepcopy 时占用 GPU 内存
-                    values[key] = val.cpu()
+        # 更激进的清理：删除所有大张量，只保留必要的
+        keys_to_delete = []
+        keys_to_cpu = []
+        for key, val in values.items():
+            if isinstance(val, torch.Tensor) and val.device.type == "cuda":
+                size_mb = val.numel() * val.element_size() / 1024 / 1024
+                if size_mb > 100:  # 大于 100MB 的张量
+                    keys_to_delete.append(key)
+                else:
+                    keys_to_cpu.append(key)
+            elif isinstance(val, list):
+                # 如果是列表，检查是否包含 GPU 张量
+                has_gpu_tensor = False
+                for item in val:
+                    if isinstance(item, torch.Tensor) and item.device.type == "cuda":
+                        has_gpu_tensor = True
+                        break
+                if has_gpu_tensor:
+                    keys_to_delete.append(key)
+        
+        for key in keys_to_delete:
+            print(f"  [Cleanup] Deleting {key}")
+            del values[key]
+        
+        for key in keys_to_cpu:
+            print(f"  [Cleanup] Moving {key} to CPU")
+            values[key] = values[key].cpu()
     
     def generate_next_block(self, input_frame=None):
         """生成下一个 block 的帧"""
