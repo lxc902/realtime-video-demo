@@ -117,7 +117,10 @@ class KreaLocalInference:
         diffusers ModularPipeline.__call__ 会对 state 进行 deepcopy，
         如果 state 中累积了大量 GPU 张量，deepcopy 会导致 OOM。
         
-        重要：只能删除 output 类型的张量，不能动 input 类型的张量！
+        根本问题：kv_cache 和 crossattn_cache 各有 40 个元素，包含大量 GPU 张量。
+        deepcopy 这些缓存需要额外 ~60GB 内存。
+        
+        解决方案：清理所有大缓存，让 pipeline 重新计算。牺牲速度换取内存稳定。
         """
         if self.state is None or not hasattr(self.state, 'values'):
             return
@@ -126,30 +129,41 @@ class KreaLocalInference:
         if not values:
             return
         
+        # 强制清理 GPU 缓存
+        torch.cuda.empty_cache()
+        
         # 调试：打印 GPU 内存使用
-        if self.block_idx > 0 and torch.cuda.is_available():
+        if torch.cuda.is_available():
             allocated = torch.cuda.memory_allocated() / 1024 / 1024 / 1024
             reserved = torch.cuda.memory_reserved() / 1024 / 1024 / 1024
             print(f"[Debug] block_idx={self.block_idx}, GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
         
-        # 只删除 OUTPUT 类型的大张量（不是 pipeline 输入需要的）
-        # 这些是中间结果或输出，可以安全删除
+        # 删除所有大缓存（这些会导致 deepcopy OOM）
         keys_to_delete = [
             "videos",           # 生成的视频帧（已保存到 self.current_frames）
-            "decoder_cache",    # VAE decoder 缓存（55个张量，每个~9MB）
+            "decoder_cache",    # VAE decoder 缓存（55个张量）
             "video_stream",     # 视频流输出
+            "kv_cache",         # attention KV 缓存（40个元素，巨大！）
+            "crossattn_cache",  # cross attention 缓存（40个元素，巨大！）
         ]
         
+        deleted = []
         for key in keys_to_delete:
             if key in values:
-                print(f"  [Cleanup] Deleting {key}")
+                deleted.append(key)
                 del values[key]
         
-        # 注意：以下张量是 pipeline 需要的输入，不能删除或移动到 CPU！
-        # - latents, init_latents: 去噪过程的输入
-        # - prompt_embeds: 文本编码
-        # - kv_cache, crossattn_cache: attention 缓存（用于加速）
-        # - current_denoised_latents: 当前去噪结果
+        if deleted:
+            print(f"  [Cleanup] Deleted: {deleted}")
+        
+        # 再次清理 GPU 缓存
+        torch.cuda.empty_cache()
+        
+        # 打印清理后的内存
+        if torch.cuda.is_available():
+            allocated = torch.cuda.memory_allocated() / 1024 / 1024 / 1024
+            reserved = torch.cuda.memory_reserved() / 1024 / 1024 / 1024
+            print(f"  [After cleanup] GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
     
     def generate_next_block(self, input_frame=None):
         """生成下一个 block 的帧"""
