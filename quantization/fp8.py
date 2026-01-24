@@ -174,11 +174,14 @@ def load_fp8(pipe, repo_id, device, dtype):
     print("   [3/4] 加载 FP8 权重...")
     fp8_state_dict = load_file(fp8_path)
     
-    # 提取 scale_weights
+    # 提取 scale_weights（去掉 model. 前缀）
     scale_weights = {}
     for k, v in fp8_state_dict.items():
         if k.endswith(".scale_weight") or k.endswith(".weight_scale"):
-            scale_weights[k.replace(".weight_scale", ".scale_weight")] = v.to(device, torch.float32)
+            normalized_k = k.replace(".weight_scale", ".scale_weight")
+            if normalized_k.startswith("model."):
+                normalized_k = normalized_k[6:]
+            scale_weights[normalized_k] = v.to(device, torch.float32)
     
     # 需要保持原精度的层（不使用 FP8）
     params_to_keep = {
@@ -204,18 +207,22 @@ def load_fp8(pipe, repo_id, device, dtype):
     # 获取模型的 state_dict keys 用于匹配
     model_state_dict = transformer.state_dict()
     
-    # 调试：打印 key 格式对比
-    fp8_keys = [k for k in fp8_state_dict.keys() if not ("scale" in k)][:3]
-    model_keys = list(model_state_dict.keys())[:3]
-    print(f"   调试 - FP8 keys 示例: {fp8_keys}")
-    print(f"   调试 - Model keys 示例: {model_keys}")
+    # FP8 checkpoint 的 key 有 "model." 前缀，需要去掉
+    def normalize_key(key):
+        if key.startswith("model."):
+            return key[6:]  # 去掉 "model." 前缀
+        return key
+    
+    # 构建 normalized key -> original key 的映射
+    fp8_key_map = {normalize_key(k): k for k in fp8_state_dict.keys()}
     
     # 只替换 FP8 权重（Linear 层的 weight）
     replaced_count = 0
     for model_key in model_state_dict.keys():
-        # 检查 FP8 state_dict 中是否有对应的 key
-        if model_key in fp8_state_dict:
-            fp8_value = fp8_state_dict[model_key]
+        # 检查 FP8 state_dict 中是否有对应的 key（去掉 model. 前缀后）
+        if model_key in fp8_key_map:
+            fp8_key = fp8_key_map[model_key]
+            fp8_value = fp8_state_dict[fp8_key]
             
             # 只替换 FP8 格式的权重，且不在 params_to_keep 中
             is_fp8 = fp8_value.dtype in fp8_dtypes
@@ -237,11 +244,14 @@ def load_fp8(pipe, repo_id, device, dtype):
     
     print(f"   ✅ 已替换 {replaced_count} 个权重为 FP8 格式")
     
-    # 提取 scale_weights
+    # 设置 scale_weights 到模块
     for k, v in fp8_state_dict.items():
         if k.endswith(".scale_weight") or k.endswith(".weight_scale"):
             # 找到对应的模块并设置 scale_weight
             module_key = k.replace(".scale_weight", "").replace(".weight_scale", "")
+            # 去掉 model. 前缀
+            if module_key.startswith("model."):
+                module_key = module_key[6:]
             parts = module_key.rsplit(".", 1)
             if len(parts) == 2:
                 module_name = parts[0]
