@@ -1,9 +1,11 @@
 """
-配置文件 - 模型路径和量化设置
+配置文件 - 模型路径、量化设置和生成参数
 """
 import os
 
+# ============================================================
 # 模型路径配置
+# ============================================================
 # 可以设置为：
 # 1. None - 从 HuggingFace 自动下载 (默认)
 # 2. 本地路径 - 例如 "/models/krea-realtime-video"
@@ -17,7 +19,9 @@ if MODEL_PATH and not os.path.exists(MODEL_PATH):
     print(f"将使用 HuggingFace 默认路径")
     MODEL_PATH = None
 
+# ============================================================
 # 量化配置
+# ============================================================
 # 可选值: None, "fp8", "int8", "int4"
 # - None: 不量化 (需要 ~54GB+ 显存)
 # - "fp8": FP8 量化 (需要 ~24GB 显存) - 推荐，需要 RTX 4000+ 或 Compute Capability >= 8.0
@@ -31,3 +35,23 @@ if QUANTIZATION:
         print(f"警告: 不支持的量化类型: {QUANTIZATION}")
         print(f"支持的类型: fp8, int8, int4")
         QUANTIZATION = None
+
+# ============================================================
+# Streaming V2V 帧缓存配置
+# ============================================================
+# KREA 的 VAE 有 temporal compression，需要足够的帧才能正确编码
+# input_frames_cache 是 deque(maxlen=24)，会累积帧
+
+# 第一次 V2V 生成需要的最小帧数（建立 pipeline 内部缓存）
+# 值越大质量越好但延迟越高，建议 6-12
+V2V_INITIAL_FRAMES = int(os.getenv("V2V_INITIAL_FRAMES", "6"))
+
+# 后续 V2V 生成需要的最小帧数（pipeline 内部已有缓存）
+# 值越大质量越好但延迟越高，建议 1-4
+V2V_SUBSEQUENT_FRAMES = int(os.getenv("V2V_SUBSEQUENT_FRAMES", "3"))
+
+# 每个 chunk 的帧数（用于 video 模式）
+FRAMES_PER_CHUNK = int(os.getenv("FRAMES_PER_CHUNK", "12"))
+
+# Session 超时时间（秒）
+SESSION_TIMEOUT = int(os.getenv("SESSION_TIMEOUT", "60"))

@@ -15,7 +15,11 @@ import msgpack
 
 # 导入本地推理模块
 from local_inference import get_model
-from config import MODEL_PATH, QUANTIZATION
+from config import (
+    MODEL_PATH, QUANTIZATION,
+    V2V_INITIAL_FRAMES, V2V_SUBSEQUENT_FRAMES, FRAMES_PER_CHUNK,
+    SESSION_TIMEOUT
+)
 
 app = FastAPI()
 templates = Jinja2Templates(directory=".")
@@ -190,8 +194,7 @@ session_lock = threading.Lock()
 # 这是必要的，因为所有 session 共享同一个 model 实例
 inference_lock = threading.Lock()
 
-# Session 超时时间（秒）- 超过此时间没有活动的 session 会被自动清理
-SESSION_TIMEOUT = 60
+# SESSION_TIMEOUT 从 config.py 导入
 
 class StartGenerationRequest(BaseModel):
     prompt: str
@@ -227,9 +230,8 @@ class GenerationSession:
         self.block_idx = 0
         
         # 帧缓存：streaming 模式需要缓存多帧再处理
-        # KREA 官方示例每次传入 12 帧
         self.input_frame_buffer = []
-        self.frames_per_chunk = 12  # 每次处理的帧数
+        self.frames_per_chunk = FRAMES_PER_CHUNK  # 从 config.py 导入
         self.start_frame = None  # 保存起始帧
     
     def touch(self):
@@ -256,10 +258,15 @@ async def api_start_generation(req: StartGenerationRequest):
     
     # 处理起始帧
     start_frame = None
+    start_frames_list = None  # 用于 V2V 模式的帧列表
     if req.start_frame:
         start_frame_bytes = base64.b64decode(req.start_frame)
         start_frame = model.process_frame_bytes(start_frame_bytes)
         session.start_frame = start_frame  # 保存到 session
+        
+        # V2V 模式：复制 start_frame 来填充初始帧缓存
+        # 这样 VAE 编码时有足够的帧
+        start_frames_list = [start_frame] * V2V_INITIAL_FRAMES
     
     # 使用推理锁确保同一时间只有一个请求在使用模型
     def init_and_generate():
@@ -277,14 +284,15 @@ async def api_start_generation(req: StartGenerationRequest):
             session.block_idx = 0
             
             # 生成第一个 block
+            # 如果有 start_frame，传入复制的帧列表以确保 VAE 有足够帧
             new_state, frames = model.generate_next_block_with_state(
                 state=session.state,
                 prompt=session.prompt,
                 strength=session.strength,
                 block_idx=session.block_idx,
                 generator=session.generator,
-                input_frame=None,
-                start_frame=start_frame,
+                input_frame=start_frames_list,  # 传入帧列表而不是 None
+                start_frame=None,  # 不再单独传 start_frame
                 num_blocks=session.num_blocks
             )
             session.state = new_state
@@ -369,7 +377,7 @@ async def api_generate_frame(req: FrameRequest):
             # KREA 的 input_frames_cache 是 deque(maxlen=24)，会累积帧
             
             is_first_v2v = (session.block_idx <= 1)  # 前两个 block 需要更多帧建立缓存
-            min_frames_needed = 12 if is_first_v2v else 3  # 后续只需要少量新帧
+            min_frames_needed = V2V_INITIAL_FRAMES if is_first_v2v else V2V_SUBSEQUENT_FRAMES
             
             if len(session.input_frame_buffer) >= min_frames_needed:
                 # 有足够帧，传入缓存的帧
