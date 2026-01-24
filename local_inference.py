@@ -43,24 +43,30 @@ class KreaLocalInference:
         
         # 根据量化类型加载模型
         if quantization == "fp8":
-            # FP8 预量化模型
-            print("🔧 使用 FP8 预量化模型 (预计显存 ~24GB)")
+            # FP8 优化 - 基于 ComfyUI 的实现
+            print("🔧 使用 FP8 优化 (基于 ComfyUI 实现)...")
+            
             try:
+                from fp8_optimization import convert_fp8_linear, check_fp8_support
                 from huggingface_hub import hf_hub_download
+                from safetensors.torch import load_file
                 
-                # 1. 下载 FP8 transformer checkpoint
+                # 检查硬件支持
+                supports_fp8, compute_cap, msg = check_fp8_support()
+                print(f"   GPU: {msg}")
+                if not supports_fp8:
+                    raise RuntimeError(f"当前 GPU 不支持 FP8: {msg}")
+                
+                # 1. 下载 FP8 checkpoint
                 fp8_repo = "6chan/krea-realtime-video-fp8"
                 fp8_file = "krea-realtime-video-14b-fp8-e4m3fn.safetensors"
-                print(f"   [1/3] 下载 FP8 transformer: {fp8_repo}")
+                print(f"   [1/4] 下载 FP8 权重: {fp8_repo}")
                 
-                fp8_path = hf_hub_download(
-                    repo_id=fp8_repo,
-                    filename=fp8_file,
-                )
-                print(f"   ✅ FP8 checkpoint: {fp8_path}")
+                fp8_path = hf_hub_download(repo_id=fp8_repo, filename=fp8_file)
+                print(f"   ✅ 已下载: {fp8_path}")
                 
                 # 2. 加载其他组件（不包括 transformer）
-                print("   [2/3] 加载其他组件...")
+                print("   [2/4] 加载其他组件 (VAE, Text Encoder)...")
                 config_only_components = {"transformer", "guider", "video_processor", "scheduler"}
                 specs = self.pipe._component_specs
                 if isinstance(specs, dict):
@@ -83,30 +89,58 @@ class KreaLocalInference:
                     torch_dtype={"default": dtype, "vae": torch.float16},
                 )
                 
-                # 3. 加载 FP8 transformer
-                print("   [3/3] 加载 FP8 transformer...")
-                from safetensors.torch import load_file
-                
-                # 先加载原始 transformer 结构
+                # 3. 加载 transformer 结构（bf16），然后加载 FP8 权重
+                print("   [3/4] 加载 transformer 结构...")
                 from diffusers import AutoModel
                 transformer = AutoModel.from_pretrained(
                     repo_id,
                     subfolder="transformer",
-                    torch_dtype=torch.float8_e4m3fn,
+                    torch_dtype=dtype,  # 先用 bf16 加载结构
                     trust_remote_code=True,
                     low_cpu_mem_usage=True,
                 )
                 
                 # 加载 FP8 权重
+                print("   [4/4] 加载 FP8 权重并应用优化...")
                 fp8_state_dict = load_file(fp8_path)
-                transformer.load_state_dict(fp8_state_dict, strict=False)
+                
+                # 提取 scale_weights
+                scale_weights = {}
+                for k, v in fp8_state_dict.items():
+                    if k.endswith(".scale_weight") or k.endswith(".weight_scale"):
+                        scale_weights[k.replace(".weight_scale", ".scale_weight")] = v.to(device, torch.float32)
+                
+                # 需要保持原精度的层
+                params_to_keep = {
+                    "norm", "bias", "time_in", "patch_embedding", "time_", 
+                    "img_emb", "modulation", "text_embedding"
+                }
+                
+                # 加载权重
+                model_state = transformer.state_dict()
+                for name, param in fp8_state_dict.items():
+                    if ".scale_weight" in name or ".weight_scale" in name:
+                        continue
+                    if name in model_state:
+                        keep_original = any(keyword in name for keyword in params_to_keep)
+                        if keep_original:
+                            param = param.to(dtype)
+                        model_state[name].copy_(param.to(model_state[name].device))
+                
+                transformer.load_state_dict(model_state)
                 transformer = transformer.to(device)
+                
+                # 应用 FP8 Linear 优化
+                convert_fp8_linear(transformer, dtype, params_to_keep, scale_weights)
                 
                 self.pipe.transformer = transformer
                 
                 torch.cuda.empty_cache()
-                print("   ✅ FP8 模型加载完成")
+                print("   ✅ FP8 优化完成")
                 
+            except ImportError as e:
+                print(f"   ❌ FP8 加载失败: {e}")
+                raise RuntimeError(f"FP8 加载失败: {e}")
             except Exception as e:
                 print(f"   ❌ FP8 加载失败: {e}")
                 import traceback

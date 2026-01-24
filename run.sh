@@ -11,14 +11,14 @@ for arg in "$@"; do
         --with-flash-attn)
             INSTALL_FLASH_ATTN=true
             ;;
+        --fp8)
+            QUANTIZATION="fp8"
+            ;;
         --int8)
             QUANTIZATION="int8"
             ;;
         --int4)
             QUANTIZATION="int4"
-            ;;
-        --fp8)
-            QUANTIZATION="fp8"
             ;;
     esac
 done
@@ -139,13 +139,32 @@ else
     echo "  ✓ ftfy"
 fi
 
-# 如果使用量化，检查 torchao
-if [ -n "$QUANTIZATION" ]; then
+# 如果使用 INT8/INT4 量化，检查 torchao 和 transformers 版本兼容性
+if [ "$QUANTIZATION" = "int8" ] || [ "$QUANTIZATION" = "int4" ]; then
+    # 检查 torchao
     if ! check_package torchao; then
-        echo "  ❌ torchao not found (required for quantization)"
+        echo "  ❌ torchao not found (required for ${QUANTIZATION^^} quantization)"
         NEED_INSTALL=true
     else
-        echo "  ✓ torchao"
+        # 检查 torchao 版本是否兼容（需要 0.7.x 配合 PyTorch 2.5.x）
+        TORCHAO_VER=$($PYTHON -c "import torchao; print(torchao.__version__)" 2>/dev/null || echo "unknown")
+        if [[ "$TORCHAO_VER" == 0.7* ]]; then
+            echo "  ✓ torchao ($TORCHAO_VER)"
+        else
+            echo "  ⚠️  torchao ($TORCHAO_VER) - 需要 0.7.x 版本"
+            NEED_INSTALL=true
+        fi
+    fi
+    
+    # 检查 transformers 版本（需要 4.44.x 配合 torchao 0.7.x）
+    if check_package transformers; then
+        TRANSFORMERS_VER=$($PYTHON -c "import transformers; print(transformers.__version__)" 2>/dev/null || echo "unknown")
+        if [[ "$TRANSFORMERS_VER" == 4.44* ]] || [[ "$TRANSFORMERS_VER" == 4.43* ]] || [[ "$TRANSFORMERS_VER" == 4.42* ]]; then
+            echo "  ✓ transformers ($TRANSFORMERS_VER)"
+        else
+            echo "  ⚠️  transformers ($TRANSFORMERS_VER) - 需要 4.44.x 版本 (兼容 torchao 0.7.x)"
+            NEED_INSTALL=true
+        fi
     fi
 fi
 
@@ -180,7 +199,12 @@ if [ "$NEED_INSTALL" = true ]; then
     
     if ! check_package transformers; then
         echo "  - Installing transformers and accelerate..."
-        $PIP install transformers accelerate safetensors -q
+        # INT8/INT4 量化需要 transformers 4.44.x（兼容 torchao 0.7.x）
+        if [ "$QUANTIZATION" = "int8" ] || [ "$QUANTIZATION" = "int4" ]; then
+            $PIP install transformers==4.44.0 accelerate safetensors -q
+        else
+            $PIP install transformers accelerate safetensors -q
+        fi
     fi
     
     if ! check_package fastapi; then
@@ -221,10 +245,25 @@ if [ "$NEED_INSTALL" = true ]; then
         echo "  - Skipping flash-attention (use --with-flash-attn to install)"
     fi
     
-    # torchao for quantization support (替代 bitsandbytes，兼容性更好)
-    if [ -n "$QUANTIZATION" ] && ! check_package torchao; then
-        echo "  - Installing torchao (for ${QUANTIZATION^^} quantization)..."
-        $PIP install torchao -q
+    # INT8/INT4 量化需要 torchao 0.7.x + transformers 4.44.x（兼容 PyTorch 2.5.x）
+    if [ "$QUANTIZATION" = "int8" ] || [ "$QUANTIZATION" = "int4" ]; then
+        echo "  - 配置 ${QUANTIZATION^^} 量化依赖..."
+        
+        # 检查并安装 torchao 0.7.x
+        TORCHAO_VER=$($PYTHON -c "import torchao; print(torchao.__version__)" 2>/dev/null || echo "none")
+        if [[ "$TORCHAO_VER" != 0.7* ]]; then
+            echo "    安装 torchao==0.7.0 (兼容 PyTorch 2.5.x)..."
+            $PIP install torchao==0.7.0 -q
+        fi
+        
+        # 检查并安装 transformers 4.44.x（兼容 torchao 0.7.x）
+        TRANSFORMERS_VER=$($PYTHON -c "import transformers; print(transformers.__version__)" 2>/dev/null || echo "none")
+        if [[ "$TRANSFORMERS_VER" != 4.44* ]] && [[ "$TRANSFORMERS_VER" != 4.43* ]] && [[ "$TRANSFORMERS_VER" != 4.42* ]]; then
+            echo "    安装 transformers==4.44.0 (兼容 torchao 0.7.x)..."
+            $PIP install transformers==4.44.0 -q
+        fi
+        
+        echo "    ✅ ${QUANTIZATION^^} 量化依赖已配置"
     fi
     
     echo ""
@@ -252,11 +291,7 @@ echo ""
 
 # 预下载模型（优先从 GCS，失败则让 HuggingFace 自动下载）
 echo "📦 检查模型..."
-if [ "$QUANTIZATION" = "fp8" ]; then
-    bash download.sh --fp8
-else
-    bash download.sh
-fi
+bash download.sh
 echo ""
 
 # 设置量化环境变量

@@ -20,9 +20,9 @@ if MODEL_PATH and not os.path.exists(MODEL_PATH):
 # 量化配置
 # 可选值: None, "fp8", "int8", "int4"
 # - None: 不量化 (需要 ~54GB+ 显存)
-# - "fp8": FP8 预量化模型 (需要 ~24GB 显存) - 推荐
-# - "int8": 8位量化 (需要 ~24GB 显存) - 可能不兼容
-# - "int4": 4位量化 (需要 ~12GB 显存) - 可能不兼容
+# - "fp8": FP8 量化 (需要 ~24GB 显存) - 推荐，需要 RTX 4000+ 或 Compute Capability >= 8.0
+# - "int8": 8位量化 (需要 ~28GB 显存) - 使用 torchao
+# - "int4": 4位量化 (需要 ~16GB 显存) - 使用 torchao
 QUANTIZATION = os.getenv("QUANTIZATION", None)
 
 if QUANTIZATION:
