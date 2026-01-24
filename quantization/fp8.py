@@ -204,6 +204,10 @@ def load_fp8(pipe, repo_id, device, dtype):
     # 遍历 state_dict 的所有键，替换权重
     loaded_fp8_count = 0
     loaded_bf16_count = 0
+    skipped_count = 0
+    
+    # FP8 dtype 列表
+    fp8_dtypes = [torch.float8_e4m3fn, torch.float8_e5m2]
     
     for key, value in fp8_state_dict.items():
         # 跳过 scale_weight
@@ -217,18 +221,15 @@ def load_fp8(pipe, repo_id, device, dtype):
         else:
             module_name, param_name = "", key
         
-        # 判断是否保持原精度
+        # 判断是否需要保持原精度（转换为 bf16）
         keep_original = any(keyword in key for keyword in params_to_keep)
         
-        # 判断是否是 Linear 层的 weight（需要保持 FP8）
-        is_linear_weight = False
-        if module_name in module_dict:
-            module = module_dict[module_name]
-            is_linear_weight = isinstance(module, nn.Linear) and param_name == "weight"
+        # 判断权重本身是否是 FP8 格式
+        is_fp8_weight = value.dtype in fp8_dtypes
         
         # 决定目标 dtype 和设备
-        if is_linear_weight and not keep_original:
-            # Linear 层的 weight 保持 FP8 格式，直接放到 GPU
+        if is_fp8_weight and not keep_original:
+            # FP8 权重保持 FP8 格式，直接放到 GPU
             target_value = value.to(device)
             loaded_fp8_count += 1
         else:
@@ -242,12 +243,17 @@ def load_fp8(pipe, repo_id, device, dtype):
         elif module_name in module_dict:
             module = module_dict[module_name]
             setattr(module, param_name, nn.Parameter(target_value, requires_grad=False))
+        else:
+            skipped_count += 1
     
+    if skipped_count > 0:
+        print(f"   ⚠️  跳过 {skipped_count} 个未匹配的参数")
     print(f"   ✅ 已加载 {loaded_fp8_count} 个 FP8 参数 + {loaded_bf16_count} 个 BF16 参数")
     
-    # 清理显存
+    # 清理显存并同步 CUDA
     del fp8_state_dict
     torch.cuda.empty_cache()
+    torch.cuda.synchronize()
     
     # 应用 FP8 Linear 优化
     convert_fp8_linear(transformer, dtype, params_to_keep, scale_weights)
