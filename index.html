@@ -766,6 +766,7 @@
             useHttpMode: true,  // 默认使用 HTTP 模式（更兼容）
             httpSessionId: null,
             httpPollingInterval: null,
+            t2vGenerationInterval: null,  // T2V 模式生成间隔
             frameCount: 0,
             maxFrames: 54,  // 5 blocks * 12 frames - 6
             ws: null,
@@ -1027,8 +1028,12 @@
                     this.startHttpPolling();
 
                     // 如果是 webcam/video 模式，开始发送帧
+                    // 如果是 text 模式，开始触发后续 block 生成
                     if (this.mode === 'webcam' || this.mode === 'video') {
                         this.startHttpFrameSending();
+                    } else {
+                        // T2V 模式：不需要发送输入帧，但需要触发后续 block 生成
+                        this.startT2VGeneration();
                     }
 
                 } catch (error) {
@@ -1197,6 +1202,96 @@
                 if (this.httpPollingInterval) {
                     clearTimeout(this.httpPollingInterval);
                     this.httpPollingInterval = null;
+                }
+            },
+
+            startT2VGeneration() {
+                // T2V 模式：定期触发后续 block 生成（不发送输入帧）
+                let isGenerating = false;
+                let generateInterval = 500;  // 初始 500ms
+                
+                const triggerGeneration = async () => {
+                    if (!this.httpSessionId || !this.isGenerating) {
+                        this.stopT2VGeneration();
+                        return;
+                    }
+                    
+                    // 如果上一个请求还没完成，跳过
+                    if (isGenerating) {
+                        this.t2vGenerationInterval = setTimeout(triggerGeneration, 200);
+                        return;
+                    }
+
+                    try {
+                        isGenerating = true;
+                        
+                        const payload = {
+                            session_id: this.httpSessionId,
+                            // 不传 image，触发 T2V 模式的后续 block 生成
+                            prompt: document.getElementById('prompt').value,
+                            strength: parseFloat(document.getElementById('strength').value) || 0.45
+                        };
+
+                        const response = await fetch('/api/generate/frame', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        isGenerating = false;
+
+                        if (!response.ok) {
+                            if (response.status === 404) {
+                                this.stopT2VGeneration();
+                                return;
+                            }
+                            // 后端忙，增加发送间隔
+                            generateInterval = Math.min(generateInterval * 1.5, 3000);
+                        } else {
+                            const data = await response.json();
+                            // 如果后端正在生成，减慢发送频率
+                            if (data.generating) {
+                                generateInterval = Math.min(generateInterval * 1.3, 2000);
+                            } else {
+                                // 后端空闲，恢复正常频率
+                                generateInterval = 500;
+                            }
+                            
+                            // 处理返回的帧
+                            if (data.frames && data.frames.length > 0) {
+                                for (const frameBase64 of data.frames) {
+                                    const frameData = this.base64ToArrayBuffer(frameBase64);
+                                    await this.displayFrame(frameData);
+                                }
+                            }
+                            
+                            // 检查是否完成
+                            if (data.complete) {
+                                this.showInfo('Generation complete!');
+                                this.generationFinished = true;
+                                this.stopT2VGeneration();
+                                this.disconnect();
+                                return;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('T2V generation error:', error);
+                        isGenerating = false;
+                        generateInterval = Math.min(generateInterval * 2, 5000);
+                    }
+                    
+                    // 继续触发生成
+                    this.t2vGenerationInterval = setTimeout(triggerGeneration, generateInterval);
+                };
+                
+                // 启动生成
+                this.t2vGenerationInterval = setTimeout(triggerGeneration, generateInterval);
+            },
+
+            stopT2VGeneration() {
+                if (this.t2vGenerationInterval) {
+                    clearTimeout(this.t2vGenerationInterval);
+                    this.t2vGenerationInterval = null;
                 }
             },
 
@@ -1720,6 +1815,7 @@
 
                 // 清理 HTTP 模式
                 this.stopHttpPolling();
+                this.stopT2VGeneration();  // 停止 T2V 生成
                 if (this.httpSessionId) {
                     fetch(`/api/generate/stop/${this.httpSessionId}`, { method: 'POST' }).catch(() => {});
                     this.httpSessionId = null;

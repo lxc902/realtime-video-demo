@@ -336,10 +336,13 @@ async def api_generate_frame(req: FrameRequest):
             "generating": True  # 告诉前端正在生成中
         }
     
-    # 如果有输入帧，生成下一个 block
-    if req.image and session.current_block < session.num_blocks:
-        input_frame_bytes = base64.b64decode(req.image)
-        input_frame = session.model.process_frame_bytes(input_frame_bytes)
+    # 生成下一个 block（T2V 模式不需要输入帧，V2V 模式需要）
+    if session.current_block < session.num_blocks:
+        # 处理输入帧（V2V 模式）
+        input_frame = None
+        if req.image:
+            input_frame_bytes = base64.b64decode(req.image)
+            input_frame = session.model.process_frame_bytes(input_frame_bytes)
         
         # 更新 session 参数
         if req.prompt:
