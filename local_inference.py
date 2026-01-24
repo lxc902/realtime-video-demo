@@ -150,14 +150,14 @@ class KreaLocalInference:
         all_keys = list(values.keys())
         print(f"  [Cleanup] state.values keys: {all_keys}")
         
-        # 只删除输出类张量，保留 kv_cache 以确保推理正确性
-        # 注意：删除 kv_cache 会导致 pipeline 推理失败
+        # 暂时禁用删除，测试推理是否正常
+        # TODO: 确认哪些可以安全删除后再启用
         keys_to_delete = [
-            "videos",           # 生成的视频帧（已保存到 self.current_frames）
-            "decoder_cache",    # VAE decoder 缓存（55个张量，~500MB）
-            "video_stream",     # 视频流输出
-            # "kv_cache",       # ❌ 不能删除 - pipeline 需要它来重新计算
-            # "crossattn_cache",# ❌ 不能删除 - pipeline 需要它来重新计算
+            # "videos",           # ⚠️ 暂时保留 - 测试是否影响推理
+            # "decoder_cache",    # ⚠️ 暂时保留 - 测试是否影响推理
+            # "video_stream",     # ⚠️ 暂时保留 - 测试是否影响推理
+            # "kv_cache",         # ❌ 不能删除 - pipeline 需要它
+            # "crossattn_cache",  # ❌ 不能删除 - pipeline 需要它
         ]
         
         deleted = []
