@@ -258,36 +258,43 @@ class KreaLocalInference:
                 kwargs["generator"] = generator
             
             # 根据 KREA 官方代码 (before_denoise.py)：
-            # - T2V 模式：不需要 video 参数
-            # - V2V 模式：使用 video 参数（整个视频）
+            # - T2V 模式：不需要 video/video_stream 参数
+            # - V2V 模式：使用 video 参数（整个预录视频）
             # - Streaming V2V 模式：使用 video_stream 参数（PIL Image 列表）
             #
-            # 关键：video_stream 期望的是 PIL Image 列表！
-            # 参见 before_denoise.py 第 772 行：video_stream type_hint=list, description="List of PIL Images"
+            # 关键发现：WanRTAutoBeforeDenoiseStep 根据 block_trigger_inputs 选择模式：
+            # - ["video", "video_stream", None] 对应 ["video-to-video", "stream-to-video", "text-to-video"]
+            # 不能在 block_idx=0 用 video 然后 block_idx=1 用 video_stream，会导致模式切换冲突！
+            #
+            # 对于实时 webcam 流：始终使用 video_stream（从 block_idx=0 开始）
             
-            if block_idx == 0:
-                # 第一个 block：如果有起始帧，用 video 参数初始化 V2V
-                if start_frame is not None:
-                    kwargs["video"] = start_frame
-                elif input_frame is not None:
-                    kwargs["video"] = input_frame
-            else:
-                # 后续 block：如果有输入帧，用 video_stream 进行流式 V2V
-                if input_frame is not None:
-                    # video_stream 期望 PIL Image 列表
-                    # 需要将 numpy array 转换为 PIL Image
-                    from PIL import Image
-                    import numpy as np
-                    
-                    if isinstance(input_frame, np.ndarray):
-                        # numpy array -> PIL Image
-                        pil_image = Image.fromarray(input_frame)
-                        kwargs["video_stream"] = [pil_image]
-                    elif isinstance(input_frame, Image.Image):
-                        kwargs["video_stream"] = [input_frame]
-                    else:
-                        # 假设已经是列表
-                        kwargs["video_stream"] = input_frame
+            has_input = (input_frame is not None) or (start_frame is not None)
+            
+            if has_input:
+                # Streaming V2V 模式：始终使用 video_stream
+                # video_stream 期望 PIL Image 列表
+                from PIL import Image
+                import numpy as np
+                
+                frame_to_use = input_frame if input_frame is not None else start_frame
+                
+                if isinstance(frame_to_use, np.ndarray):
+                    # numpy array -> PIL Image
+                    pil_image = Image.fromarray(frame_to_use)
+                    kwargs["video_stream"] = [pil_image]
+                elif isinstance(frame_to_use, Image.Image):
+                    kwargs["video_stream"] = [frame_to_use]
+                elif isinstance(frame_to_use, list):
+                    # 已经是列表，确保元素是 PIL Image
+                    pil_list = []
+                    for f in frame_to_use:
+                        if isinstance(f, np.ndarray):
+                            pil_list.append(Image.fromarray(f))
+                        else:
+                            pil_list.append(f)
+                    kwargs["video_stream"] = pil_list
+                else:
+                    kwargs["video_stream"] = [frame_to_use]
                 
             # 生成
             new_state = self.pipe(**kwargs)
