@@ -30,9 +30,14 @@ class KreaLocalInference:
         
         # 确定模型路径
         if model_path is None:
-            # 默认使用 HuggingFace
-            repo_id = "krea/krea-realtime-video"
-            print(f"从 HuggingFace 加载: {repo_id}")
+            if quantization == "fp8":
+                # FP8 预量化模型
+                repo_id = "6chan/krea-realtime-video-fp8"
+                print(f"从 HuggingFace 加载 FP8 模型: {repo_id}")
+            else:
+                # 默认使用 HuggingFace
+                repo_id = "krea/krea-realtime-video"
+                print(f"从 HuggingFace 加载: {repo_id}")
         else:
             # 使用自定义路径
             repo_id = model_path
@@ -41,9 +46,20 @@ class KreaLocalInference:
         # 加载模型
         self.pipe = ModularPipeline.from_pretrained(repo_id, trust_remote_code=True)
         
-        # 如果使用量化，需要单独加载 transformer
-        if quantization:
+        # 根据量化类型加载模型
+        if quantization == "fp8":
+            # FP8 预量化模型 - 直接标准加载
+            print("🔧 使用 FP8 预量化模型 (预计显存 ~24GB)")
+            self.pipe.load_components(
+                trust_remote_code=True,
+                device_map=device,
+                torch_dtype={"default": dtype, "vae": torch.float16},
+            )
+        elif quantization in ("int8", "int4"):
+            # bitsandbytes 量化 - 注意：可能不兼容此模型
             print(f"🔧 启用 {quantization.upper()} 量化...")
+            print("   ⚠️  注意: bitsandbytes 量化可能不兼容此模型")
+            print("   建议使用 --fp8 代替")
             try:
                 from diffusers import BitsAndBytesConfig as DiffusersBitsAndBytesConfig
                 from diffusers import AutoModel
@@ -62,7 +78,7 @@ class KreaLocalInference:
                     quant_config = None
                 
                 if quant_config:
-                    # 1. 先加载量化的 transformer（最大的组件，约 24GB/12GB）
+                    # 1. 先加载量化的 transformer
                     print("   [1/2] 正在加载量化 transformer...")
                     transformer_quantized = AutoModel.from_pretrained(
                         repo_id,
@@ -74,7 +90,6 @@ class KreaLocalInference:
                     self.pipe.transformer = transformer_quantized
                     
                     # 2. 只加载需要从预训练模型加载的组件
-                    # 排除 transformer（已加载）和配置类组件（不需要预训练）
                     config_only_components = {"transformer", "guider", "video_processor", "scheduler"}
                     
                     specs = self.pipe._component_specs
@@ -92,7 +107,6 @@ class KreaLocalInference:
                     components_to_load = [name for name in all_component_names if name not in config_only_components]
                     print(f"   [2/2] 正在加载其他组件: {components_to_load}")
                     
-                    # 只加载非 transformer 的组件
                     self.pipe.load_components(
                         names=components_to_load,
                         trust_remote_code=True,
@@ -132,11 +146,20 @@ class KreaLocalInference:
                 "  然后重启服务"
             )
         
-        # 优化: 融合投影层（量化模式下跳过，因为不兼容）
+        # 优化: 融合投影层（量化模式下跳过，因为可能不兼容）
         if not quantization:
             print("🔧 融合投影层...")
             for block in self.pipe.transformer.blocks:
                 block.self_attn.fuse_projections()
+        elif quantization == "fp8":
+            # FP8 可以尝试 fuse_projections，但如果失败就跳过
+            try:
+                print("🔧 尝试融合投影层...")
+                for block in self.pipe.transformer.blocks:
+                    block.self_attn.fuse_projections()
+                print("   ✅ 融合成功")
+            except Exception as e:
+                print(f"   ⚠️  跳过 fuse_projections: {e}")
         else:
             print("⚠️  量化模式下跳过 fuse_projections（不兼容）")
         

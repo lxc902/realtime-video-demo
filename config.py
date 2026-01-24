@@ -18,15 +18,16 @@ if MODEL_PATH and not os.path.exists(MODEL_PATH):
     MODEL_PATH = None
 
 # 量化配置
-# 可选值: None, "int8", "int4"
+# 可选值: None, "fp8", "int8", "int4"
 # - None: 不量化 (需要 ~54GB+ 显存)
-# - "int8": 8位量化 (需要 ~24GB 显存)
-# - "int4": 4位量化 (需要 ~12GB 显存)
+# - "fp8": FP8 预量化模型 (需要 ~24GB 显存) - 推荐
+# - "int8": 8位量化 (需要 ~24GB 显存) - 可能不兼容
+# - "int4": 4位量化 (需要 ~12GB 显存) - 可能不兼容
 QUANTIZATION = os.getenv("QUANTIZATION", None)
 
 if QUANTIZATION:
     QUANTIZATION = QUANTIZATION.lower()
-    if QUANTIZATION not in ("int8", "int4"):
+    if QUANTIZATION not in ("fp8", "int8", "int4"):
         print(f"警告: 不支持的量化类型: {QUANTIZATION}")
-        print(f"支持的类型: int8, int4")
+        print(f"支持的类型: fp8, int8, int4")
         QUANTIZATION = None

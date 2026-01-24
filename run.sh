@@ -17,6 +17,9 @@ for arg in "$@"; do
         --int4)
             QUANTIZATION="int4"
             ;;
+        --fp8)
+            QUANTIZATION="fp8"
+            ;;
     esac
 done
 
