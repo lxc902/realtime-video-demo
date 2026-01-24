@@ -43,8 +43,9 @@ if QUANTIZATION:
 # input_frames_cache 是 deque(maxlen=24)，会累积帧
 
 # 第一次 V2V 生成需要的最小帧数（建立 pipeline 内部缓存）
-# 值越大质量越好但延迟越高，建议 6-12
-V2V_INITIAL_FRAMES = int(os.getenv("V2V_INITIAL_FRAMES", "6"))
+# VAE temporal compression 约 4:1，需要 12 帧才能产生 3 帧 latents
+# 值越大质量越好但延迟越高，最小 12
+V2V_INITIAL_FRAMES = int(os.getenv("V2V_INITIAL_FRAMES", "12"))
 
 # 后续 V2V 生成需要的最小帧数（pipeline 内部已有缓存）
 # 值越大质量越好但延迟越高，建议 1-4

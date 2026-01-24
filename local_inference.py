@@ -296,6 +296,7 @@ class KreaLocalInference:
                 else:
                     pil_list.append(frame_to_use)
                 
+                print(f"  [video_stream] passing {len(pil_list)} frames to pipeline")
                 kwargs["video_stream"] = pil_list
                 
             # 生成
