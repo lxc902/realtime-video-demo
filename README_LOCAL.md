@@ -9,6 +9,19 @@ bash run.sh
 现在您不会再遇到磁盘空间不足的问题了！🎉
 
 
+### Terminal 1
+watch -n 0.5 nvidia-smi
+
+### Terminal 2
+cd /workspace/realtime-video-demo
+git pull ; bash run.sh >log.txt  2>&1
+
+### Terminal 3
+tail -f log.txt 
+
+
+
+
 # KREA Realtime Video - 本地 GPU 版本
 
 本项目已修改为使用本地 GPU 运行 KREA 模型，无需 FAL API Key。
