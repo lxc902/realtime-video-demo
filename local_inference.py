@@ -4,6 +4,7 @@ KREA Realtime Video - 本地 GPU 推理模块
 """
 import torch
 import torch._dynamo
+import torch._inductor
 import gc
 from diffusers import ModularPipeline
 from diffusers.modular_pipelines import PipelineState
@@ -78,7 +79,6 @@ class KreaLocalInference:
         
         # 清理 inductor codecache
         try:
-            import torch._inductor
             if hasattr(torch._inductor, 'codecache'):
                 if hasattr(torch._inductor.codecache, 'PyCodeCache'):
                     torch._inductor.codecache.PyCodeCache.clear()
@@ -330,20 +330,11 @@ class KreaLocalInference:
         
         # 清理 inductor codecache（更彻底的清理）
         try:
-            import torch._inductor
             if hasattr(torch._inductor, 'codecache'):
                 if hasattr(torch._inductor.codecache, 'PyCodeCache'):
                     torch._inductor.codecache.PyCodeCache.clear()
                 if hasattr(torch._inductor.codecache, 'FxGraphCache'):
                     torch._inductor.codecache.FxGraphCache.clear()
-        except Exception:
-            pass
-        
-        # 重置 flex_attention 相关的编译缓存
-        try:
-            from torch.nn.attention.flex_attention import _flex_attention_cache
-            if hasattr(_flex_attention_cache, 'clear'):
-                _flex_attention_cache.clear()
         except Exception:
             pass
         
