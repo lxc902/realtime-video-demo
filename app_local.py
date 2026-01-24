@@ -217,6 +217,14 @@ class GenerationSession:
         self.pending_frames = []  # 待发送的帧
         self.lock = threading.Lock()
         self.last_activity = time.time()  # 最后活动时间
+        self.is_generating = False  # 标记当前是否正在生成
+        
+        # 每个 session 独立的 state（避免共享 model.state 导致的冲突）
+        self.state = None
+        self.prompt = ""
+        self.strength = 0.45
+        self.generator = None
+        self.block_idx = 0
     
     def touch(self):
         """更新最后活动时间"""
@@ -237,6 +245,8 @@ async def api_start_generation(req: StartGenerationRequest):
     # 创建会话
     session = GenerationSession(session_id, model)
     session.num_blocks = req.num_blocks
+    session.prompt = req.prompt
+    session.strength = req.strength
     
     # 处理起始帧
     start_frame = None
@@ -247,17 +257,37 @@ async def api_start_generation(req: StartGenerationRequest):
     # 使用推理锁确保同一时间只有一个请求在使用模型
     def init_and_generate():
         with inference_lock:
-            model.initialize_generation(
+            # 使用 session 独立的 state
+            state, generator = model.initialize_generation_with_state(
                 prompt=req.prompt,
                 start_frame=start_frame,
                 num_inference_steps=req.num_denoising_steps,
                 strength=req.strength,
                 seed=req.seed
             )
+            session.state = state
+            session.generator = generator
+            session.block_idx = 0
+            
             # 生成第一个 block
-            return model.generate_next_block(input_frame=None)
+            new_state, frames = model.generate_next_block_with_state(
+                state=session.state,
+                prompt=session.prompt,
+                strength=session.strength,
+                block_idx=session.block_idx,
+                generator=session.generator,
+                input_frame=None,
+                start_frame=start_frame
+            )
+            session.state = new_state
+            session.block_idx += 1
+            return frames
     
-    frames = await asyncio.to_thread(init_and_generate)
+    session.is_generating = True
+    try:
+        frames = await asyncio.to_thread(init_and_generate)
+    finally:
+        session.is_generating = False
     
     session.initialized = True
     
@@ -291,29 +321,63 @@ async def api_generate_frame(req: FrameRequest):
     # 更新活动时间
     session.touch()
     
+    # 如果正在生成中，直接返回当前状态（避免 DDOS）
+    if session.is_generating:
+        with session.lock:
+            frames_to_send = session.pending_frames[:5]
+            session.pending_frames = session.pending_frames[5:]
+        return {
+            "session_id": req.session_id,
+            "current_block": session.current_block,
+            "total_blocks": session.num_blocks,
+            "frames": frames_to_send,
+            "complete": False,
+            "generating": True  # 告诉前端正在生成中
+        }
+    
     # 如果有输入帧，生成下一个 block
     if req.image and session.current_block < session.num_blocks:
         input_frame_bytes = base64.b64decode(req.image)
         input_frame = session.model.process_frame_bytes(input_frame_bytes)
         
+        # 更新 session 参数
+        if req.prompt:
+            session.prompt = req.prompt
+        if req.strength:
+            session.strength = req.strength
+        
         # 使用推理锁确保同一时间只有一个请求在使用模型
         def generate_with_lock():
             with inference_lock:
-                # 更新参数（在锁内更新，避免并发问题）
-                if req.prompt:
-                    session.model.prompt = req.prompt
-                if req.strength:
-                    session.model.strength = req.strength
-                return session.model.generate_next_block(input_frame=input_frame)
+                new_state, frames = session.model.generate_next_block_with_state(
+                    state=session.state,
+                    prompt=session.prompt,
+                    strength=session.strength,
+                    block_idx=session.block_idx,
+                    generator=session.generator,
+                    input_frame=input_frame,
+                    start_frame=None
+                )
+                session.state = new_state
+                session.block_idx += 1
+                return frames
         
-        frames = await asyncio.to_thread(generate_with_lock)
-        
-        with session.lock:
-            for frame in frames:
-                frame_bytes = session.model.frame_to_bytes(frame)
-                session.pending_frames.append(base64.b64encode(frame_bytes).decode())
-        
-        session.current_block += 1
+        session.is_generating = True
+        try:
+            frames = await asyncio.to_thread(generate_with_lock)
+            
+            with session.lock:
+                for frame in frames:
+                    frame_bytes = session.model.frame_to_bytes(frame)
+                    session.pending_frames.append(base64.b64encode(frame_bytes).decode())
+            
+            session.current_block += 1
+        except Exception as e:
+            print(f"[HTTP] Session {req.session_id} generation error: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            session.is_generating = False
     
     # 返回待发送的帧
     with session.lock:

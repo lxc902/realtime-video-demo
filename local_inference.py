@@ -73,7 +73,21 @@ class KreaLocalInference:
         self.current_frames = []
         
     def initialize_generation(self, prompt, start_frame=None, num_inference_steps=4, strength=0.45, seed=None):
-        """初始化生成过程"""
+        """初始化生成过程（旧 API，保留兼容性）"""
+        state, generator = self.initialize_generation_with_state(
+            prompt, start_frame, num_inference_steps, strength, seed
+        )
+        self.state = state
+        self.generator = generator
+        self.prompt = prompt
+        self.num_inference_steps = num_inference_steps
+        self.strength = strength
+        self.start_frame = start_frame
+        self.block_idx = 0
+        self.current_frames = []
+    
+    def initialize_generation_with_state(self, prompt, start_frame=None, num_inference_steps=4, strength=0.45, seed=None):
+        """初始化生成过程，返回独立的 state（新 API，支持多 session）"""
         # 彻底重置编译缓存，确保新生成使用正确的 block_mask
         torch._dynamo.reset()
         
@@ -98,30 +112,29 @@ class KreaLocalInference:
         # 重置 transformer 内部的 block_mask 缓存
         self._reset_transformer_caches()
         
-        self.state = PipelineState()
-        self.current_frames = []
+        # 创建新的独立 state
+        state = PipelineState()
         
+        # 创建 generator
         if seed is not None:
-            self.generator = torch.Generator(self.device).manual_seed(seed)
+            generator = torch.Generator(self.device).manual_seed(seed)
         else:
-            self.generator = None
-            
-        self.prompt = prompt
+            generator = None
+        
+        # 保存常用参数到实例（用于旧 API 兼容）
         self.num_inference_steps = num_inference_steps
-        self.strength = strength
-        self.start_frame = start_frame
-        self.block_idx = 0
+        
+        return state, generator
         
     def _cleanup_state_tensors(self):
+        """清理 state 中的大张量（旧 API，保留兼容性）"""
+        self._cleanup_state_tensors_for_state(self.state, self.block_idx)
+    
+    def _cleanup_state_tensors_for_state(self, state, block_idx):
         """清理 state 中的大张量，避免 deepcopy 时 OOM
         
         diffusers ModularPipeline.__call__ 会对 state 进行 deepcopy，
         如果 state 中累积了大量 GPU 张量，deepcopy 会导致 OOM。
-        
-        根本问题：kv_cache 和 crossattn_cache 各有 40 个元素，包含大量 GPU 张量。
-        deepcopy 这些缓存需要额外 ~60GB 内存。
-        
-        解决方案：清理所有大缓存，让 pipeline 重新计算。牺牲速度换取内存稳定。
         """
         # 强制 Python 垃圾回收
         gc.collect()
@@ -135,13 +148,13 @@ class KreaLocalInference:
         if torch.cuda.is_available():
             allocated = torch.cuda.memory_allocated() / 1024 / 1024 / 1024
             reserved = torch.cuda.memory_reserved() / 1024 / 1024 / 1024
-            print(f"[Debug] block_idx={self.block_idx}, GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
+            print(f"[Debug] block_idx={block_idx}, GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
         
-        if self.state is None or not hasattr(self.state, 'values'):
+        if state is None or not hasattr(state, 'values'):
             print(f"  [Cleanup] state is None or has no values")
             return
         
-        values = self.state.values
+        values = state.values
         if not values:
             print(f"  [Cleanup] state.values is empty")
             return
@@ -163,21 +176,12 @@ class KreaLocalInference:
             print(f"  [WARNING] current_denoised_latents not in state.values!")
         
         # 暂时禁用删除，测试推理是否正常
-        # TODO: 确认哪些可以安全删除后再启用
-        keys_to_delete = [
-            # "videos",           # ⚠️ 暂时保留 - 测试是否影响推理
-            # "decoder_cache",    # ⚠️ 暂时保留 - 测试是否影响推理
-            # "video_stream",     # ⚠️ 暂时保留 - 测试是否影响推理
-            # "kv_cache",         # ❌ 不能删除 - pipeline 需要它
-            # "crossattn_cache",  # ❌ 不能删除 - pipeline 需要它
-        ]
+        keys_to_delete = []
         
         deleted = []
         for key in keys_to_delete:
             if key in values:
                 deleted.append(key)
-                # 直接删除，让 Python GC 处理引用计数
-                # 注意：del values[key] 会减少引用计数，配合 gc.collect() 释放内存
                 del values[key]
         
         if deleted:
@@ -200,13 +204,32 @@ class KreaLocalInference:
             print(f"  [After cleanup] GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
     
     def generate_next_block(self, input_frame=None):
-        """生成下一个 block 的帧"""
-        print(f"\n[generate_next_block] block_idx={self.block_idx}, input_frame={'provided' if input_frame is not None else 'None'}")
+        """生成下一个 block 的帧（旧 API，保留兼容性）"""
+        new_state, frames = self.generate_next_block_with_state(
+            state=self.state,
+            prompt=self.prompt,
+            strength=self.strength,
+            block_idx=self.block_idx,
+            generator=self.generator,
+            input_frame=input_frame,
+            start_frame=self.start_frame
+        )
+        self.state = new_state
+        self.block_idx += 1
+        self.current_frames.extend(frames)
+        return frames
+    
+    def generate_next_block_with_state(self, state, prompt, strength, block_idx, generator=None, input_frame=None, start_frame=None):
+        """生成下一个 block 的帧，使用传入的 state（新 API，支持多 session）
+        
+        返回: (new_state, frames)
+        """
+        print(f"\n[generate_next_block] block_idx={block_idx}, input_frame={'provided' if input_frame is not None else 'None'}")
         
         # 在清理前检查 current_denoised_latents
-        if self.state is not None and hasattr(self.state, 'values') and self.state.values:
-            if 'current_denoised_latents' in self.state.values:
-                cdl = self.state.values['current_denoised_latents']
+        if state is not None and hasattr(state, 'values') and state.values:
+            if 'current_denoised_latents' in state.values:
+                cdl = state.values['current_denoised_latents']
                 if cdl is None:
                     print(f"  [BEFORE cleanup] current_denoised_latents is None!")
                 elif hasattr(cdl, 'shape'):
@@ -217,45 +240,43 @@ class KreaLocalInference:
             print(f"  [BEFORE cleanup] state is empty or None")
         
         # 清理 state 中的大张量，避免 deepcopy OOM
-        self._cleanup_state_tensors()
+        self._cleanup_state_tensors_for_state(state, block_idx)
         
         # 使用 inference_mode 比 no_grad 更激进，完全禁用 autograd 追踪
         with torch.inference_mode():
             kwargs = {
-                "state": self.state,
-                "prompt": [self.prompt],
+                "state": state,
+                "prompt": [prompt],
                 "num_inference_steps": self.num_inference_steps,
-                "strength": self.strength,
-                "block_idx": self.block_idx,
+                "strength": strength,
+                "block_idx": block_idx,
             }
             
-            if self.generator is not None:
-                kwargs["generator"] = self.generator
+            if generator is not None:
+                kwargs["generator"] = generator
                 
             # video 参数只在 block_idx=0 时使用
             # block_idx >= 1 时，pipeline 会使用已缓存的 current_denoised_latents 继续生成
             # 不要在后续 block 传入 video，否则会破坏 pipeline 状态
-            if self.block_idx == 0:
+            if block_idx == 0:
                 if input_frame is not None:
                     kwargs["video"] = input_frame
-                elif self.start_frame is not None:
-                    kwargs["video"] = self.start_frame
+                elif start_frame is not None:
+                    kwargs["video"] = start_frame
                 
             # 生成
-            self.state = self.pipe(**kwargs)
+            new_state = self.pipe(**kwargs)
             
             # 诊断：检查 pipeline 执行后的 current_denoised_latents
-            if hasattr(self.state, 'values') and 'current_denoised_latents' in self.state.values:
-                cdl = self.state.values['current_denoised_latents']
+            if hasattr(new_state, 'values') and 'current_denoised_latents' in new_state.values:
+                cdl = new_state.values['current_denoised_latents']
                 if cdl is None:
                     print(f"  [After pipe] current_denoised_latents is None!")
                 elif hasattr(cdl, 'shape'):
                     print(f"  [After pipe] current_denoised_latents shape: {cdl.shape}")
             
             # 提取生成的帧
-            new_frames = self.state.values["videos"][0]
-            self.current_frames.extend(new_frames)
-            self.block_idx += 1
+            new_frames = new_state.values["videos"][0]
         
         # 显式删除临时变量
         del kwargs
@@ -268,11 +289,7 @@ class KreaLocalInference:
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
         
-        # 注意：不要在这里调用 _reset_transformer_caches()！
-        # transformer 的内部缓存对后续 block 推理是必需的。
-        # 只在 initialize_generation() 中重置缓存。
-        
-        return new_frames
+        return new_state, new_frames
     
     def process_frame_bytes(self, frame_bytes):
         """将字节数据转换为模型可用的格式"""
