@@ -277,7 +277,8 @@ async def api_start_generation(req: StartGenerationRequest):
                 block_idx=session.block_idx,
                 generator=session.generator,
                 input_frame=None,
-                start_frame=start_frame
+                start_frame=start_frame,
+                num_blocks=session.num_blocks
             )
             session.state = new_state
             session.block_idx += 1
@@ -356,7 +357,8 @@ async def api_generate_frame(req: FrameRequest):
                     block_idx=session.block_idx,
                     generator=session.generator,
                     input_frame=input_frame,
-                    start_frame=None
+                    start_frame=None,
+                    num_blocks=session.num_blocks
                 )
                 session.state = new_state
                 session.block_idx += 1

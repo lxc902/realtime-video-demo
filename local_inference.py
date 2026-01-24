@@ -203,7 +203,7 @@ class KreaLocalInference:
             reserved = torch.cuda.memory_reserved() / 1024 / 1024 / 1024
             print(f"  [After cleanup] GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
     
-    def generate_next_block(self, input_frame=None):
+    def generate_next_block(self, input_frame=None, num_blocks=25):
         """生成下一个 block 的帧（旧 API，保留兼容性）"""
         new_state, frames = self.generate_next_block_with_state(
             state=self.state,
@@ -212,14 +212,15 @@ class KreaLocalInference:
             block_idx=self.block_idx,
             generator=self.generator,
             input_frame=input_frame,
-            start_frame=self.start_frame
+            start_frame=self.start_frame,
+            num_blocks=num_blocks
         )
         self.state = new_state
         self.block_idx += 1
         self.current_frames.extend(frames)
         return frames
     
-    def generate_next_block_with_state(self, state, prompt, strength, block_idx, generator=None, input_frame=None, start_frame=None):
+    def generate_next_block_with_state(self, state, prompt, strength, block_idx, generator=None, input_frame=None, start_frame=None, num_blocks=25):
         """生成下一个 block 的帧，使用传入的 state（新 API，支持多 session）
         
         返回: (new_state, frames)
@@ -250,19 +251,25 @@ class KreaLocalInference:
                 "num_inference_steps": self.num_inference_steps,
                 "strength": strength,
                 "block_idx": block_idx,
+                "num_blocks": num_blocks,  # 关键：必须传 num_blocks
             }
             
             if generator is not None:
                 kwargs["generator"] = generator
-                
-            # video 参数只在 block_idx=0 时使用
-            # block_idx >= 1 时，pipeline 会使用已缓存的 current_denoised_latents 继续生成
-            # 不要在后续 block 传入 video，否则会破坏 pipeline 状态
+            
+            # 根据官方文档：
+            # - T2V 模式：不需要 video 参数
+            # - V2V 模式：每个 block 都需要传 video
+            # - Streaming V2V 模式：使用 video_stream 参数
+            
             if block_idx == 0:
-                if input_frame is not None:
-                    kwargs["video"] = input_frame
-                elif start_frame is not None:
+                # 第一个 block：如果有起始帧，用 video 参数初始化 V2V
+                if start_frame is not None:
                     kwargs["video"] = start_frame
+            else:
+                # 后续 block：如果有输入帧，用 video_stream 进行流式 V2V
+                if input_frame is not None:
+                    kwargs["video_stream"] = input_frame
                 
             # 生成
             new_state = self.pipe(**kwargs)
