@@ -288,12 +288,9 @@ def load_fp8(pipe, repo_id, device, dtype):
     torch.cuda.synchronize()
     print(f"   ✅ 已移动到 GPU")
     
-    # 应用 FP8 Linear 优化
-    convert_fp8_linear(transformer, dtype, params_to_keep, scale_weights)
-    
     pipe.transformer = transformer
     
-    # 尝试融合投影层
+    # 尝试融合投影层（在 FP8 优化之前，因为融合会创建新的 Linear 层）
     try:
         print("🔧 尝试融合投影层...")
         for block in pipe.transformer.blocks:
@@ -301,6 +298,9 @@ def load_fp8(pipe, repo_id, device, dtype):
         print("   ✅ 融合成功")
     except Exception as e:
         print(f"   ⚠️  跳过 fuse_projections: {e}")
+    
+    # 应用 FP8 Linear 优化（在融合之后，这样可以包括新创建的融合层）
+    convert_fp8_linear(pipe.transformer, dtype, params_to_keep, scale_weights)
     
     torch.cuda.empty_cache()
     print("   ✅ FP8 优化完成")
