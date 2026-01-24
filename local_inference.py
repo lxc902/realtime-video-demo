@@ -232,11 +232,14 @@ class KreaLocalInference:
             if self.generator is not None:
                 kwargs["generator"] = self.generator
                 
-            # 如果是 video-to-video 或 webcam 模式，添加输入帧
-            if input_frame is not None:
-                kwargs["video"] = input_frame
-            elif self.start_frame is not None and self.block_idx == 0:
-                kwargs["video"] = self.start_frame
+            # video 参数只在 block_idx=0 时使用
+            # block_idx >= 1 时，pipeline 会使用已缓存的 current_denoised_latents 继续生成
+            # 不要在后续 block 传入 video，否则会破坏 pipeline 状态
+            if self.block_idx == 0:
+                if input_frame is not None:
+                    kwargs["video"] = input_frame
+                elif self.start_frame is not None:
+                    kwargs["video"] = self.start_frame
                 
             # 生成
             self.state = self.pipe(**kwargs)
