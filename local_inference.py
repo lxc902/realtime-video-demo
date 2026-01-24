@@ -71,6 +71,11 @@ class KreaLocalInference:
         
     def initialize_generation(self, prompt, start_frame=None, num_inference_steps=4, strength=0.45, seed=None):
         """初始化生成过程"""
+        # 重置 torch.compile 缓存，确保新生成使用正确的 block_mask
+        # 解决 flex_attention block_mask 尺寸不匹配问题
+        import torch._dynamo
+        torch._dynamo.reset()
+        
         self.state = PipelineState()
         self.current_frames = []
         
@@ -142,6 +147,10 @@ class KreaLocalInference:
     
     def cleanup_inference(self):
         """清理推理过程中的临时显存"""
+        # 重置 torch.compile 缓存（解决 block_mask 尺寸不匹配问题）
+        import torch._dynamo
+        torch._dynamo.reset()
+        
         # 清理状态
         if self.state is not None:
             # 清理 state 中的 tensors

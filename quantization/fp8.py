@@ -189,16 +189,16 @@ def load_fp8(pipe, repo_id, device, dtype):
         "img_emb", "modulation", "text_embedding"
     }
     
-    # 4. 加载 transformer 直接到 GPU，然后替换 FP8 权重
+    # 4. 加载 transformer 到 CPU，替换 FP8 权重，再移动到 GPU
     print("   [4/4] 加载 transformer 并替换 FP8 权重...")
     
-    # 直接加载到 GPU（bf16）
+    # 先加载到 CPU（避免 OOM）
     transformer = AutoModel.from_pretrained(
         repo_id,
         subfolder="transformer",
         torch_dtype=dtype,
         trust_remote_code=True,
-        device_map=device,
+        device_map="cpu",
     )
     
     # FP8 dtype 列表
@@ -237,19 +237,17 @@ def load_fp8(pipe, repo_id, device, dtype):
                     module = transformer
                     for part in module_name.split("."):
                         module = getattr(module, part)
-                    # 替换为 FP8 权重
+                    # 替换为 FP8 权重（先保持在 CPU）
                     setattr(module, param_name, 
-                            nn.Parameter(fp8_value.to(device), requires_grad=False))
+                            nn.Parameter(fp8_value, requires_grad=False))
                     replaced_count += 1
     
     print(f"   ✅ 已替换 {replaced_count} 个权重为 FP8 格式")
     
-    # 设置 scale_weights 到模块
+    # 设置 scale_weights 到模块（在 CPU 上）
     for k, v in fp8_state_dict.items():
         if k.endswith(".scale_weight") or k.endswith(".weight_scale"):
-            # 找到对应的模块并设置 scale_weight
             module_key = k.replace(".scale_weight", "").replace(".weight_scale", "")
-            # 去掉 model. 前缀
             if module_key.startswith("model."):
                 module_key = module_key[6:]
             parts = module_key.rsplit(".", 1)
@@ -259,15 +257,22 @@ def load_fp8(pipe, repo_id, device, dtype):
                     module = transformer
                     for part in module_name.split("."):
                         module = getattr(module, part)
-                    setattr(module, "scale_weight", v.to(device, torch.float32))
+                    setattr(module, "scale_weight", v.float())
                 except AttributeError:
                     pass
     
-    # 清理
+    # 清理 CPU 内存
     del fp8_state_dict
     del model_state_dict
+    import gc
+    gc.collect()
+    
+    # 移动 transformer 到 GPU
+    print("   📤 移动 transformer 到 GPU...")
+    transformer = transformer.to(device)
     torch.cuda.empty_cache()
     torch.cuda.synchronize()
+    print(f"   ✅ 已移动到 GPU")
     
     # 应用 FP8 Linear 优化
     convert_fp8_linear(transformer, dtype, params_to_keep, scale_weights)
