@@ -461,12 +461,30 @@
         }
 
         @media (max-width: 1024px) {
+            /* 保持 50:50 布局，不变成单列 */
             .video-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
             }
 
             .mode-toggle {
                 max-width: 100%;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            /* 小屏幕也保持 50:50 */
+            .video-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            
+            .panel {
+                padding: 10px;
+            }
+            
+            .panel h2 {
+                font-size: 0.9rem;
             }
         }
     </style>
