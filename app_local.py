@@ -547,19 +547,21 @@ async def api_stream_generation(req: StreamGenerationRequest):
                 
                 frames = await asyncio.to_thread(generate_block)
                 
-                # 立即推送每一帧
-                for frame in frames:
+                # 立即逐帧推送（每帧单独推送）
+                for frame_idx, frame in enumerate(frames):
                     frame_bytes = model.frame_to_bytes(frame)
                     frame_b64 = base64.b64encode(frame_bytes).decode()
+                    global_frame_idx = block_idx * 3 + frame_idx + 1
                     event_data = json.dumps({
                         "type": "frame",
                         "block": block_idx,
+                        "frame_in_block": frame_idx,
+                        "frame_idx": global_frame_idx,
                         "total_blocks": req.num_blocks,
                         "data": frame_b64
                     })
+                    print(f"[SSE] Session {session_id}: pushing frame {global_frame_idx}")
                     yield f"data: {event_data}\n\n"
-                
-                print(f"[SSE] Session {session_id}: sent block {block_idx + 1}/{req.num_blocks}")
             
             # 发送完成事件
             complete_data = json.dumps({"type": "complete"})
