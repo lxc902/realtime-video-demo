@@ -230,13 +230,9 @@ class KreaLocalInference:
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
         
-        # 清理 transformer 内部的缓存（kv_cache 可能存储在模块属性中而非 state.values）
-        self._reset_transformer_caches()
-        
-        # 再次 gc 和 empty_cache
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        # 注意：不要在这里调用 _reset_transformer_caches()！
+        # transformer 的内部缓存对后续 block 推理是必需的。
+        # 只在 initialize_generation() 中重置缓存。
         
         return new_frames
     
