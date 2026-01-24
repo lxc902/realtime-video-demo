@@ -362,20 +362,25 @@ async def api_generate_frame(req: FrameRequest):
             # 添加到帧缓存
             session.input_frame_buffer.append(input_frame)
             
-            # Streaming V2V 需要足够的帧（VAE temporal compression 约 4:1）
-            # 官方示例每次传入 12 帧
-            # 我们缓存帧，凑够一定数量后再生成
-            min_frames_needed = 12  # 确保 VAE 编码后有足够帧
+            # Streaming V2V 策略：
+            # - 第一次 V2V 生成（block_idx=0 有 start_frame，或第一次有 input_frame）：需要较多帧
+            # - 后续生成：pipeline 内部的 input_frames_cache 已经有帧了，只需要少量新帧
+            #
+            # KREA 的 input_frames_cache 是 deque(maxlen=24)，会累积帧
+            
+            is_first_v2v = (session.block_idx <= 1)  # 前两个 block 需要更多帧建立缓存
+            min_frames_needed = 12 if is_first_v2v else 3  # 后续只需要少量新帧
             
             if len(session.input_frame_buffer) >= min_frames_needed:
-                # 有足够帧，传入所有缓存的帧
+                # 有足够帧，传入缓存的帧
                 input_frames_for_generation = session.input_frame_buffer.copy()
-                # 保留最近的几帧用于下次（overlap）
-                session.input_frame_buffer = session.input_frame_buffer[-4:]
+                # 清空缓存（pipeline 内部会保留帧）
+                session.input_frame_buffer = []
             else:
                 # 帧不够，跳过生成，等待更多帧
                 should_generate = False
-                print(f"[HTTP] Session {req.session_id}: buffering frames {len(session.input_frame_buffer)}/{min_frames_needed}")
+                if is_first_v2v:
+                    print(f"[HTTP] Session {req.session_id}: buffering frames {len(session.input_frame_buffer)}/{min_frames_needed}")
         
         # T2V 模式：不需要输入帧，直接生成
         # V2V 模式：需要足够的帧才生成
