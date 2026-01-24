@@ -56,7 +56,7 @@ Pro96 每帧消耗 9GB vs Ada48 的 2GB，可能原因：
 
 ## 已实施的优化
 
-1. ✅ **清理 state 中的大张量** (`local_inference.py`)：`_cleanup_state_tensors()` 在调用 pipe 前清理 videos, kv_cache, crossattn_cache, decoder_cache 等大张量，避免 deepcopy OOM
+1. ✅ **清理 state 中的输出张量** (`local_inference.py`)：`_cleanup_state_tensors()` 在调用 pipe 前清理 videos, decoder_cache, video_stream 等输出张量，保留 kv_cache 以加速推理
 2. ✅ **FP8 scale_input 复用** (`fp8.py`)：预创建 `_scale_input_cache` 并复用，避免每次 forward 创建新张量
 3. ✅ **每帧清理显存** (`local_inference.py`)：`generate_next_block` 结束时调用 `gc.collect()` + `torch.cuda.empty_cache()` + `torch.cuda.synchronize()`
 4. ✅ **使用 inference_mode** (`local_inference.py`)：用 `torch.inference_mode()` 包装推理，比 `no_grad` 更激进
