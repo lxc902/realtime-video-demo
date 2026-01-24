@@ -243,7 +243,6 @@ class KreaLocalInference:
         
         # 重置 torch.compile 缓存，防止编译图累积
         # 注意：这会影响性能，但能防止内存泄漏
-        import torch._dynamo
         torch._dynamo.reset()
         
         return new_frames
