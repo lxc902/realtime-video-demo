@@ -17,6 +17,7 @@ import msgpack
 from local_inference import get_model
 from config import (
     MODEL_PATH, QUANTIZATION,
+    NUM_INFERENCE_STEPS, DEFAULT_STRENGTH,
     V2V_INITIAL_FRAMES, V2V_SUBSEQUENT_FRAMES, FRAMES_PER_CHUNK,
     SESSION_TIMEOUT
 )
@@ -199,8 +200,8 @@ inference_lock = threading.Lock()
 class StartGenerationRequest(BaseModel):
     prompt: str
     num_blocks: int = 25
-    num_denoising_steps: int = 4
-    strength: float = 0.45
+    num_denoising_steps: int = NUM_INFERENCE_STEPS
+    strength: float = DEFAULT_STRENGTH
     seed: Optional[int] = None
     start_frame: Optional[str] = None  # base64 encoded
 
@@ -225,7 +226,7 @@ class GenerationSession:
         # 每个 session 独立的 state（避免共享 model.state 导致的冲突）
         self.state = None
         self.prompt = ""
-        self.strength = 0.45
+        self.strength = DEFAULT_STRENGTH
         self.generator = None
         self.block_idx = 0
         
@@ -483,8 +484,8 @@ async def api_stop_generation(session_id: str):
 class StreamGenerationRequest(BaseModel):
     prompt: str
     num_blocks: int = 25
-    num_denoising_steps: int = 4
-    strength: float = 0.45
+    num_denoising_steps: int = NUM_INFERENCE_STEPS
+    strength: float = DEFAULT_STRENGTH
     seed: Optional[int] = None
     start_frame: Optional[str] = None  # base64 encoded
 
@@ -781,8 +782,8 @@ async def websocket_video_gen(websocket: WebSocket):
             if not initialized and "prompt" in message:
                 prompt = message.get("prompt", "")
                 num_blocks = message.get("num_blocks", 25)
-                num_inference_steps = message.get("num_denoising_steps", 4)
-                strength = message.get("strength", 0.45)
+                num_inference_steps = message.get("num_denoising_steps", NUM_INFERENCE_STEPS)
+                strength = message.get("strength", DEFAULT_STRENGTH)
                 seed = message.get("seed")
                 start_frame = message.get("start_frame")  # 可能是 bytes
                 
@@ -830,7 +831,7 @@ async def websocket_video_gen(websocket: WebSocket):
             # 接收输入帧（video-to-video 或 webcam 模式）
             elif initialized and "image" in message:
                 input_frame_bytes = message["image"]
-                strength = message.get("strength", 0.45)
+                strength = message.get("strength", DEFAULT_STRENGTH)
                 
                 # 更新 num_blocks（这个不需要锁）
                 if "num_blocks" in message:
