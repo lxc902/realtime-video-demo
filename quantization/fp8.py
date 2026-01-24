@@ -186,94 +186,70 @@ def load_fp8(pipe, repo_id, device, dtype):
         "img_emb", "modulation", "text_embedding"
     }
     
-    # 4. 加载 transformer 结构到 CPU，然后替换权重
-    print("   [4/4] 加载 transformer 并替换权重...")
+    # 4. 加载 transformer 直接到 GPU，然后替换 FP8 权重
+    print("   [4/4] 加载 transformer 并替换 FP8 权重...")
     
-    # 先加载到 CPU（避免 OOM）
+    # 直接加载到 GPU（bf16）
     transformer = AutoModel.from_pretrained(
         repo_id,
         subfolder="transformer",
         torch_dtype=dtype,
         trust_remote_code=True,
-        device_map="cpu",
+        device_map=device,
     )
-    
-    # 构建 module name -> module 的映射
-    module_dict = {name: module for name, module in transformer.named_modules()}
-    
-    # 遍历 state_dict 的所有键，替换权重
-    loaded_fp8_count = 0
-    loaded_bf16_count = 0
-    skipped_count = 0
     
     # FP8 dtype 列表
     fp8_dtypes = [torch.float8_e4m3fn, torch.float8_e5m2]
     
-    for key, value in fp8_state_dict.items():
-        # 跳过 scale_weight
-        if "scale_weight" in key or "weight_scale" in key:
-            continue
-        
-        # 解析 key
-        parts = key.rsplit(".", 1)
-        if len(parts) == 2:
-            module_name, param_name = parts
-        else:
-            module_name, param_name = "", key
-        
-        # 判断是否需要保持原精度（转换为 bf16）
-        keep_original = any(keyword in key for keyword in params_to_keep)
-        
-        # 判断权重本身是否是 FP8 格式
-        is_fp8_weight = value.dtype in fp8_dtypes
-        
-        # 决定目标 dtype 和设备
-        if is_fp8_weight and not keep_original:
-            # FP8 权重保持 FP8 格式，直接放到 GPU
-            target_value = value.to(device)
-            loaded_fp8_count += 1
-        else:
-            # 其他所有参数转换为 bf16，放到 GPU
-            target_value = value.to(device, dtype)
-            loaded_bf16_count += 1
-        
-        # 设置参数
-        if module_name == "" and hasattr(transformer, param_name):
-            setattr(transformer, param_name, nn.Parameter(target_value, requires_grad=False))
-        elif module_name in module_dict:
-            module = module_dict[module_name]
-            setattr(module, param_name, nn.Parameter(target_value, requires_grad=False))
-        else:
-            skipped_count += 1
+    # 获取模型的 state_dict keys 用于匹配
+    model_state_dict = transformer.state_dict()
     
-    if skipped_count > 0:
-        print(f"   ⚠️  跳过 {skipped_count} 个未匹配的参数")
-    print(f"   ✅ 已加载 {loaded_fp8_count} 个 FP8 参数 + {loaded_bf16_count} 个 BF16 参数")
+    # 只替换 FP8 权重（Linear 层的 weight）
+    replaced_count = 0
+    for model_key in model_state_dict.keys():
+        # 检查 FP8 state_dict 中是否有对应的 key
+        if model_key in fp8_state_dict:
+            fp8_value = fp8_state_dict[model_key]
+            
+            # 只替换 FP8 格式的权重，且不在 params_to_keep 中
+            is_fp8 = fp8_value.dtype in fp8_dtypes
+            keep_original = any(keyword in model_key for keyword in params_to_keep)
+            
+            if is_fp8 and not keep_original:
+                # 解析 key 找到模块
+                parts = model_key.rsplit(".", 1)
+                if len(parts) == 2:
+                    module_name, param_name = parts
+                    # 获取模块
+                    module = transformer
+                    for part in module_name.split("."):
+                        module = getattr(module, part)
+                    # 替换为 FP8 权重
+                    setattr(module, param_name, 
+                            nn.Parameter(fp8_value.to(device), requires_grad=False))
+                    replaced_count += 1
     
-    # 清理显存
-    del fp8_state_dict
+    print(f"   ✅ 已替换 {replaced_count} 个权重为 FP8 格式")
     
-    # 将仍在 CPU 上的参数移动到 GPU（FP8 checkpoint 可能不包含所有参数）
-    cpu_to_gpu_count = 0
-    for name, param in transformer.named_parameters():
-        if param.device.type == 'cpu':
-            # 将 CPU 上的参数移动到 GPU，保持 bf16
-            new_param = param.data.to(device, dtype)
-            # 找到参数所属的模块并替换
-            parts = name.rsplit(".", 1)
+    # 提取 scale_weights
+    for k, v in fp8_state_dict.items():
+        if k.endswith(".scale_weight") or k.endswith(".weight_scale"):
+            # 找到对应的模块并设置 scale_weight
+            module_key = k.replace(".scale_weight", "").replace(".weight_scale", "")
+            parts = module_key.rsplit(".", 1)
             if len(parts) == 2:
-                module_name, param_name = parts
-                if module_name in module_dict:
-                    setattr(module_dict[module_name], param_name, 
-                            nn.Parameter(new_param, requires_grad=False))
-                    cpu_to_gpu_count += 1
-            elif hasattr(transformer, name):
-                setattr(transformer, name, nn.Parameter(new_param, requires_grad=False))
-                cpu_to_gpu_count += 1
+                module_name = parts[0]
+                try:
+                    module = transformer
+                    for part in module_name.split("."):
+                        module = getattr(module, part)
+                    setattr(module, "scale_weight", v.to(device, torch.float32))
+                except AttributeError:
+                    pass
     
-    if cpu_to_gpu_count > 0:
-        print(f"   ✅ 额外移动 {cpu_to_gpu_count} 个 CPU 参数到 GPU")
-    
+    # 清理
+    del fp8_state_dict
+    del model_state_dict
     torch.cuda.empty_cache()
     torch.cuda.synchronize()
     
