@@ -116,6 +116,8 @@ class KreaLocalInference:
         
         diffusers ModularPipeline.__call__ 会对 state 进行 deepcopy，
         如果 state 中累积了大量 GPU 张量，deepcopy 会导致 OOM。
+        
+        重要：只能删除 output 类型的张量，不能动 input 类型的张量！
         """
         if self.state is None or not hasattr(self.state, 'values'):
             return
@@ -124,68 +126,30 @@ class KreaLocalInference:
         if not values:
             return
         
-        # 调试：打印 state 中的所有键和大小
-        if self.block_idx > 0:
-            print(f"[Debug] block_idx={self.block_idx}, state.values keys: {list(values.keys())}")
-            total_gpu_mb = 0
-            for key, val in values.items():
-                if isinstance(val, torch.Tensor):
-                    size_mb = val.numel() * val.element_size() / 1024 / 1024
-                    device = val.device
-                    if device.type == "cuda":
-                        total_gpu_mb += size_mb
-                    print(f"  {key}: {val.shape}, {val.dtype}, {device}, {size_mb:.1f}MB")
-                elif isinstance(val, list) and len(val) > 0:
-                    print(f"  {key}: list[{len(val)}]")
-                    if isinstance(val[0], torch.Tensor):
-                        for i, t in enumerate(val[:3]):  # 只打印前3个
-                            size_mb = t.numel() * t.element_size() / 1024 / 1024
-                            if t.device.type == "cuda":
-                                total_gpu_mb += size_mb
-                            print(f"    [{i}]: {t.shape}, {t.dtype}, {t.device}, {size_mb:.1f}MB")
-                        if len(val) > 3:
-                            print(f"    ... and {len(val) - 3} more")
-            print(f"  Total GPU tensors in state: {total_gpu_mb:.1f}MB")
-            
-            # 打印当前 GPU 内存使用
-            if torch.cuda.is_available():
-                allocated = torch.cuda.memory_allocated() / 1024 / 1024 / 1024
-                reserved = torch.cuda.memory_reserved() / 1024 / 1024 / 1024
-                print(f"  GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
+        # 调试：打印 GPU 内存使用
+        if self.block_idx > 0 and torch.cuda.is_available():
+            allocated = torch.cuda.memory_allocated() / 1024 / 1024 / 1024
+            reserved = torch.cuda.memory_reserved() / 1024 / 1024 / 1024
+            print(f"[Debug] block_idx={self.block_idx}, GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
         
-        # 清理 videos 列表中的张量（这是最大的内存消耗）
-        if "videos" in values:
-            # 将视频张量移到 CPU 或直接删除
-            # 因为我们已经在 self.current_frames 中保存了帧
-            del values["videos"]
-        
-        # 更激进的清理：删除所有大张量，只保留必要的
-        keys_to_delete = []
-        keys_to_cpu = []
-        for key, val in values.items():
-            if isinstance(val, torch.Tensor) and val.device.type == "cuda":
-                size_mb = val.numel() * val.element_size() / 1024 / 1024
-                if size_mb > 100:  # 大于 100MB 的张量
-                    keys_to_delete.append(key)
-                else:
-                    keys_to_cpu.append(key)
-            elif isinstance(val, list):
-                # 如果是列表，检查是否包含 GPU 张量
-                has_gpu_tensor = False
-                for item in val:
-                    if isinstance(item, torch.Tensor) and item.device.type == "cuda":
-                        has_gpu_tensor = True
-                        break
-                if has_gpu_tensor:
-                    keys_to_delete.append(key)
+        # 只删除 OUTPUT 类型的大张量（不是 pipeline 输入需要的）
+        # 这些是中间结果或输出，可以安全删除
+        keys_to_delete = [
+            "videos",           # 生成的视频帧（已保存到 self.current_frames）
+            "decoder_cache",    # VAE decoder 缓存（55个张量，每个~9MB）
+            "video_stream",     # 视频流输出
+        ]
         
         for key in keys_to_delete:
-            print(f"  [Cleanup] Deleting {key}")
-            del values[key]
+            if key in values:
+                print(f"  [Cleanup] Deleting {key}")
+                del values[key]
         
-        for key in keys_to_cpu:
-            print(f"  [Cleanup] Moving {key} to CPU")
-            values[key] = values[key].cpu()
+        # 注意：以下张量是 pipeline 需要的输入，不能删除或移动到 CPU！
+        # - latents, init_latents: 去噪过程的输入
+        # - prompt_embeds: 文本编码
+        # - kv_cache, crossattn_cache: attention 缓存（用于加速）
+        # - current_denoised_latents: 当前去噪结果
     
     def generate_next_block(self, input_frame=None):
         """生成下一个 block 的帧"""
