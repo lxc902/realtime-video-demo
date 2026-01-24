@@ -30,14 +30,9 @@ class KreaLocalInference:
         
         # 确定模型路径
         if model_path is None:
-            if quantization == "fp8":
-                # FP8 预量化模型
-                repo_id = "6chan/krea-realtime-video-fp8"
-                print(f"从 HuggingFace 加载 FP8 模型: {repo_id}")
-            else:
-                # 默认使用 HuggingFace
-                repo_id = "krea/krea-realtime-video"
-                print(f"从 HuggingFace 加载: {repo_id}")
+            # 总是从原始 repo 加载 pipeline 结构
+            repo_id = "krea/krea-realtime-video"
+            print(f"从 HuggingFace 加载: {repo_id}")
         else:
             # 使用自定义路径
             repo_id = model_path
@@ -48,84 +43,125 @@ class KreaLocalInference:
         
         # 根据量化类型加载模型
         if quantization == "fp8":
-            # FP8 预量化模型 - 直接标准加载
+            # FP8 预量化模型
             print("🔧 使用 FP8 预量化模型 (预计显存 ~24GB)")
-            self.pipe.load_components(
-                trust_remote_code=True,
-                device_map=device,
-                torch_dtype={"default": dtype, "vae": torch.float16},
-            )
-        elif quantization in ("int8", "int4"):
-            # bitsandbytes 量化 - 注意：可能不兼容此模型
-            print(f"🔧 启用 {quantization.upper()} 量化...")
-            print("   ⚠️  注意: bitsandbytes 量化可能不兼容此模型")
-            print("   建议使用 --fp8 代替")
             try:
-                from diffusers import BitsAndBytesConfig as DiffusersBitsAndBytesConfig
-                from diffusers import AutoModel
+                from huggingface_hub import hf_hub_download
                 
-                if quantization == "int8":
-                    quant_config = DiffusersBitsAndBytesConfig(load_in_8bit=True)
-                    print("   使用 8-bit 量化 (预计显存 ~24GB)")
-                elif quantization == "int4":
-                    quant_config = DiffusersBitsAndBytesConfig(
-                        load_in_4bit=True,
-                        bnb_4bit_compute_dtype=torch.bfloat16,
-                        bnb_4bit_quant_type="nf4",
-                    )
-                    print("   使用 4-bit 量化 (预计显存 ~12GB)")
-                else:
-                    quant_config = None
+                # 1. 下载 FP8 transformer checkpoint
+                fp8_repo = "6chan/krea-realtime-video-fp8"
+                fp8_file = "krea-realtime-video-14b-fp8-e4m3fn.safetensors"
+                print(f"   [1/3] 下载 FP8 transformer: {fp8_repo}")
                 
-                if quant_config:
-                    # 1. 先加载量化的 transformer
-                    print("   [1/2] 正在加载量化 transformer...")
-                    transformer_quantized = AutoModel.from_pretrained(
-                        repo_id,
-                        subfolder="transformer",
-                        quantization_config=quant_config,
-                        torch_dtype=dtype,
-                        trust_remote_code=True,
-                    )
-                    self.pipe.transformer = transformer_quantized
-                    
-                    # 2. 只加载需要从预训练模型加载的组件
-                    config_only_components = {"transformer", "guider", "video_processor", "scheduler"}
-                    
-                    specs = self.pipe._component_specs
-                    if isinstance(specs, dict):
-                        all_component_names = list(specs.keys())
-                    elif specs:
-                        first = next(iter(specs), None)
-                        if hasattr(first, 'name'):
-                            all_component_names = [spec.name for spec in specs]
-                        else:
-                            all_component_names = list(specs)
+                fp8_path = hf_hub_download(
+                    repo_id=fp8_repo,
+                    filename=fp8_file,
+                )
+                print(f"   ✅ FP8 checkpoint: {fp8_path}")
+                
+                # 2. 加载其他组件（不包括 transformer）
+                print("   [2/3] 加载其他组件...")
+                config_only_components = {"transformer", "guider", "video_processor", "scheduler"}
+                specs = self.pipe._component_specs
+                if isinstance(specs, dict):
+                    all_component_names = list(specs.keys())
+                elif specs:
+                    first = next(iter(specs), None)
+                    if hasattr(first, 'name'):
+                        all_component_names = [spec.name for spec in specs]
                     else:
-                        all_component_names = []
-                    
-                    components_to_load = [name for name in all_component_names if name not in config_only_components]
-                    print(f"   [2/2] 正在加载其他组件: {components_to_load}")
-                    
-                    self.pipe.load_components(
-                        names=components_to_load,
-                        trust_remote_code=True,
-                        device_map=device,
-                        torch_dtype={"default": dtype, "vae": torch.float16},
-                    )
-                    
-                    torch.cuda.empty_cache()
-                    print("   ✅ 量化模型加载完成")
-                    
-            except ImportError as e:
-                print(f"   ❌ 量化加载失败: {e}")
-                print("   请确保安装了 bitsandbytes: pip install bitsandbytes")
-                raise RuntimeError(f"量化加载失败，缺少依赖: {e}")
+                        all_component_names = list(specs)
+                else:
+                    all_component_names = []
+                
+                components_to_load = [name for name in all_component_names if name not in config_only_components]
+                
+                self.pipe.load_components(
+                    names=components_to_load,
+                    trust_remote_code=True,
+                    device_map=device,
+                    torch_dtype={"default": dtype, "vae": torch.float16},
+                )
+                
+                # 3. 加载 FP8 transformer
+                print("   [3/3] 加载 FP8 transformer...")
+                from safetensors.torch import load_file
+                
+                # 先加载原始 transformer 结构
+                from diffusers import AutoModel
+                transformer = AutoModel.from_pretrained(
+                    repo_id,
+                    subfolder="transformer",
+                    torch_dtype=torch.float8_e4m3fn,
+                    trust_remote_code=True,
+                    low_cpu_mem_usage=True,
+                )
+                
+                # 加载 FP8 权重
+                fp8_state_dict = load_file(fp8_path)
+                transformer.load_state_dict(fp8_state_dict, strict=False)
+                transformer = transformer.to(device)
+                
+                self.pipe.transformer = transformer
+                
+                torch.cuda.empty_cache()
+                print("   ✅ FP8 模型加载完成")
+                
             except Exception as e:
-                print(f"   ❌ 量化加载失败: {e}")
+                print(f"   ❌ FP8 加载失败: {e}")
                 import traceback
                 traceback.print_exc()
-                raise RuntimeError(f"量化加载失败: {e}")
+                raise RuntimeError(f"FP8 加载失败: {e}")
+        elif quantization in ("int8", "int4"):
+            # 使用 torchao 量化（替代 bitsandbytes，兼容性更好）
+            print(f"🔧 启用 {quantization.upper()} 量化 (torchao)...")
+            
+            try:
+                from torchao.quantization import quantize_, int8_dynamic_activation_int8_weight, int4_weight_only
+                
+                # 1. 先标准加载所有组件
+                print("   [1/3] 正在加载模型组件...")
+                self.pipe.load_components(
+                    trust_remote_code=True,
+                    device_map=device,
+                    torch_dtype={"default": dtype, "vae": torch.float16},
+                )
+                
+                # 2. 定义量化过滤器：只量化 Linear 层，跳过 Conv2D
+                def linear_only_filter(module, name):
+                    return isinstance(module, torch.nn.Linear)
+                
+                # 3. 对 transformer 进行量化
+                print("   [2/3] 正在量化 transformer (仅 Linear 层)...")
+                if quantization == "int8":
+                    print("   使用 INT8 动态量化 (预计显存 ~28GB)")
+                    quantize_(
+                        self.pipe.transformer, 
+                        int8_dynamic_activation_int8_weight(),
+                        filter_fn=linear_only_filter
+                    )
+                else:  # int4
+                    print("   使用 INT4 权重量化 (预计显存 ~16GB)")
+                    quantize_(
+                        self.pipe.transformer,
+                        int4_weight_only(),
+                        filter_fn=linear_only_filter
+                    )
+                
+                # 4. 清理显存
+                print("   [3/3] 清理显存缓存...")
+                torch.cuda.empty_cache()
+                print("   ✅ torchao 量化完成")
+                
+            except ImportError as e:
+                print(f"   ❌ 量化失败: {e}")
+                print("   请安装 torchao: pip install torchao")
+                raise RuntimeError(f"量化失败，缺少依赖: {e}")
+            except Exception as e:
+                print(f"   ❌ 量化失败: {e}")
+                import traceback
+                traceback.print_exc()
+                raise RuntimeError(f"量化失败: {e}")
         else:
             # 标准加载（无量化）
             self.pipe.load_components(
