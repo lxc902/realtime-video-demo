@@ -111,8 +111,39 @@ class KreaLocalInference:
         self.start_frame = start_frame
         self.block_idx = 0
         
+    def _cleanup_state_tensors(self):
+        """清理 state 中的大张量，避免 deepcopy 时 OOM
+        
+        diffusers ModularPipeline.__call__ 会对 state 进行 deepcopy，
+        如果 state 中累积了大量 GPU 张量，deepcopy 会导致 OOM。
+        """
+        if self.state is None or not hasattr(self.state, 'values'):
+            return
+        
+        values = self.state.values
+        if not values:
+            return
+        
+        # 清理 videos 列表中的张量（这是最大的内存消耗）
+        if "videos" in values:
+            # 将视频张量移到 CPU 或直接删除
+            # 因为我们已经在 self.current_frames 中保存了帧
+            del values["videos"]
+        
+        # 清理其他可能的大张量
+        keys_to_clean = ["latents", "noise", "timesteps", "encoder_hidden_states"]
+        for key in keys_to_clean:
+            if key in values:
+                val = values[key]
+                if isinstance(val, torch.Tensor) and val.device.type == "cuda":
+                    # 移到 CPU 避免 deepcopy 时占用 GPU 内存
+                    values[key] = val.cpu()
+    
     def generate_next_block(self, input_frame=None):
         """生成下一个 block 的帧"""
+        # 清理 state 中的大张量，避免 deepcopy OOM
+        self._cleanup_state_tensors()
+        
         # 使用 inference_mode 比 no_grad 更激进，完全禁用 autograd 追踪
         with torch.inference_mode():
             kwargs = {

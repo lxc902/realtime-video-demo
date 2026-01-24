@@ -24,33 +24,28 @@
 
 ## 问题分析：推理内存爆炸
 
-### 1. torch.compile / torch._dynamo 缓存累积
+### 根本原因：diffusers ModularPipeline 的 deepcopy
 
-每次推理时，`torch._dynamo` 会缓存编译的计算图。虽然 `cleanup_inference()` 中调用了 `torch._dynamo.reset()`，但可能有缓存没有被完全释放。
-
-### 2. FP8 forward 中重复创建张量
-
-`fp8.py` 中的 `fp8_linear_forward` 每次调用都会创建新的 scale 张量：
+**这是最主要的原因！** 每次调用 `pipe()` 时，diffusers 的 `ModularPipeline.__call__` 会对 `state` 进行 `deepcopy`：
 
 ```python
-scale_input = torch.ones((), device=input.device, dtype=torch.float32)
+# diffusers/modular_pipelines/modular_pipeline.py:2559
+state = deepcopy(state)
 ```
 
-这应该改为在 `convert_fp8_linear` 时预创建并复用。
+`state.values` 中累积了生成的视频帧张量（GPU 上），deepcopy 会尝试克隆所有张量，随着推理次数增加，所需内存不断翻倍直到 OOM。
 
-### 3. 中间张量副本
+**解决方案**：在调用 `pipe()` 之前清理 state 中的大张量（见 `_cleanup_state_tensors` 方法）。
 
-`.contiguous()` 调用会创建新的张量副本：
+### 其他次要原因
 
-```python
-inn = input.reshape(-1, input_shape[2]).to(torch.float8_e4m3fn).contiguous()
-```
+1. **torch.compile / torch._dynamo 缓存累积**：编译的计算图会缓存
 
-### 4. flex_attention block_mask 缓存
+2. **FP8 forward 中重复创建张量**：每次 forward 创建 `scale_input`（已修复：使用 `_scale_input_cache`）
 
-Transformer 使用的 flex_attention 会缓存 block_mask，这些缓存在连续推理时会累积。
+3. **flex_attention block_mask 缓存**：Transformer 使用的 flex_attention 会缓存 block_mask
 
-### 5. Ada vs Blackwell 差异解释
+### Ada vs Blackwell 差异解释
 
 Pro96 每帧消耗 9GB vs Ada48 的 2GB，可能原因：
 
@@ -61,11 +56,12 @@ Pro96 每帧消耗 9GB vs Ada48 的 2GB，可能原因：
 
 ## 已实施的优化
 
-1. ✅ **FP8 scale_input 复用** (`fp8.py`)：预创建 `_scale_input_cache` 并复用，避免每次 forward 创建新张量
-2. ✅ **每帧清理显存** (`local_inference.py`)：`generate_next_block` 结束时调用 `torch.cuda.empty_cache()`
-3. ✅ **使用 inference_mode** (`local_inference.py`)：用 `torch.inference_mode()` 包装推理，比 `no_grad` 更激进
-4. ✅ **显式删除临时变量** (`local_inference.py`)：推理后 `del kwargs`
-5. ✅ **INT8 加载后清理** (`int8.py`)：量化完成后 `gc.collect()` + `torch.cuda.synchronize()`
+1. ✅ **清理 state 中的大张量** (`local_inference.py`)：`_cleanup_state_tensors()` 在调用 pipe 前清理 videos 等大张量，避免 deepcopy OOM
+2. ✅ **FP8 scale_input 复用** (`fp8.py`)：预创建 `_scale_input_cache` 并复用，避免每次 forward 创建新张量
+3. ✅ **每帧清理显存** (`local_inference.py`)：`generate_next_block` 结束时调用 `torch.cuda.empty_cache()`
+4. ✅ **使用 inference_mode** (`local_inference.py`)：用 `torch.inference_mode()` 包装推理，比 `no_grad` 更激进
+5. ✅ **显式删除临时变量** (`local_inference.py`)：推理后 `del kwargs`
+6. ✅ **INT8 加载后清理** (`int8.py`)：量化完成后 `gc.collect()` + `torch.cuda.synchronize()`
 
 ## 待深入研究
 
