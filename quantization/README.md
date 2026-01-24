@@ -62,7 +62,7 @@ Pro96 每帧消耗 9GB vs Ada48 的 2GB，可能原因：
 4. ✅ **使用 inference_mode** (`local_inference.py`)：用 `torch.inference_mode()` 包装推理，比 `no_grad` 更激进
 5. ✅ **显式删除临时变量** (`local_inference.py`)：推理后 `del kwargs`
 6. ✅ **INT8 加载后清理** (`int8.py`)：量化完成后 `gc.collect()` + `torch.cuda.synchronize()`
-7. ✅ **每帧重置 dynamo 缓存** (`local_inference.py`)：`generate_next_block` 结束时调用 `torch._dynamo.reset()` 防止编译缓存累积
+7. ❌ ~~每帧重置 dynamo 缓存~~：已移除，因为重复编译比缓存复用更耗内存
 8. ✅ **诊断信息增强** (`local_inference.py`)：打印 state.values 中的 key，便于调试内存问题
 
 ## 重要警告
