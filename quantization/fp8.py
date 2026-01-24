@@ -192,45 +192,60 @@ def load_fp8(pipe, repo_id, device, dtype):
         if k.endswith(".scale_weight") or k.endswith(".weight_scale"):
             scale_weights[k.replace(".weight_scale", ".scale_weight")] = v.to(device, torch.float32)
     
-    # 需要保持原精度的层
+    # 需要保持原精度的层（不使用 FP8）
     params_to_keep = {
         "norm", "bias", "time_in", "patch_embedding", "time_", 
         "img_emb", "modulation", "text_embedding"
     }
     
-    # 加载权重 - 保持 FP8 格式
-    for name, module in transformer.named_modules():
-        if isinstance(module, nn.Linear):
-            weight_key = f"{name}.weight"
-            bias_key = f"{name}.bias"
-            
-            keep_original = any(keyword in name for keyword in params_to_keep)
-            
-            if weight_key in fp8_state_dict:
-                fp8_weight = fp8_state_dict[weight_key]
-                if keep_original or "bias" in name:
-                    new_weight = fp8_weight.to(device, dtype)
-                else:
-                    new_weight = fp8_weight.to(device)
-                
-                module.weight = nn.Parameter(new_weight, requires_grad=False)
-            
-            if bias_key in fp8_state_dict:
-                new_bias = fp8_state_dict[bias_key].to(device, dtype)
-                module.bias = nn.Parameter(new_bias, requires_grad=False)
-        
-        elif hasattr(module, 'weight') and not isinstance(module, nn.Linear):
-            for param_name in ['weight', 'bias']:
-                full_key = f"{name}.{param_name}" if name else param_name
-                if full_key in fp8_state_dict:
-                    new_param = fp8_state_dict[full_key].to(device, dtype)
-                    setattr(module, param_name, nn.Parameter(new_param, requires_grad=False))
+    # 构建 module name -> module 的映射
+    module_dict = {name: module for name, module in transformer.named_modules()}
     
-    # 处理顶层参数
+    # 遍历 state_dict 的所有键，确保所有权重都被加载
+    loaded_keys = set()
     for key, value in fp8_state_dict.items():
-        if "." not in key and hasattr(transformer, key):
-            param = value.to(device, dtype)
-            setattr(transformer, key, nn.Parameter(param, requires_grad=False))
+        # 跳过 scale_weight
+        if "scale_weight" in key or "weight_scale" in key:
+            continue
+        
+        # 解析 key: "blocks.0.self_attn.q.weight" -> module_name="blocks.0.self_attn.q", param_name="weight"
+        parts = key.rsplit(".", 1)
+        if len(parts) == 2:
+            module_name, param_name = parts
+        else:
+            # 顶层参数
+            module_name, param_name = "", key
+        
+        # 判断是否保持原精度
+        keep_original = any(keyword in key for keyword in params_to_keep)
+        
+        # 判断是否是 Linear 层的 weight（需要保持 FP8）
+        is_linear_weight = False
+        if module_name in module_dict:
+            module = module_dict[module_name]
+            is_linear_weight = isinstance(module, nn.Linear) and param_name == "weight"
+        
+        # 决定目标 dtype
+        if is_linear_weight and not keep_original:
+            # Linear 层的 weight 保持 FP8 格式
+            target_value = value.to(device)
+        else:
+            # 其他所有参数转换为 bf16
+            target_value = value.to(device, dtype)
+        
+        # 设置参数
+        if module_name == "":
+            # 顶层参数
+            if hasattr(transformer, param_name):
+                setattr(transformer, param_name, nn.Parameter(target_value, requires_grad=False))
+                loaded_keys.add(key)
+        elif module_name in module_dict:
+            module = module_dict[module_name]
+            if hasattr(module, param_name):
+                setattr(module, param_name, nn.Parameter(target_value, requires_grad=False))
+                loaded_keys.add(key)
+    
+    print(f"   ✅ 已加载 {len(loaded_keys)} 个参数到 GPU")
     
     # 清理显存
     del fp8_state_dict
