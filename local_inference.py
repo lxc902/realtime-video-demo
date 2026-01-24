@@ -150,14 +150,14 @@ class KreaLocalInference:
         all_keys = list(values.keys())
         print(f"  [Cleanup] state.values keys: {all_keys}")
         
-        # 删除所有大缓存，防止内存泄漏
-        # 注意：删除 kv_cache/crossattn_cache 会影响推理速度，但能防止 OOM
+        # 只删除输出类张量，保留 kv_cache 以确保推理正确性
+        # 注意：删除 kv_cache 会导致 pipeline 推理失败
         keys_to_delete = [
             "videos",           # 生成的视频帧（已保存到 self.current_frames）
             "decoder_cache",    # VAE decoder 缓存（55个张量，~500MB）
             "video_stream",     # 视频流输出
-            "kv_cache",         # attention KV 缓存 - 防止累积导致 OOM
-            "crossattn_cache",  # cross attention 缓存 - 防止累积导致 OOM
+            # "kv_cache",       # ❌ 不能删除 - pipeline 需要它来重新计算
+            # "crossattn_cache",# ❌ 不能删除 - pipeline 需要它来重新计算
         ]
         
         deleted = []
