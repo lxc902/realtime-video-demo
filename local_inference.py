@@ -259,17 +259,34 @@ class KreaLocalInference:
             
             # 根据官方文档：
             # - T2V 模式：不需要 video 参数
-            # - V2V 模式：每个 block 都需要传 video
-            # - Streaming V2V 模式：使用 video_stream 参数
+            # - V2V 模式：每个 block 都需要传 video（整个视频）
+            # - Streaming V2V 模式：使用 video_stream 参数（帧 chunk）
+            #
+            # 对于 webcam 实时模式：
+            # - block_idx=0：用 video 或 start_frame 初始化
+            # - block_idx>=1：用 video_stream 传入新帧
+            #
+            # 注意：video_stream 期望的是帧列表，单个帧需要包装成列表
             
             if block_idx == 0:
                 # 第一个 block：如果有起始帧，用 video 参数初始化 V2V
                 if start_frame is not None:
                     kwargs["video"] = start_frame
+                elif input_frame is not None:
+                    kwargs["video"] = input_frame
             else:
                 # 后续 block：如果有输入帧，用 video_stream 进行流式 V2V
                 if input_frame is not None:
-                    kwargs["video_stream"] = input_frame
+                    # 将单个帧包装成列表（video_stream 期望帧列表）
+                    # 如果 input_frame 是 numpy array (H, W, C)，需要变成 [frame] 或 (T, H, W, C)
+                    import numpy as np
+                    if isinstance(input_frame, np.ndarray):
+                        if input_frame.ndim == 3:  # (H, W, C) -> [(H, W, C)]
+                            kwargs["video_stream"] = [input_frame]
+                        else:
+                            kwargs["video_stream"] = input_frame
+                    else:
+                        kwargs["video_stream"] = [input_frame]
                 
             # 生成
             new_state = self.pipe(**kwargs)
