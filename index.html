@@ -1000,7 +1000,7 @@
                         prompt: document.getElementById('prompt').value,
                         num_blocks: parseInt(document.getElementById('numBlocks').value),
                         num_denoising_steps: 4,
-                        strength: parseFloat(document.getElementById('strength').value) || 0.45
+                        strength: parseFloat(document.getElementById('strength').value) || 0.35
                     };
 
                     // 获取起始帧（webcam 或 video 模式）
@@ -1010,6 +1010,16 @@
                             payload.start_frame = this.arrayBufferToBase64(frame);
                         }
                     } else if (this.mode === 'video' && this.currentVideoFile) {
+                        // 先 seek 到视频开头，等待加载完成
+                        const video = document.getElementById('hiddenVideo');
+                        video.currentTime = 0;
+                        await new Promise((resolve, reject) => {
+                            const timeout = setTimeout(() => reject(new Error('Video seek timeout')), 5000);
+                            video.onseeked = () => {
+                                clearTimeout(timeout);
+                                resolve();
+                            };
+                        });
                         const frame = await this.captureVideoFrame();
                         if (frame) {
                             payload.start_frame = this.arrayBufferToBase64(frame);
@@ -1060,7 +1070,7 @@
                         prompt: document.getElementById('prompt').value,
                         num_blocks: parseInt(document.getElementById('numBlocks').value),
                         num_denoising_steps: 4,
-                        strength: parseFloat(document.getElementById('strength').value) || 0.45
+                        strength: parseFloat(document.getElementById('strength').value) || 0.35
                     };
 
                     // 获取起始帧（webcam 或 video 模式）
@@ -1070,6 +1080,16 @@
                             payload.start_frame = this.arrayBufferToBase64(frame);
                         }
                     } else if (this.mode === 'video' && this.currentVideoFile) {
+                        // 先 seek 到视频开头，等待加载完成
+                        const video = document.getElementById('hiddenVideo');
+                        video.currentTime = 0;
+                        await new Promise((resolve, reject) => {
+                            const timeout = setTimeout(() => reject(new Error('Video seek timeout')), 5000);
+                            video.onseeked = () => {
+                                clearTimeout(timeout);
+                                resolve();
+                            };
+                        });
                         const frame = await this.captureVideoFrame();
                         if (frame) {
                             payload.start_frame = this.arrayBufferToBase64(frame);
