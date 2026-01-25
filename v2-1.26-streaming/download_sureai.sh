@@ -34,11 +34,15 @@ mkdir -p /tmp/kode-backend-runtime
 docker cp kode-backend:/app /tmp/kode-backend-runtime/app
 EOF
 
-echo "==> 4. 拉取 Docker 中的后端代码到本地"
-rsync -avz --progress \
-  -e "ssh -i $PEM" \
+echo "==> 4. 拉取 Docker 中的后端代码到本地（跳过 uploads / node_modules）"
+rsync -av --progress \
+  --exclude 'uploads/' \
+  --exclude 'node_modules/' \
+  --exclude '.kode/' \
+  -e "ssh -i $PEM -o ServerAliveInterval=30 -o ServerAliveCountMax=10" \
   $REMOTE_HOST:$TMP_REMOTE_DIR \
   "$LOCAL_BASE/backend-runtime"
+
 
 echo "✅ 全部完成"
 echo "前端:        $LOCAL_BASE/sureai-web"
