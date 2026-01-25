@@ -5,6 +5,7 @@ set -e  # Exit on error
 # Parse arguments
 INSTALL_FLASH_ATTN=false
 QUANTIZATION=""
+USE_CHINA_MIRROR=false
 
 for arg in "$@"; do
     case $arg in
@@ -20,6 +21,9 @@ for arg in "$@"; do
         --int4)
             QUANTIZATION="int4"
             ;;
+        --cn)
+            USE_CHINA_MIRROR=true
+            ;;
     esac
 done
 
@@ -27,6 +31,9 @@ echo "================================="
 echo "KREA Realtime Video - Local GPU"
 if [ -n "$QUANTIZATION" ]; then
     echo "Quantization: ${QUANTIZATION^^}"
+fi
+if [ "$USE_CHINA_MIRROR" = true ]; then
+    echo "Mirror: China (Aliyun)"
 fi
 echo "================================="
 echo ""
@@ -134,7 +141,11 @@ echo "✓ GPU 架构: $GPU_ARCH"
 if [ "$GPU_ARCH" = "blackwell" ]; then
     echo "⚠️  检测到 Blackwell 架构 GPU，将使用 PyTorch nightly (CUDA 12.8)"
     # Blackwell (sm_120) 需要 CUDA 12.8+，cu126 不够
-    PYTORCH_INDEX_URL="https://download.pytorch.org/whl/nightly/cu128"
+    if [ "$USE_CHINA_MIRROR" = true ]; then
+        PYTORCH_INDEX_URL="https://mirrors.aliyun.com/pytorch-wheels/nightly/cu128"
+    else
+        PYTORCH_INDEX_URL="https://download.pytorch.org/whl/nightly/cu128"
+    fi
     TORCHAO_VERSION=""  # 使用最新版
     TRANSFORMERS_VERSION=""  # 使用最新版
     USE_NIGHTLY=true
@@ -153,11 +164,24 @@ if [ "$GPU_ARCH" = "blackwell" ]; then
     fi
 else
     # Ada, Hopper, Ampere 等使用稳定版
-    PYTORCH_INDEX_URL="https://download.pytorch.org/whl/cu121"
+    if [ "$USE_CHINA_MIRROR" = true ]; then
+        PYTORCH_INDEX_URL="https://mirrors.aliyun.com/pytorch-wheels/cu121"
+    else
+        PYTORCH_INDEX_URL="https://download.pytorch.org/whl/cu121"
+    fi
     TORCHAO_VERSION="==0.7.0"  # 兼容 PyTorch 2.5.x
     TRANSFORMERS_VERSION="==4.44.0"  # 兼容 torchao 0.7.x
     USE_NIGHTLY=false
     BLACKWELL_NEEDS_UPGRADE=false
+fi
+
+# 设置 pip 镜像源
+if [ "$USE_CHINA_MIRROR" = true ]; then
+    PIP_INDEX_URL="https://mirrors.aliyun.com/pypi/simple/"
+    PIP_INDEX_ARGS="-i $PIP_INDEX_URL --trusted-host mirrors.aliyun.com"
+    echo "🇨🇳 使用中国镜像源 (阿里云)"
+else
+    PIP_INDEX_ARGS=""
 fi
 
 echo ""
@@ -300,12 +324,12 @@ if [ "$NEED_INSTALL" = true ]; then
     if ! check_package diffusers; then
         echo "  - Installing Diffusers (from source)..."
         # 先尝试安装最新版本
-        $PIP install git+https://github.com/huggingface/diffusers.git -q
+        $PIP install git+https://github.com/huggingface/diffusers.git $PIP_INDEX_ARGS -q
         
         # 验证安装，如果失败则尝试稳定版本
         if ! $PYTHON -c "import diffusers" 2>/dev/null; then
             echo "    ⚠️  最新版本安装失败，尝试稳定版本..."
-            $PIP install --force-reinstall "diffusers>=0.32.0" -q
+            $PIP install --force-reinstall "diffusers>=0.32.0" $PIP_INDEX_ARGS -q
         fi
     fi
     
@@ -314,49 +338,49 @@ if [ "$NEED_INSTALL" = true ]; then
         # 根据 GPU 架构和量化模式选择版本
         if [ "$USE_NIGHTLY" = true ]; then
             # Blackwell 使用最新版
-            $PIP install transformers accelerate safetensors -q
+            $PIP install transformers accelerate safetensors $PIP_INDEX_ARGS -q
         elif [ "$QUANTIZATION" = "int8" ] || [ "$QUANTIZATION" = "int4" ]; then
             # 旧架构 + 量化需要 transformers 4.44.x（兼容 torchao 0.7.x）
-            $PIP install transformers${TRANSFORMERS_VERSION} accelerate safetensors -q
+            $PIP install transformers${TRANSFORMERS_VERSION} accelerate safetensors $PIP_INDEX_ARGS -q
         else
-            $PIP install transformers accelerate safetensors -q
+            $PIP install transformers accelerate safetensors $PIP_INDEX_ARGS -q
         fi
     fi
     
     if ! check_package fastapi; then
         echo "  - Installing FastAPI and utilities..."
-        $PIP install fastapi uvicorn websockets httpx -q
+        $PIP install fastapi uvicorn websockets httpx $PIP_INDEX_ARGS -q
     fi
     
     if ! check_package cv2; then
         echo "  - Installing OpenCV and image processing..."
-        $PIP install opencv-python pillow numpy -q
+        $PIP install opencv-python pillow numpy $PIP_INDEX_ARGS -q
     fi
     
     if ! check_package msgpack; then
         echo "  - Installing msgpack..."
-        $PIP install msgpack -q
+        $PIP install msgpack $PIP_INDEX_ARGS -q
     fi
     
     if ! check_package einops; then
         echo "  - Installing einops..."
-        $PIP install einops -q
+        $PIP install einops $PIP_INDEX_ARGS -q
     fi
     
     if ! check_package imageio; then
         echo "  - Installing imageio..."
-        $PIP install imageio -q
+        $PIP install imageio $PIP_INDEX_ARGS -q
     fi
     
     if ! check_package ftfy; then
         echo "  - Installing ftfy..."
-        $PIP install ftfy -q
+        $PIP install ftfy $PIP_INDEX_ARGS -q
     fi
     
     # Optional: flash-attention for better performance (disabled by default)
     if [ "$INSTALL_FLASH_ATTN" = true ]; then
         echo "  - Installing flash-attention (for better performance, ~5-10 min)..."
-        $PIP install flash-attn --no-build-isolation 2>&1 | grep -E "(Installing|Successfully|error)" || echo "    (flash-attn install failed, will use standard attention)"
+        $PIP install flash-attn --no-build-isolation $PIP_INDEX_ARGS 2>&1 | grep -E "(Installing|Successfully|error)" || echo "    (flash-attn install failed, will use standard attention)"
     else
         echo "  - Skipping flash-attention (use --with-flash-attn to install)"
     fi
@@ -368,20 +392,20 @@ if [ "$NEED_INSTALL" = true ]; then
         if [ "$USE_NIGHTLY" = true ]; then
             # Blackwell 使用最新版 torchao 和 transformers
             echo "    Blackwell GPU: 升级到最新版 torchao 和 transformers..."
-            $PIP install --upgrade torchao transformers
+            $PIP install --upgrade torchao transformers $PIP_INDEX_ARGS
         else
             # 旧架构使用 torchao 0.7.x + transformers 4.44.x
             TORCHAO_VER=$($PYTHON -c "import torchao; print(torchao.__version__)" 2>/dev/null || echo "none")
             if [[ "$TORCHAO_VER" != 0.7* ]]; then
                 echo "    安装 torchao${TORCHAO_VERSION} (兼容 PyTorch 2.5.x)..."
-                $PIP install torchao${TORCHAO_VERSION} -q
+                $PIP install torchao${TORCHAO_VERSION} $PIP_INDEX_ARGS -q
             fi
             
             # 检查并安装 transformers 4.44.x（兼容 torchao 0.7.x）
             TRANSFORMERS_VER=$($PYTHON -c "import transformers; print(transformers.__version__)" 2>/dev/null || echo "none")
             if [[ "$TRANSFORMERS_VER" != 4.44* ]] && [[ "$TRANSFORMERS_VER" != 4.43* ]] && [[ "$TRANSFORMERS_VER" != 4.42* ]]; then
                 echo "    安装 transformers${TRANSFORMERS_VERSION} (兼容 torchao 0.7.x)..."
-                $PIP install transformers${TRANSFORMERS_VERSION} -q
+                $PIP install transformers${TRANSFORMERS_VERSION} $PIP_INDEX_ARGS -q
             fi
         fi
         
@@ -398,8 +422,8 @@ if [ "$NEED_INSTALL" = true ]; then
     if ! $PYTHON -c "import torch, diffusers, fastapi" 2>/dev/null; then
         echo "⚠️  检测到导入问题，尝试修复..."
         echo "   重新安装 diffusers..."
-        $PIP install --force-reinstall git+https://github.com/huggingface/diffusers.git -q || \
-        $PIP install --force-reinstall "diffusers>=0.32.0" -q
+        $PIP install --force-reinstall git+https://github.com/huggingface/diffusers.git $PIP_INDEX_ARGS -q || \
+        $PIP install --force-reinstall "diffusers>=0.32.0" $PIP_INDEX_ARGS -q
     else
         echo "✓ 所有包导入正常"
     fi
