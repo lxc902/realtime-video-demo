@@ -179,11 +179,9 @@ fi
 if [ "$USE_CHINA_MIRROR" = true ]; then
     PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
     PIP_INDEX_ARGS="-i $PIP_INDEX_URL --trusted-host pypi.tuna.tsinghua.edu.cn"
-    GITHUB_PROXY="https://ghproxy.com/"
-    echo "🇨🇳 使用中国镜像源 (清华 + ghproxy)"
+    echo "🇨🇳 使用中国镜像源 (清华)"
 else
     PIP_INDEX_ARGS=""
-    GITHUB_PROXY=""
 fi
 
 echo ""
@@ -324,14 +322,20 @@ if [ "$NEED_INSTALL" = true ]; then
     fi
     
     if ! check_package diffusers; then
-        echo "  - Installing Diffusers (from source)..."
-        # 先尝试安装最新版本
-        $PIP install git+${GITHUB_PROXY}https://github.com/huggingface/diffusers.git $PIP_INDEX_ARGS -q
-        
-        # 验证安装，如果失败则尝试稳定版本
-        if ! $PYTHON -c "import diffusers" 2>/dev/null; then
-            echo "    ⚠️  最新版本安装失败，尝试稳定版本..."
-            $PIP install --force-reinstall "diffusers>=0.32.0" $PIP_INDEX_ARGS -q
+        if [ "$USE_CHINA_MIRROR" = true ]; then
+            # 中国镜像：直接从 PyPI 安装稳定版（避免 GitHub 网络问题）
+            echo "  - Installing Diffusers (from PyPI)..."
+            $PIP install "diffusers>=0.32.0" $PIP_INDEX_ARGS -q
+        else
+            echo "  - Installing Diffusers (from source)..."
+            # 先尝试安装最新版本
+            $PIP install git+https://github.com/huggingface/diffusers.git -q
+            
+            # 验证安装，如果失败则尝试稳定版本
+            if ! $PYTHON -c "import diffusers" 2>/dev/null; then
+                echo "    ⚠️  最新版本安装失败，尝试稳定版本..."
+                $PIP install --force-reinstall "diffusers>=0.32.0" -q
+            fi
         fi
     fi
     
@@ -424,7 +428,6 @@ if [ "$NEED_INSTALL" = true ]; then
     if ! $PYTHON -c "import torch, diffusers, fastapi" 2>/dev/null; then
         echo "⚠️  检测到导入问题，尝试修复..."
         echo "   重新安装 diffusers..."
-        $PIP install --force-reinstall git+${GITHUB_PROXY}https://github.com/huggingface/diffusers.git $PIP_INDEX_ARGS -q || \
         $PIP install --force-reinstall "diffusers>=0.32.0" $PIP_INDEX_ARGS -q
     else
         echo "✓ 所有包导入正常"
