@@ -326,7 +326,7 @@ if [ "$NEED_INSTALL" = true ]; then
     if ! check_package diffusers; then
         echo "  - Installing Diffusers (from source)..."
         # 先尝试安装最新版本
-        $PIP install git+https://github.com/huggingface/diffusers.git $PIP_INDEX_ARGS -q
+        $PIP install git+${GITHUB_PROXY}https://github.com/huggingface/diffusers.git $PIP_INDEX_ARGS -q
         
         # 验证安装，如果失败则尝试稳定版本
         if ! $PYTHON -c "import diffusers" 2>/dev/null; then
@@ -424,7 +424,7 @@ if [ "$NEED_INSTALL" = true ]; then
     if ! $PYTHON -c "import torch, diffusers, fastapi" 2>/dev/null; then
         echo "⚠️  检测到导入问题，尝试修复..."
         echo "   重新安装 diffusers..."
-        $PIP install --force-reinstall git+https://github.com/huggingface/diffusers.git $PIP_INDEX_ARGS -q || \
+        $PIP install --force-reinstall git+${GITHUB_PROXY}https://github.com/huggingface/diffusers.git $PIP_INDEX_ARGS -q || \
         $PIP install --force-reinstall "diffusers>=0.32.0" $PIP_INDEX_ARGS -q
     else
         echo "✓ 所有包导入正常"
