@@ -10,6 +10,7 @@ set -e
 # 解析命令行参数
 SECRET_ID=""
 SECRET_KEY=""
+SKIP_BASE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -21,9 +22,13 @@ while [[ $# -gt 0 ]]; do
             SECRET_KEY="$2"
             shift 2
             ;;
+        --skip-base)
+            SKIP_BASE=true
+            shift
+            ;;
         *)
             echo "未知参数: $1"
-            echo "用法: bash move_gcs_to_cos.sh --ak <SECRET_ID> --sk <SECRET_KEY>"
+            echo "用法: bash move_gcs_to_cos.sh --ak <SECRET_ID> --sk <SECRET_KEY> [--skip-base]"
             exit 1
             ;;
     esac
@@ -106,7 +111,11 @@ download_and_upload() {
 }
 
 # 处理基础模型
-download_and_upload "$GCS_BASE_URL" "$COS_BASE_KEY"
+if [ "$SKIP_BASE" = true ]; then
+    echo "⏭️  跳过基础模型 (--skip-base)"
+else
+    download_and_upload "$GCS_BASE_URL" "$COS_BASE_KEY"
+fi
 
 # 处理 FP8 模型
 download_and_upload "$GCS_FP8_URL" "$COS_FP8_KEY"
