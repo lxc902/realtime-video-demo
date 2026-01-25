@@ -11,6 +11,7 @@ set -e
 SECRET_ID=""
 SECRET_KEY=""
 SKIP_BASE=false
+SKIP_DOWNLOADS=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -26,9 +27,13 @@ while [[ $# -gt 0 ]]; do
             SKIP_BASE=true
             shift
             ;;
+        --skip-downloads)
+            SKIP_DOWNLOADS=true
+            shift
+            ;;
         *)
             echo "未知参数: $1"
-            echo "用法: bash move_gcs_to_cos.sh --ak <SECRET_ID> --sk <SECRET_KEY> [--skip-base]"
+            echo "用法: bash move_gcs_to_cos.sh --ak <SECRET_ID> --sk <SECRET_KEY> [--skip-base] [--skip-downloads]"
             exit 1
             ;;
     esac
@@ -79,10 +84,17 @@ download_and_upload() {
     echo "==========================================="
     echo "处理: $filename"
     echo "==========================================="
+    echo "📂 本地文件路径: $local_file"
     
     # 下载
-    if [ -f "$local_file" ]; then
-        echo "⏭️  文件已存在，跳过下载: $local_file"
+    if [ "$SKIP_DOWNLOADS" = true ]; then
+        echo "⏭️  跳过下载 (--skip-downloads)"
+        if [ ! -f "$local_file" ]; then
+            echo "❌ 错误: 文件不存在 $local_file"
+            exit 1
+        fi
+    elif [ -f "$local_file" ]; then
+        echo "⏭️  文件已存在，跳过下载"
     else
         echo "📥 从 GCS 下载..."
         echo "   URL: $url"
