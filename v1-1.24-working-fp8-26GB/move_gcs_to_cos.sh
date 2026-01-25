@@ -45,7 +45,9 @@ echo ""
 GCS_BASE_URL="https://storage.googleapis.com/lxcpublic/krea-models-base-6b5d204f.tar.gz"
 GCS_FP8_URL="https://storage.googleapis.com/lxcpublic/krea-models-fp8-f0c953ce.tar.gz"
 
-# COS 目标路径
+# COS 配置
+COS_BUCKET="rtcos-1394285684"
+COS_REGION="ap-nanjing"
 COS_BASE_KEY="models/krea-models-base-6b5d204f.tar.gz"
 COS_FP8_KEY="models/krea-models-fp8-f0c953ce.tar.gz"
 
@@ -53,54 +55,13 @@ COS_FP8_KEY="models/krea-models-fp8-f0c953ce.tar.gz"
 TEMP_DIR="./tmp/gcs_download"
 mkdir -p "$TEMP_DIR"
 
-# 安装依赖
-echo "📦 检查 Python 依赖..."
-pip install -q cos-python-sdk-v5
+# 安装 coscmd
+echo "📦 检查 coscmd..."
+pip install -q coscmd
 
-# 上传到 COS 函数 (内联 Python)
-upload_to_cos() {
-    local local_file=$1
-    local cos_key=$2
-    
-    python3 << EOF
-from qcloud_cos import CosConfig, CosS3Client
-import os
-
-# ========= COS 配置 =========
-SECRET_ID = "$SECRET_ID"
-SECRET_KEY = "$SECRET_KEY"
-REGION = "ap-nanjing"
-BUCKET = "rtcos-1394285684"
-# ============================
-
-local_path = "$local_file"
-cos_key = "$cos_key"
-
-file_size = os.path.getsize(local_path) / (1024 * 1024 * 1024)
-print(f"📤 上传文件: {local_path}")
-print(f"   大小: {file_size:.2f} GB")
-print(f"   目标: cos://{BUCKET}/{cos_key}")
-
-config = CosConfig(
-    Region=REGION,
-    SecretId=SECRET_ID,
-    SecretKey=SECRET_KEY,
-    Scheme="https"
-)
-client = CosS3Client(config)
-
-resp = client.upload_file(
-    Bucket=BUCKET,
-    LocalFilePath=local_path,
-    Key=cos_key,
-    PartSize=100,
-    MAXThread=10,
-    EnableMD5=False
-)
-
-print(f"✅ 上传成功, ETag = {resp.get('ETag')}")
-EOF
-}
+# 配置 coscmd
+echo "🔧 配置 coscmd..."
+coscmd config -a "$SECRET_ID" -s "$SECRET_KEY" -b "$COS_BUCKET" -r "$COS_REGION"
 
 # 下载并上传函数
 download_and_upload() {
@@ -133,10 +94,13 @@ download_and_upload() {
         echo "✅ 下载完成"
     fi
     
-    # 上传到 COS
+    # 上传到 COS（使用 coscmd，有进度显示）
     echo ""
     echo "📤 上传到 COS..."
-    upload_to_cos "$local_file" "$cos_key"
+    echo "   本地: $local_file"
+    echo "   目标: cos://$COS_BUCKET/$cos_key"
+    
+    coscmd upload "$local_file" "$cos_key"
     
     echo "✅ 完成: $filename"
 }
@@ -152,8 +116,12 @@ echo "==========================================="
 echo "✅ 全部完成!"
 echo ""
 echo "COS 文件:"
-echo "  - cos://$COS_BASE_KEY"
-echo "  - cos://$COS_FP8_KEY"
+echo "  - cos://$COS_BUCKET/$COS_BASE_KEY"
+echo "  - cos://$COS_BUCKET/$COS_FP8_KEY"
+echo ""
+echo "公开访问 URL:"
+echo "  - https://$COS_BUCKET.cos.$COS_REGION.myqcloud.com/$COS_BASE_KEY"
+echo "  - https://$COS_BUCKET.cos.$COS_REGION.myqcloud.com/$COS_FP8_KEY"
 echo "==========================================="
 
 # 可选：清理临时文件

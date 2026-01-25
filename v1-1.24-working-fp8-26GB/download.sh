@@ -7,22 +7,38 @@ echo "下载 KREA 模型"
 echo "==========================================="
 echo ""
 
-# 配置 - GCS 备份 URL（使用版本号命名）
-# 格式: krea-models-base-{commit_hash前8位}.tar.gz
-GCS_BASE_URL="https://storage.googleapis.com/lxcpublic/krea-models-base-6b5d204f.tar.gz"
-GCS_FP8_URL=""  # FP8 模型 URL，留空则跳过
-
-TARGET_DIR="./tmp/.hf_home/hub"
-
 # 解析参数
 DOWNLOAD_FP8=false
+USE_CHINA_MIRROR=false
+
 for arg in "$@"; do
     case $arg in
         --fp8)
             DOWNLOAD_FP8=true
             ;;
+        --cn)
+            USE_CHINA_MIRROR=true
+            ;;
     esac
 done
+
+# 配置下载源
+if [ "$USE_CHINA_MIRROR" = true ]; then
+    # 腾讯云 COS（中国源）
+    BASE_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/krea-models-base-6b5d204f.tar.gz"
+    FP8_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/krea-models-fp8-f0c953ce.tar.gz"
+    SOURCE_NAME="COS (中国)"
+else
+    # Google Cloud Storage（海外源）
+    BASE_URL="https://storage.googleapis.com/lxcpublic/krea-models-base-6b5d204f.tar.gz"
+    FP8_URL="https://storage.googleapis.com/lxcpublic/krea-models-fp8-f0c953ce.tar.gz"
+    SOURCE_NAME="GCS"
+fi
+
+echo "📡 下载源: $SOURCE_NAME"
+echo ""
+
+TARGET_DIR="./tmp/.hf_home/hub"
 
 # 获取本地模型版本
 get_local_version() {
@@ -100,11 +116,11 @@ mkdir -p $TARGET_DIR
 
 # 下载基础模型
 BASE_MODEL_DIR="$TARGET_DIR/models--krea--krea-realtime-video"
-if [ -n "$GCS_BASE_URL" ]; then
-    download_model "$GCS_BASE_URL" "基础模型" "$BASE_MODEL_DIR" || echo "   将在运行时从 HuggingFace 下载"
+if [ -n "$BASE_URL" ]; then
+    download_model "$BASE_URL" "基础模型" "$BASE_MODEL_DIR" || echo "   将在运行时从 HuggingFace 下载"
 else
     if [ ! -d "$BASE_MODEL_DIR" ]; then
-        echo "⚠️  基础模型 GCS URL 未配置，将从 HuggingFace 下载"
+        echo "⚠️  基础模型 URL 未配置，将从 HuggingFace 下载"
     else
         echo "✅ 基础模型已存在"
     fi
@@ -115,11 +131,11 @@ echo ""
 # 下载 FP8 模型（如果指定 --fp8）
 if [ "$DOWNLOAD_FP8" = true ]; then
     FP8_MODEL_DIR="$TARGET_DIR/models--6chan--krea-realtime-video-fp8"
-    if [ -n "$GCS_FP8_URL" ]; then
-        download_model "$GCS_FP8_URL" "FP8 模型" "$FP8_MODEL_DIR" || echo "   将在运行时从 HuggingFace 下载"
+    if [ -n "$FP8_URL" ]; then
+        download_model "$FP8_URL" "FP8 模型" "$FP8_MODEL_DIR" || echo "   将在运行时从 HuggingFace 下载"
     else
         if [ ! -d "$FP8_MODEL_DIR" ]; then
-            echo "⚠️  FP8 模型 GCS URL 未配置，将从 HuggingFace 下载"
+            echo "⚠️  FP8 模型 URL 未配置，将从 HuggingFace 下载"
         else
             echo "✅ FP8 模型已存在"
         fi
