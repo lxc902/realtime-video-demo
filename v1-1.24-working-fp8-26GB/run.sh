@@ -141,10 +141,10 @@ echo "✓ GPU 架构: $GPU_ARCH"
 if [ "$GPU_ARCH" = "blackwell" ]; then
     echo "⚠️  检测到 Blackwell 架构 GPU，将使用 PyTorch nightly (CUDA 12.8)"
     # Blackwell (sm_120) 需要 CUDA 12.8+，cu126 不够
+    # 注意：nightly 版本国内镜像通常没有，必须使用官方源
+    PYTORCH_INDEX_URL="https://download.pytorch.org/whl/nightly/cu128"
     if [ "$USE_CHINA_MIRROR" = true ]; then
-        PYTORCH_INDEX_URL="https://mirrors.tuna.tsinghua.edu.cn/pytorch-wheels/nightly/cu128"
-    else
-        PYTORCH_INDEX_URL="https://download.pytorch.org/whl/nightly/cu128"
+        echo "   ⚠️  PyTorch nightly 需使用官方源（国内镜像无 nightly）"
     fi
     TORCHAO_VERSION=""  # 使用最新版
     TRANSFORMERS_VERSION=""  # 使用最新版
