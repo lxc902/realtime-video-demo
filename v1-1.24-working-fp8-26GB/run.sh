@@ -33,7 +33,7 @@ if [ -n "$QUANTIZATION" ]; then
     echo "Quantization: ${QUANTIZATION^^}"
 fi
 if [ "$USE_CHINA_MIRROR" = true ]; then
-    echo "Mirror: China (Aliyun)"
+    echo "Mirror: China (Tsinghua)"
 fi
 echo "================================="
 echo ""
@@ -142,7 +142,7 @@ if [ "$GPU_ARCH" = "blackwell" ]; then
     echo "⚠️  检测到 Blackwell 架构 GPU，将使用 PyTorch nightly (CUDA 12.8)"
     # Blackwell (sm_120) 需要 CUDA 12.8+，cu126 不够
     if [ "$USE_CHINA_MIRROR" = true ]; then
-        PYTORCH_INDEX_URL="https://mirrors.aliyun.com/pytorch-wheels/nightly/cu128"
+        PYTORCH_INDEX_URL="https://mirrors.tuna.tsinghua.edu.cn/pytorch-wheels/nightly/cu128"
     else
         PYTORCH_INDEX_URL="https://download.pytorch.org/whl/nightly/cu128"
     fi
@@ -165,7 +165,7 @@ if [ "$GPU_ARCH" = "blackwell" ]; then
 else
     # Ada, Hopper, Ampere 等使用稳定版
     if [ "$USE_CHINA_MIRROR" = true ]; then
-        PYTORCH_INDEX_URL="https://mirrors.aliyun.com/pytorch-wheels/cu121"
+        PYTORCH_INDEX_URL="https://mirrors.tuna.tsinghua.edu.cn/pytorch-wheels/cu121"
     else
         PYTORCH_INDEX_URL="https://download.pytorch.org/whl/cu121"
     fi
@@ -177,9 +177,9 @@ fi
 
 # 设置 pip 镜像源
 if [ "$USE_CHINA_MIRROR" = true ]; then
-    PIP_INDEX_URL="https://mirrors.aliyun.com/pypi/simple/"
-    PIP_INDEX_ARGS="-i $PIP_INDEX_URL --trusted-host mirrors.aliyun.com"
-    echo "🇨🇳 使用中国镜像源 (阿里云)"
+    PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
+    PIP_INDEX_ARGS="-i $PIP_INDEX_URL --trusted-host pypi.tuna.tsinghua.edu.cn"
+    echo "🇨🇳 使用中国镜像源 (清华)"
 else
     PIP_INDEX_ARGS=""
 fi
