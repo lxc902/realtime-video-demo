@@ -209,30 +209,30 @@ else
     echo "  ✓ PyTorch"
 fi
 
-# 如果本地有 githubrefs/diffusers，总是使用本地版本
-    LOCAL_DIFFUSERS="$SCRIPT_DIR/../githubrefs/diffusers"
-    if [ -d "$LOCAL_DIFFUSERS" ]; then
-        DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "none")
-        if [[ "$DIFFUSERS_VER" == "0.33"* ]]; then
-            echo "  ✓ Diffusers ($DIFFUSERS_VER) - 本地版本"
-        else
-            echo "  ⚠️  Diffusers ($DIFFUSERS_VER) - 将安装本地 0.33.x"
-            NEED_INSTALL=true
-        fi
-    elif ! check_package diffusers; then
-        echo "  ❌ Diffusers not found"
-        NEED_INSTALL=true
-    else
-        DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "unknown")
-        echo "  ✓ Diffusers ($DIFFUSERS_VER)"
-    fi
-    
-    # 检查 huggingface-hub 版本（transformers 需要 <1.0）
-    HF_HUB_VER=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "0")
-    if [[ "$HF_HUB_VER" == 1.* ]]; then
-        echo "  ⚠️  huggingface-hub ($HF_HUB_VER) - 需要 <1.0"
-        NEED_INSTALL=true
-    fi
+# 检查 diffusers 版本（需要 0.33.x，对应 commit e8e88ff）
+LOCAL_DIFFUSERS="$SCRIPT_DIR/../githubrefs/diffusers"
+DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "none")
+if [[ "$DIFFUSERS_VER" == "0.33"* ]]; then
+    echo "  ✓ Diffusers ($DIFFUSERS_VER)"
+elif [ -d "$LOCAL_DIFFUSERS" ]; then
+    echo "  ⚠️  Diffusers ($DIFFUSERS_VER) - 将安装本地 0.33.x"
+    NEED_INSTALL=true
+elif [ "$DIFFUSERS_VER" == "none" ]; then
+    echo "  ❌ Diffusers not found"
+    NEED_INSTALL=true
+else
+    echo "  ⚠️  Diffusers ($DIFFUSERS_VER) - 需要 0.33.x"
+    NEED_INSTALL=true
+fi
+
+# 检查 huggingface-hub 版本（需要 0.36.0，和 requirements.txt 一致）
+HF_HUB_VER=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "0")
+if [[ "$HF_HUB_VER" != "0.36.0" ]]; then
+    echo "  ⚠️  huggingface-hub ($HF_HUB_VER) - 需要 0.36.0"
+    NEED_INSTALL=true
+else
+    echo "  ✓ huggingface-hub ($HF_HUB_VER)"
+fi
 
 if ! check_package fastapi; then
     echo "  ❌ FastAPI not found"
@@ -345,36 +345,23 @@ if [ "$NEED_INSTALL" = true ]; then
         fi
     fi
     
-    # 先确保 huggingface-hub 版本兼容（transformers 需要 <1.0）
+    # 确保 huggingface-hub 版本为 0.36.0（和 requirements.txt 一致）
     HF_HUB_VER=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "0")
-    if [[ "$HF_HUB_VER" == 1.* ]]; then
-        echo "  - 降级 huggingface-hub (transformers 需要 <1.0)..."
-        $PIP install "huggingface-hub<1.0,>=0.34.0" $PIP_INDEX_ARGS -q
+    if [[ "$HF_HUB_VER" != "0.36.0" ]]; then
+        echo "  - Installing huggingface-hub==0.36.0..."
+        $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
     fi
     
-    # 检查 diffusers 版本（模型需要特定 commit: e8e88ff）
-    DIFFUSERS_OK=false
-    if check_package diffusers; then
-        DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "unknown")
-        # 检查是否是 0.33.x 开发版
-        if [[ "$DIFFUSERS_VER" == "0.33"* ]]; then
-            DIFFUSERS_OK=true
-        else
-            echo "  ⚠️  Diffusers 版本不匹配: $DIFFUSERS_VER (需要 0.33.x)"
-        fi
-    fi
-    
-    if [ "$DIFFUSERS_OK" = false ]; then
-        # 优先从本地 githubrefs 安装（避免网络问题）
+    # 安装 diffusers（需要 0.33.x，对应 commit e8e88ff）
+    DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "none")
+    if [[ "$DIFFUSERS_VER" != "0.33"* ]]; then
+        # 优先从本地 githubrefs 安装（无论 --cn 与否）
         LOCAL_DIFFUSERS="$SCRIPT_DIR/../githubrefs/diffusers"
         if [ -d "$LOCAL_DIFFUSERS" ]; then
-            echo "  - Installing Diffusers (from local githubrefs)..."
+            echo "  - Installing Diffusers 0.33.x (from local githubrefs)..."
             $PIP install --force-reinstall "$LOCAL_DIFFUSERS" $PIP_INDEX_ARGS -q
-        elif [ "$USE_CHINA_MIRROR" = true ]; then
-            echo "  - Installing Diffusers (from Gitee)..."
-            $PIP install --force-reinstall git+https://gitee.com/mirrors/diffusers.git $PIP_INDEX_ARGS -q
         else
-            echo "  - Installing Diffusers (from GitHub)..."
+            echo "  - Installing Diffusers (from GitHub commit e8e88ff)..."
             $PIP install --force-reinstall git+https://github.com/huggingface/diffusers.git@e8e88ff -q
         fi
     fi
