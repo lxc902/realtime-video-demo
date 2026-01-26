@@ -394,17 +394,11 @@ torchvision-0.25.0.dev20260126+cu128-cp312-cp312-manylinux_2_28_x86_64.whl"
                 fi
             fi
             
-            # 先从本地安装 PyTorch 其他依赖
-            if [ -d "$SCRIPT_DIR/vendor/wheels" ]; then
-                $PIP install --no-index --find-links="$SCRIPT_DIR/vendor/wheels" \
-                    filelock typing-extensions sympy networkx jinja2 fsspec mpmath markupsafe -q 2>/dev/null || true
-            fi
-            
             # 安装 PyTorch nightly
             PYTORCH_NIGHTLY_VERSION="2.11.0.dev20260126"
             if [ "$USE_CHINA_MIRROR" = true ] && [ -d "$PYTORCH_WHEELS_DIR" ]; then
-                # 中国镜像：先安装网络依赖（setuptools, numpy），再从本地 wheels 安装
-                $PIP install setuptools numpy pillow $PIP_INDEX_ARGS -q
+                # 中国镜像：先从阿里云安装所有网络依赖
+                $PIP install setuptools numpy pillow filelock typing-extensions sympy networkx jinja2 fsspec mpmath markupsafe $PIP_INDEX_ARGS -q
                 echo "  - 从本地 wheels 安装 PyTorch nightly..."
                 $PIP install --no-index --find-links="$PYTORCH_WHEELS_DIR" --find-links="$SPECIAL_WHEELS_DIR" \
                     torch torchvision torchaudio
