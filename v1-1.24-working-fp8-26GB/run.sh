@@ -209,18 +209,22 @@ else
     echo "  ✓ PyTorch"
 fi
 
-if ! check_package diffusers; then
+# 如果本地有 githubrefs/diffusers，总是使用本地版本
+    LOCAL_DIFFUSERS="$SCRIPT_DIR/../githubrefs/diffusers"
+    if [ -d "$LOCAL_DIFFUSERS" ]; then
+        DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "none")
+        if [[ "$DIFFUSERS_VER" == "0.33"* ]]; then
+            echo "  ✓ Diffusers ($DIFFUSERS_VER) - 本地版本"
+        else
+            echo "  ⚠️  Diffusers ($DIFFUSERS_VER) - 将安装本地 0.33.x"
+            NEED_INSTALL=true
+        fi
+    elif ! check_package diffusers; then
         echo "  ❌ Diffusers not found"
         NEED_INSTALL=true
     else
         DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "unknown")
-        # 检查是否是 0.33.x（需要的版本）
-        if [[ "$DIFFUSERS_VER" == "0.33"* ]]; then
-            echo "  ✓ Diffusers ($DIFFUSERS_VER)"
-        else
-            echo "  ⚠️  Diffusers ($DIFFUSERS_VER) - 需要 0.33.x"
-            NEED_INSTALL=true
-        fi
+        echo "  ✓ Diffusers ($DIFFUSERS_VER)"
     fi
     
     # 检查 huggingface-hub 版本（transformers 需要 <1.0）
