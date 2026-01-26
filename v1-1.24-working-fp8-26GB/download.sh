@@ -27,8 +27,7 @@ if [ "$USE_CHINA_MIRROR" = true ]; then
     # 腾讯云 COS（中国源）
     BASE_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/krea-models-base-6b5d204f.tar.gz"
     FP8_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/krea-models-fp8-f0c953ce.tar.gz"
-    TEXT_ENCODER_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/wan-text-encoder.tar.gz"
-    # 注：COS 上使用固定名称，不含版本号（简化管理）
+    TEXT_ENCODER_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/wan-ai-models.tar.gz"
     SOURCE_NAME="COS (中国)"
 else
     # Google Cloud Storage（海外源）
@@ -145,21 +144,21 @@ if [ "$DOWNLOAD_FP8" = true ]; then
     fi
 fi
 
-# 下载 Text Encoder（Wan-AI）- 注意：存放在 transformers 目录
-TEXT_ENCODER_TRANSFORMERS_DIR="./tmp/.hf_home/transformers/models--Wan-AI--Wan2.1-T2V-14B-Diffusers"
-TEXT_ENCODER_HUB_DIR="$TARGET_DIR/models--Wan-AI--Wan2.1-T2V-14B-Diffusers"
+# 下载 Wan-AI 模型（Text Encoder + VAE）
+# Text Encoder 在 transformers 目录，VAE 在 hub 目录
+WAN_AI_TRANSFORMERS_DIR="./tmp/.hf_home/transformers/models--Wan-AI--Wan2.1-T2V-14B-Diffusers"
+WAN_AI_HUB_DIR="$TARGET_DIR/models--Wan-AI--Wan2.1-T2V-14B-Diffusers"
 
-# 检查 text_encoder 是否完整（至少需要 10GB）
-TEXT_ENCODER_SIZE_T=$(du -sm "$TEXT_ENCODER_TRANSFORMERS_DIR" 2>/dev/null | cut -f1 || echo "0")
-TEXT_ENCODER_SIZE_H=$(du -sm "$TEXT_ENCODER_HUB_DIR" 2>/dev/null | cut -f1 || echo "0")
+# 检查是否完整（transformers 目录至少 10GB）
+WAN_AI_SIZE_T=$(du -sm "$WAN_AI_TRANSFORMERS_DIR" 2>/dev/null | cut -f1 || echo "0")
 
-if [ "$TEXT_ENCODER_SIZE_T" -lt 10000 ] && [ "$TEXT_ENCODER_SIZE_H" -lt 10000 ]; then
+if [ "$WAN_AI_SIZE_T" -lt 10000 ]; then
     if [ -n "$TEXT_ENCODER_URL" ]; then
         echo ""
-        echo "📥 下载 Text Encoder (Wan-AI)..."
+        echo "📥 下载 Wan-AI 模型 (Text Encoder + VAE)..."
         echo "   URL: $TEXT_ENCODER_URL"
         
-        temp_file="./tmp/wan-text-encoder-temp.tar.gz"
+        temp_file="./tmp/wan-ai-models-temp.tar.gz"
         success=false
         
         if command -v wget &> /dev/null; then
@@ -170,23 +169,19 @@ if [ "$TEXT_ENCODER_SIZE_T" -lt 10000 ] && [ "$TEXT_ENCODER_SIZE_H" -lt 10000 ];
         
         if [ "$success" = true ]; then
             echo "   ✅ 下载成功"
-            echo "   📦 解压到 transformers 缓存..."
-            mkdir -p ./tmp/.hf_home/transformers
-            tar -xzf "$temp_file" -C ./tmp/.hf_home/transformers
+            echo "   📦 解压中..."
+            # 解压到 .hf_home 目录（包含 hub/ 和 transformers/ 子目录）
+            tar -xzf "$temp_file" -C ./tmp/.hf_home
             rm -f "$temp_file"
             echo "   ✅ 完成"
         else
             echo "   ⚠️  下载失败，将在运行时从 HuggingFace 下载"
         fi
     else
-        echo "⚠️  Text Encoder 不完整，将在运行时从 HuggingFace 下载"
+        echo "⚠️  Wan-AI 模型不完整，将在运行时从 HuggingFace 下载"
     fi
 else
-    if [ "$TEXT_ENCODER_SIZE_T" -gt 10000 ]; then
-        echo "✅ Text Encoder 已存在 (transformers: ${TEXT_ENCODER_SIZE_T}MB)"
-    else
-        echo "✅ Text Encoder 已存在 (hub: ${TEXT_ENCODER_SIZE_H}MB)"
-    fi
+    echo "✅ Wan-AI 模型已存在 (${WAN_AI_SIZE_T}MB)"
 fi
 
 echo ""

@@ -190,24 +190,48 @@ if [ "$HAS_FP8" = true ]; then
     upload_model "FP8 模型" "$FP8_BACKUP" "models--6chan--krea-realtime-video-fp8"
 fi
 
-# 上传 Text Encoder（单独打包，约 20GB）
+# 上传 Wan-AI 模型（Text Encoder + VAE，约 20GB）
+# Text Encoder 在 transformers/ 目录，VAE 在 hub/ 目录，需要都打包
 if [ "$HAS_TEXT_ENCODER" = true ]; then
-    TEXT_ENCODER_BACKUP="wan-text-encoder-${TEXT_ENCODER_VERSION}.tar.gz"
+    WAN_AI_BACKUP="wan-ai-models-${TEXT_ENCODER_VERSION}.tar.gz"
     
-    if [ "$TEXT_ENCODER_LOCATION" = "transformers" ]; then
-        # 从 transformers 目录打包
-        echo "📦 打包 Text Encoder (from transformers cache)..."
-        echo "   目标: $BUCKET/$TEXT_ENCODER_BACKUP"
-        cd ./tmp/.hf_home/transformers
-        tar -czf - "models--Wan-AI--Wan2.1-T2V-14B-Diffusers" \
-            | gsutil -o GSUtil:parallel_composite_upload_threshold=150M \
-                     cp - $BUCKET/$TEXT_ENCODER_BACKUP
-        cd - > /dev/null
-        echo "   ✅ 上传成功"
-        echo "   📥 https://storage.googleapis.com/lxcpublic/$TEXT_ENCODER_BACKUP"
+    echo "📦 打包 Wan-AI 模型 (Text Encoder + VAE)..."
+    echo "   目标: $BUCKET/$WAN_AI_BACKUP"
+    
+    # 检查是否已存在
+    if [ "$FORCE_UPLOAD" = false ] && check_gcs_exists "$WAN_AI_BACKUP"; then
+        echo "✅ Wan-AI 模型已存在于 GCS，跳过上传"
+        echo "   📥 https://storage.googleapis.com/lxcpublic/$WAN_AI_BACKUP"
     else
-        # 从 hub 目录打包
-        upload_model "Text Encoder" "$TEXT_ENCODER_BACKUP" "models--Wan-AI--Wan2.1-T2V-14B-Diffusers"
+        # 创建临时目录结构并打包
+        TEMP_PACK_DIR="./tmp/wan_ai_pack"
+        rm -rf "$TEMP_PACK_DIR"
+        mkdir -p "$TEMP_PACK_DIR/hub" "$TEMP_PACK_DIR/transformers"
+        
+        # 复制 hub 目录（VAE）
+        if [ -d "$MODEL_DIR/models--Wan-AI--Wan2.1-T2V-14B-Diffusers" ]; then
+            cp -r "$MODEL_DIR/models--Wan-AI--Wan2.1-T2V-14B-Diffusers" "$TEMP_PACK_DIR/hub/"
+            echo "   ✓ 包含 hub/VAE"
+        fi
+        
+        # 复制 transformers 目录（Text Encoder）
+        if [ -d "./tmp/.hf_home/transformers/models--Wan-AI--Wan2.1-T2V-14B-Diffusers" ]; then
+            cp -r "./tmp/.hf_home/transformers/models--Wan-AI--Wan2.1-T2V-14B-Diffusers" "$TEMP_PACK_DIR/transformers/"
+            echo "   ✓ 包含 transformers/Text Encoder"
+        fi
+        
+        # 打包并上传
+        cd "$TEMP_PACK_DIR"
+        tar -czf - hub transformers \
+            | gsutil -o GSUtil:parallel_composite_upload_threshold=150M \
+                     cp - $BUCKET/$WAN_AI_BACKUP
+        cd - > /dev/null
+        
+        # 清理临时目录
+        rm -rf "$TEMP_PACK_DIR"
+        
+        echo "   ✅ 上传成功"
+        echo "   📥 https://storage.googleapis.com/lxcpublic/$WAN_AI_BACKUP"
     fi
 fi
 
