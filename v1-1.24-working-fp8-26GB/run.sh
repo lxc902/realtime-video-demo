@@ -47,6 +47,12 @@ export HF_HOME="$SCRIPT_DIR/tmp/.hf_home"
 export HUGGINGFACE_HUB_CACHE="$SCRIPT_DIR/tmp/.hf_home/hub"
 export TRANSFORMERS_CACHE="$SCRIPT_DIR/tmp/.hf_home/transformers"
 
+# 如果使用中国镜像，启用离线模式（避免连接 HuggingFace）
+if [ "$USE_CHINA_MIRROR" = true ]; then
+    export HF_HUB_OFFLINE=1
+    export TRANSFORMERS_OFFLINE=1
+fi
+
 # PyTorch CUDA 内存优化
 export PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True,garbage_collection_threshold:0.6"
 
