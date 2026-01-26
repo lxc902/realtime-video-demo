@@ -327,8 +327,10 @@ if [ "$NEED_INSTALL" = true ]; then
                 COS_WHEELS_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/pypi/wheels"
                 NVIDIA_WHEELS_DIR="$SCRIPT_DIR/vendor/nvidia_wheels"
                 
-                if [ ! -d "$NVIDIA_WHEELS_DIR" ] || [ -z "$(ls -A $NVIDIA_WHEELS_DIR 2>/dev/null)" ]; then
-                    echo "  - 从 COS 下载 NVIDIA 依赖..."
+                # 检查是否有足够的 wheel 文件（应该有 13 个）
+                WHEEL_COUNT=$(ls -1 "$NVIDIA_WHEELS_DIR"/*.whl 2>/dev/null | wc -l)
+                if [ "$WHEEL_COUNT" -lt 13 ]; then
+                    echo "  - 从 COS 下载 NVIDIA 依赖 (已有 $WHEEL_COUNT/13)..."
                     mkdir -p "$NVIDIA_WHEELS_DIR"
                     
                     NVIDIA_PKGS="nvidia_cuda_nvrtc_cu12-12.9.86-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl
