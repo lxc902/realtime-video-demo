@@ -28,7 +28,7 @@ for arg in "$@"; do
 done
 
 echo "================================="
-echo "KREA Realtime Video - Local GPU"
+echo "KREA Realtime Video v2 - Streaming"
 if [ -n "$QUANTIZATION" ]; then
     echo "Quantization: ${QUANTIZATION^^}"
 fi
@@ -459,4 +459,4 @@ echo "================================="
 echo ""
 
 # Run the server
-$PYTHON -m uvicorn app_local:app --host 0.0.0.0 --port 7860
+$PYTHON -m uvicorn app:app --host 0.0.0.0 --port 7860
