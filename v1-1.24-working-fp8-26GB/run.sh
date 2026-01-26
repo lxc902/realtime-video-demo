@@ -47,10 +47,9 @@ export HF_HOME="$SCRIPT_DIR/tmp/.hf_home"
 export HUGGINGFACE_HUB_CACHE="$SCRIPT_DIR/tmp/.hf_home/hub"
 export TRANSFORMERS_CACHE="$SCRIPT_DIR/tmp/.hf_home/transformers"
 
-# 如果使用中国镜像，启用离线模式（避免连接 HuggingFace）
+# 如果使用中国镜像，使用 HuggingFace 镜像站点（不能用 OFFLINE 模式，因为 trust_remote_code 需要下载代码）
 if [ "$USE_CHINA_MIRROR" = true ]; then
-    export HF_HUB_OFFLINE=1
-    export TRANSFORMERS_OFFLINE=1
+    export HF_ENDPOINT="https://hf-mirror.com"
 fi
 
 # PyTorch CUDA 内存优化
@@ -209,34 +208,15 @@ else
     echo "  ✓ PyTorch"
 fi
 
-# 检查 diffusers 和 huggingface-hub 版本
+# 检查 diffusers 和 huggingface-hub 版本（0.37.0.dev0 + 0.36.0）
 DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "none")
 HF_HUB_VER=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "none")
 
-if [[ "$DIFFUSERS_VER" == "0.33"* ]] && [[ "$HF_HUB_VER" == "0.36.0" ]]; then
+if [[ "$DIFFUSERS_VER" == "0.37"* ]] && [[ "$HF_HUB_VER" == "0.36.0" ]]; then
     echo "  ✓ Diffusers ($DIFFUSERS_VER)"
     echo "  ✓ huggingface-hub ($HF_HUB_VER)"
 else
-    # 如果安装了错误版本，自动删除 venv 重建
-    if [[ "$DIFFUSERS_VER" != "none" ]] && [[ "$DIFFUSERS_VER" != "0.33"* ]]; then
-        echo "  ⚠️  Diffusers 版本错误 ($DIFFUSERS_VER)，自动重建 venv..."
-        rm -rf "$VENV_DIR"
-        python3 -m venv "$VENV_DIR"
-        source "$VENV_DIR/bin/activate"
-        PYTHON="$VENV_DIR/bin/python3"
-        PIP="$PYTHON -m pip"
-        $PIP install --upgrade pip -q
-    elif [[ "$HF_HUB_VER" != "none" ]] && [[ "$HF_HUB_VER" != "0.36.0" ]]; then
-        echo "  ⚠️  huggingface-hub 版本错误 ($HF_HUB_VER)，自动重建 venv..."
-        rm -rf "$VENV_DIR"
-        python3 -m venv "$VENV_DIR"
-        source "$VENV_DIR/bin/activate"
-        PYTHON="$VENV_DIR/bin/python3"
-        PIP="$PYTHON -m pip"
-        $PIP install --upgrade pip -q
-    else
-        echo "  ⚠️  Diffusers ($DIFFUSERS_VER) / huggingface-hub ($HF_HUB_VER) - 需要安装"
-    fi
+    echo "  ⚠️  Diffusers ($DIFFUSERS_VER) / huggingface-hub ($HF_HUB_VER) - 需要安装"
     NEED_INSTALL=true
 fi
 
@@ -354,11 +334,11 @@ if [ "$NEED_INSTALL" = true ]; then
     # 简化安装：先装 diffusers，再装其他依赖
     LOCAL_DIFFUSERS="$SCRIPT_DIR/../githubrefs/diffusers"
     
-    # Step 1: 安装 diffusers（优先本地，避免 GitHub 访问问题）
+    # Step 1: 安装 diffusers 0.37.0.dev0（commit e8e88ff）
     DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "none")
-    if [[ "$DIFFUSERS_VER" != "0.33"* ]]; then
+    if [[ "$DIFFUSERS_VER" != "0.37"* ]]; then
         if [ -d "$LOCAL_DIFFUSERS" ]; then
-            echo "  - Installing Diffusers 0.33.x (from local)..."
+            echo "  - Installing Diffusers 0.37.x (from local)..."
             $PIP install "$LOCAL_DIFFUSERS" $PIP_INDEX_ARGS -q
         else
             echo "  - Installing Diffusers (from GitHub @e8e88ff)..."
