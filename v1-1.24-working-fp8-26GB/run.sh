@@ -404,12 +404,10 @@ torchvision-0.25.0.dev20260126+cu128-cp312-cp312-manylinux_2_28_x86_64.whl"
             # 安装 PyTorch nightly
             PYTORCH_NIGHTLY_VERSION="2.11.0.dev20260126"
             if [ "$USE_CHINA_MIRROR" = true ] && [ -d "$PYTORCH_WHEELS_DIR" ]; then
-                # 中国镜像：先安装 setuptools（PyTorch 依赖）
-                $PIP install setuptools $PIP_INDEX_ARGS -q
-                # 从本地 wheels 安装 PyTorch
+                # 中国镜像：从本地 wheels 安装 PyTorch，缺失依赖从阿里云补充
                 echo "  - 从本地 wheels 安装 PyTorch nightly..."
-                $PIP install --no-index --find-links="$PYTORCH_WHEELS_DIR" --find-links="$SPECIAL_WHEELS_DIR" \
-                    torch torchvision torchaudio
+                $PIP install --find-links="$PYTORCH_WHEELS_DIR" --find-links="$SPECIAL_WHEELS_DIR" \
+                    $PIP_INDEX_ARGS torch torchvision torchaudio
             else
                 # 非中国镜像：从官方源安装
                 $PIP install "torch==${PYTORCH_NIGHTLY_VERSION}+cu128" "torchvision==0.25.0.dev20260126+cu128" "torchaudio==${PYTORCH_NIGHTLY_VERSION}+cu128" --index-url $PYTORCH_INDEX_URL
