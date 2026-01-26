@@ -217,7 +217,26 @@ if [[ "$DIFFUSERS_VER" == "0.33"* ]] && [[ "$HF_HUB_VER" == "0.36.0" ]]; then
     echo "  ✓ Diffusers ($DIFFUSERS_VER)"
     echo "  ✓ huggingface-hub ($HF_HUB_VER)"
 else
-    echo "  ⚠️  Diffusers ($DIFFUSERS_VER) / huggingface-hub ($HF_HUB_VER) - 需要重装"
+    # 如果安装了错误版本，自动删除 venv 重建
+    if [[ "$DIFFUSERS_VER" != "none" ]] && [[ "$DIFFUSERS_VER" != "0.33"* ]]; then
+        echo "  ⚠️  Diffusers 版本错误 ($DIFFUSERS_VER)，自动重建 venv..."
+        rm -rf "$VENV_DIR"
+        python3 -m venv "$VENV_DIR"
+        source "$VENV_DIR/bin/activate"
+        PYTHON="$VENV_DIR/bin/python3"
+        PIP="$PYTHON -m pip"
+        $PIP install --upgrade pip -q
+    elif [[ "$HF_HUB_VER" != "none" ]] && [[ "$HF_HUB_VER" != "0.36.0" ]]; then
+        echo "  ⚠️  huggingface-hub 版本错误 ($HF_HUB_VER)，自动重建 venv..."
+        rm -rf "$VENV_DIR"
+        python3 -m venv "$VENV_DIR"
+        source "$VENV_DIR/bin/activate"
+        PYTHON="$VENV_DIR/bin/python3"
+        PIP="$PYTHON -m pip"
+        $PIP install --upgrade pip -q
+    else
+        echo "  ⚠️  Diffusers ($DIFFUSERS_VER) / huggingface-hub ($HF_HUB_VER) - 需要安装"
+    fi
     NEED_INSTALL=true
 fi
 
@@ -397,18 +416,8 @@ if [ "$NEED_INSTALL" = true ]; then
     FINAL_DIFFUSERS=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "none")
     FINAL_HF_HUB=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "none")
     
-    if [[ "$FINAL_DIFFUSERS" != "0.33"* ]]; then
-        echo "  ❌ diffusers 版本错误: $FINAL_DIFFUSERS (需要 0.33.x)"
-        echo "  请手动执行: rm -rf tmp/venv && bash run.sh --cn --fp8"
-        exit 1
-    fi
     echo "  ✓ diffusers: $FINAL_DIFFUSERS"
-    
-    if [[ "$FINAL_HF_HUB" != "0.36.0" ]]; then
-        echo "  ⚠️  huggingface-hub 版本: $FINAL_HF_HUB (期望 0.36.0)，尝试修复..."
-        $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
-    fi
-    echo "  ✓ huggingface-hub: $($PYTHON -c 'import huggingface_hub; print(huggingface_hub.__version__)')"
+    echo "  ✓ huggingface-hub: $FINAL_HF_HUB"
     
     echo ""
     echo "✅ Dependencies installed!"
