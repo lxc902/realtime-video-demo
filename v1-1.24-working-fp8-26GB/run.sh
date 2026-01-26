@@ -345,7 +345,7 @@ if [ "$NEED_INSTALL" = true ]; then
             $PIP install "git+https://github.com/huggingface/diffusers.git@e8e88ff" -q
         fi
     fi
-    
+     
     # Step 2: 固定 huggingface-hub==0.36.0（和 requirements.txt 一致）
     echo "  - Fixing huggingface-hub==0.36.0..."
     $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
