@@ -11,6 +11,7 @@ set -e
 SECRET_ID=""
 SECRET_KEY=""
 SKIP_BASE=false
+SKIP_FP8=false
 SKIP_DOWNLOADS=false
 
 while [[ $# -gt 0 ]]; do
@@ -27,13 +28,17 @@ while [[ $# -gt 0 ]]; do
             SKIP_BASE=true
             shift
             ;;
+        --skip-fp8)
+            SKIP_FP8=true
+            shift
+            ;;
         --skip-downloads)
             SKIP_DOWNLOADS=true
             shift
             ;;
         *)
             echo "未知参数: $1"
-            echo "用法: bash move_gcs_to_cos.sh --ak <SECRET_ID> --sk <SECRET_KEY> [--skip-base] [--skip-downloads]"
+            echo "用法: bash move_gcs_to_cos.sh --ak <SECRET_ID> --sk <SECRET_KEY> [--skip-base] [--skip-fp8] [--skip-downloads]"
             exit 1
             ;;
     esac
@@ -132,7 +137,11 @@ else
 fi
 
 # 处理 FP8 模型
-download_and_upload "$GCS_FP8_URL" "$COS_FP8_KEY"
+if [ "$SKIP_FP8" = true ]; then
+    echo "⏭️  跳过 FP8 模型 (--skip-fp8)"
+else
+    download_and_upload "$GCS_FP8_URL" "$COS_FP8_KEY"
+fi
 
 # 处理 Wan-AI 模型（Text Encoder + VAE）
 download_and_upload "$GCS_WAN_AI_URL" "$COS_WAN_AI_KEY"
