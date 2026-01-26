@@ -54,8 +54,7 @@ echo ""
 # GCS 文件 URL（运行 upload.sh 后会显示这些 URL）
 GCS_BASE_URL="https://storage.googleapis.com/lxcpublic/krea-models-base-6b5d204f.tar.gz"
 GCS_FP8_URL="https://storage.googleapis.com/lxcpublic/krea-models-fp8-f0c953ce.tar.gz"
-# 运行 upload.sh 后更新此 URL（包含版本号）
-GCS_WAN_AI_URL="https://storage.googleapis.com/lxcpublic/wan-ai-models-XXXXXXXX.tar.gz"
+GCS_WAN_AI_URL="https://storage.googleapis.com/lxcpublic/wan-ai-models-38ec498c.tar.gz"
 
 # COS 配置
 COS_BUCKET="rtcos-1394285684"

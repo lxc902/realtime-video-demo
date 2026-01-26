@@ -246,7 +246,7 @@ if [ "$HAS_FP8" = true ]; then
     echo "   FP8_URL: https://storage.googleapis.com/lxcpublic/$FP8_BACKUP"
 fi
 if [ "$HAS_TEXT_ENCODER" = true ]; then
-    echo "   TEXT_ENCODER_URL: https://storage.googleapis.com/lxcpublic/$TEXT_ENCODER_BACKUP"
+    echo "   WAN_AI_URL: https://storage.googleapis.com/lxcpublic/$WAN_AI_BACKUP"
 fi
 echo ""
 echo "⚠️  上传完成后，请运行 move_gcs_to_cos.sh 迁移到 COS"
