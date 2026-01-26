@@ -214,13 +214,20 @@ if ! check_package diffusers; then
         NEED_INSTALL=true
     else
         DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "unknown")
-        # 检查是否是开发版（包含需要的功能）
-        if [[ "$DIFFUSERS_VER" == *"dev"* ]] || [[ "$DIFFUSERS_VER" == "0.33"* ]]; then
+        # 检查是否是 0.33.x（需要的版本）
+        if [[ "$DIFFUSERS_VER" == "0.33"* ]]; then
             echo "  ✓ Diffusers ($DIFFUSERS_VER)"
         else
-            echo "  ⚠️  Diffusers ($DIFFUSERS_VER) - 需要开发版"
+            echo "  ⚠️  Diffusers ($DIFFUSERS_VER) - 需要 0.33.x"
             NEED_INSTALL=true
         fi
+    fi
+    
+    # 检查 huggingface-hub 版本（transformers 需要 <1.0）
+    HF_HUB_VER=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "0")
+    if [[ "$HF_HUB_VER" == 1.* ]]; then
+        echo "  ⚠️  huggingface-hub ($HF_HUB_VER) - 需要 <1.0"
+        NEED_INSTALL=true
     fi
 
 if ! check_package fastapi; then
@@ -334,16 +341,22 @@ if [ "$NEED_INSTALL" = true ]; then
         fi
     fi
     
+    # 先确保 huggingface-hub 版本兼容（transformers 需要 <1.0）
+    HF_HUB_VER=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "0")
+    if [[ "$HF_HUB_VER" == 1.* ]]; then
+        echo "  - 降级 huggingface-hub (transformers 需要 <1.0)..."
+        $PIP install "huggingface-hub<1.0,>=0.34.0" $PIP_INDEX_ARGS -q
+    fi
+    
     # 检查 diffusers 版本（模型需要特定 commit: e8e88ff）
-    DIFFUSERS_REQUIRED_COMMIT="e8e88ff"
     DIFFUSERS_OK=false
     if check_package diffusers; then
         DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "unknown")
-        # 检查是否是开发版（包含我们需要的 commit）
-        if [[ "$DIFFUSERS_VER" == *"dev"* ]] || [[ "$DIFFUSERS_VER" == "0.33"* ]]; then
+        # 检查是否是 0.33.x 开发版
+        if [[ "$DIFFUSERS_VER" == "0.33"* ]]; then
             DIFFUSERS_OK=true
         else
-            echo "  ⚠️  Diffusers 版本不匹配: $DIFFUSERS_VER"
+            echo "  ⚠️  Diffusers 版本不匹配: $DIFFUSERS_VER (需要 0.33.x)"
         fi
     fi
     
@@ -358,7 +371,7 @@ if [ "$NEED_INSTALL" = true ]; then
             $PIP install --force-reinstall git+https://gitee.com/mirrors/diffusers.git $PIP_INDEX_ARGS -q
         else
             echo "  - Installing Diffusers (from GitHub)..."
-            $PIP install --force-reinstall git+https://github.com/huggingface/diffusers.git@${DIFFUSERS_REQUIRED_COMMIT} -q
+            $PIP install --force-reinstall git+https://github.com/huggingface/diffusers.git@e8e88ff -q
         fi
     fi
     
