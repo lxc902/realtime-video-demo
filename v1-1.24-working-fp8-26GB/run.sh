@@ -370,6 +370,29 @@ triton-3.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
                     nvidia-cusolver-cu12 nvidia-cusparse-cu12 nvidia-nccl-cu12 nvidia-nvtx-cu12 \
                     nvidia-nvjitlink-cu12 nvidia-cufile-cu12 nvidia-cusparselt-cu12 nvidia-nvshmem-cu12 \
                     nvidia-cuda-cccl-cu12 cuda-bindings triton -q 2>/dev/null || true
+                
+                # 从 COS 下载 PyTorch nightly wheels
+                COS_PYTORCH_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/pypi/pytorch"
+                PYTORCH_WHEELS_DIR="$SCRIPT_DIR/vendor/pytorch_wheels"
+                
+                PYTORCH_PKGS="torch-2.11.0.dev20260126+cu128-cp312-cp312-manylinux_2_28_x86_64.whl
+torchaudio-2.11.0.dev20260126+cu128-cp312-cp312-manylinux_2_28_x86_64.whl
+torchvision-0.25.0.dev20260126+cu128-cp312-cp312-manylinux_2_28_x86_64.whl"
+                
+                PYTORCH_WHEEL_COUNT=$(ls -1 "$PYTORCH_WHEELS_DIR"/*.whl 2>/dev/null | wc -l)
+                if [ "$PYTORCH_WHEEL_COUNT" -lt 3 ]; then
+                    echo "  - 从 COS 下载 PyTorch nightly wheels (已有 $PYTORCH_WHEEL_COUNT/3)..."
+                    mkdir -p "$PYTORCH_WHEELS_DIR"
+                    
+                    for pkg in $PYTORCH_PKGS; do
+                        if [ ! -f "$PYTORCH_WHEELS_DIR/$pkg" ]; then
+                            echo "    下载: $pkg"
+                            wget -q --show-progress -O "$PYTORCH_WHEELS_DIR/$pkg" "$COS_PYTORCH_URL/$pkg" 2>&1 || \
+                            curl -L --progress-bar -o "$PYTORCH_WHEELS_DIR/$pkg" "$COS_PYTORCH_URL/$pkg" || true
+                        fi
+                    done
+                    echo "  ✓ PyTorch wheels 下载完成"
+                fi
             fi
             
             # 先从本地安装 PyTorch 其他依赖
@@ -377,9 +400,18 @@ triton-3.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
                 $PIP install --no-index --find-links="$SCRIPT_DIR/vendor/wheels" \
                     filelock typing-extensions sympy networkx jinja2 fsspec mpmath markupsafe -q 2>/dev/null || true
             fi
-            # 固定 PyTorch nightly 版本（避免依赖版本变化）
+            
+            # 安装 PyTorch nightly
             PYTORCH_NIGHTLY_VERSION="2.11.0.dev20260126"
-            $PIP install "torch==${PYTORCH_NIGHTLY_VERSION}+cu128" "torchvision==0.25.0.dev20260126+cu128" "torchaudio==${PYTORCH_NIGHTLY_VERSION}+cu128" --index-url $PYTORCH_INDEX_URL
+            if [ "$USE_CHINA_MIRROR" = true ] && [ -d "$PYTORCH_WHEELS_DIR" ]; then
+                # 中国镜像：从本地 wheels 安装
+                echo "  - 从本地 wheels 安装 PyTorch nightly..."
+                $PIP install --no-index --find-links="$PYTORCH_WHEELS_DIR" --find-links="$SPECIAL_WHEELS_DIR" \
+                    torch torchvision torchaudio
+            else
+                # 非中国镜像：从官方源安装
+                $PIP install "torch==${PYTORCH_NIGHTLY_VERSION}+cu128" "torchvision==0.25.0.dev20260126+cu128" "torchaudio==${PYTORCH_NIGHTLY_VERSION}+cu128" --index-url $PYTORCH_INDEX_URL
+            fi
         fi
     else
         # 其他 GPU: 使用稳定版
