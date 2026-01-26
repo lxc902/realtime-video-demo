@@ -345,25 +345,30 @@ if [ "$NEED_INSTALL" = true ]; then
         fi
     fi
     
-    # 确保 huggingface-hub 版本为 0.36.0（和 requirements.txt 一致）
-    HF_HUB_VER=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "0")
-    if [[ "$HF_HUB_VER" != "0.36.0" ]]; then
-        echo "  - Installing huggingface-hub==0.36.0..."
-        $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
-    fi
-    
     # 安装 diffusers（需要 0.33.x，对应 commit e8e88ff）
+    # 使用 --no-deps 避免升级 huggingface-hub
     DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "none")
     if [[ "$DIFFUSERS_VER" != "0.33"* ]]; then
         # 优先从本地 githubrefs 安装（无论 --cn 与否）
         LOCAL_DIFFUSERS="$SCRIPT_DIR/../githubrefs/diffusers"
         if [ -d "$LOCAL_DIFFUSERS" ]; then
-            echo "  - Installing Diffusers 0.33.x (from local githubrefs)..."
-            $PIP install --force-reinstall "$LOCAL_DIFFUSERS" $PIP_INDEX_ARGS -q
+            echo "  - Installing Diffusers 0.33.x (from local githubrefs, no-deps)..."
+            $PIP install --force-reinstall --no-deps "$LOCAL_DIFFUSERS" -q
+            # 安装 diffusers 的依赖（除了 huggingface-hub）
+            echo "  - Installing Diffusers dependencies..."
+            $PIP install importlib-metadata filelock numpy regex requests safetensors Pillow httpx $PIP_INDEX_ARGS -q
         else
             echo "  - Installing Diffusers (from GitHub commit e8e88ff)..."
-            $PIP install --force-reinstall git+https://github.com/huggingface/diffusers.git@e8e88ff -q
+            $PIP install --force-reinstall --no-deps git+https://github.com/huggingface/diffusers.git@e8e88ff -q
+            $PIP install importlib-metadata filelock numpy regex requests safetensors Pillow httpx $PIP_INDEX_ARGS -q
         fi
+    fi
+    
+    # 确保 huggingface-hub 版本为 0.36.0（和 requirements.txt 一致）
+    HF_HUB_VER=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "0")
+    if [[ "$HF_HUB_VER" != "0.36.0" ]]; then
+        echo "  - Installing huggingface-hub==0.36.0..."
+        $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
     fi
     
     if ! check_package transformers; then
@@ -378,6 +383,8 @@ if [ "$NEED_INSTALL" = true ]; then
         else
             $PIP install transformers accelerate safetensors $PIP_INDEX_ARGS -q
         fi
+        # transformers 可能升级了 huggingface-hub，需要再次固定
+        $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
     fi
     
     if ! check_package fastapi; then
@@ -444,6 +451,25 @@ if [ "$NEED_INSTALL" = true ]; then
         
         echo "    ✅ ${QUANTIZATION^^} 量化依赖已配置"
     fi
+    
+    # 最终验证关键版本
+    echo ""
+    echo "🔍 最终版本验证..."
+    FINAL_DIFFUSERS=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "none")
+    FINAL_HF_HUB=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "none")
+    
+    if [[ "$FINAL_DIFFUSERS" != "0.33"* ]]; then
+        echo "  ❌ diffusers 版本错误: $FINAL_DIFFUSERS (需要 0.33.x)"
+        echo "  请手动执行: rm -rf tmp/venv && bash run.sh --cn --fp8"
+        exit 1
+    fi
+    echo "  ✓ diffusers: $FINAL_DIFFUSERS"
+    
+    if [[ "$FINAL_HF_HUB" != "0.36.0" ]]; then
+        echo "  ⚠️  huggingface-hub 版本: $FINAL_HF_HUB (期望 0.36.0)，尝试修复..."
+        $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
+    fi
+    echo "  ✓ huggingface-hub: $($PYTHON -c 'import huggingface_hub; print(huggingface_hub.__version__)')"
     
     echo ""
     echo "✅ Dependencies installed!"
