@@ -329,6 +329,7 @@ if [ "$NEED_INSTALL" = true ]; then
                 
                 # PyTorch 2.11.0.dev20260126+cu128 需要的 NVIDIA 依赖（精确版本匹配）
                 SPECIAL_PKGS="cuda_bindings-12.9.4-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
+cuda_pathfinder-1.2.2-py3-none-any.whl
 nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl
 nvidia_cuda_cupti_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
 nvidia_cuda_nvrtc_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl
@@ -347,8 +348,8 @@ nvidia_nvtx_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
 triton-3.6.0+git9844da95-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
                 
                 WHEEL_COUNT=$(ls -1 "$SPECIAL_WHEELS_DIR"/*.whl 2>/dev/null | wc -l)
-                if [ "$WHEEL_COUNT" -lt 17 ]; then
-                    echo "  - 从 COS 下载 NVIDIA 依赖 (已有 $WHEEL_COUNT/17)..."
+                if [ "$WHEEL_COUNT" -lt 18 ]; then
+                    echo "  - 从 COS 下载 NVIDIA 依赖 (已有 $WHEEL_COUNT/18)..."
                     mkdir -p "$SPECIAL_WHEELS_DIR"
                     
                     for pkg in $SPECIAL_PKGS; do
@@ -363,7 +364,7 @@ triton-3.6.0+git9844da95-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64
                 
                 # 从本地安装所有 NVIDIA 依赖
                 $PIP install --no-index --find-links="$SPECIAL_WHEELS_DIR" \
-                    cuda-bindings nvidia-cuda-nvrtc-cu12 nvidia-cuda-runtime-cu12 nvidia-cuda-cupti-cu12 \
+                    cuda-bindings cuda-pathfinder nvidia-cuda-nvrtc-cu12 nvidia-cuda-runtime-cu12 nvidia-cuda-cupti-cu12 \
                     nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cufft-cu12 nvidia-curand-cu12 \
                     nvidia-cusolver-cu12 nvidia-cusparse-cu12 nvidia-cusparselt-cu12 nvidia-nccl-cu12 \
                     nvidia-nvshmem-cu12 nvidia-nvtx-cu12 nvidia-nvjitlink-cu12 nvidia-cufile-cu12 \
