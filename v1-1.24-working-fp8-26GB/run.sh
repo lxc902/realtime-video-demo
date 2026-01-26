@@ -213,12 +213,12 @@ if ! check_package diffusers; then
         echo "  ❌ Diffusers not found"
         NEED_INSTALL=true
     else
-        # 检查版本是否正确（需要 0.35.0）
         DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "unknown")
-        if [ "$DIFFUSERS_VER" = "0.35.0" ]; then
+        # 检查是否是开发版（包含需要的功能）
+        if [[ "$DIFFUSERS_VER" == *"dev"* ]] || [[ "$DIFFUSERS_VER" == "0.33"* ]]; then
             echo "  ✓ Diffusers ($DIFFUSERS_VER)"
         else
-            echo "  ⚠️  Diffusers ($DIFFUSERS_VER) - 需要 0.35.0"
+            echo "  ⚠️  Diffusers ($DIFFUSERS_VER) - 需要开发版"
             NEED_INSTALL=true
         fi
     fi
@@ -334,25 +334,31 @@ if [ "$NEED_INSTALL" = true ]; then
         fi
     fi
     
-    # 检查 diffusers 版本（模型需要 0.35.0）
-    DIFFUSERS_REQUIRED="0.35.0"
+    # 检查 diffusers 版本（模型需要特定 commit: e8e88ff）
+    DIFFUSERS_REQUIRED_COMMIT="e8e88ff"
     DIFFUSERS_OK=false
     if check_package diffusers; then
         DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "unknown")
-        if [ "$DIFFUSERS_VER" = "$DIFFUSERS_REQUIRED" ]; then
+        # 检查是否是开发版（包含我们需要的 commit）
+        if [[ "$DIFFUSERS_VER" == *"dev"* ]] || [[ "$DIFFUSERS_VER" == "0.33"* ]]; then
             DIFFUSERS_OK=true
         else
-            echo "  ⚠️  Diffusers 版本不匹配: $DIFFUSERS_VER (需要 $DIFFUSERS_REQUIRED)"
+            echo "  ⚠️  Diffusers 版本不匹配: $DIFFUSERS_VER"
         fi
     fi
     
     if [ "$DIFFUSERS_OK" = false ]; then
-        if [ "$USE_CHINA_MIRROR" = true ]; then
-            echo "  - Installing Diffusers $DIFFUSERS_REQUIRED (from Gitee)..."
-            $PIP install --force-reinstall git+https://gitee.com/mirrors/diffusers.git@v${DIFFUSERS_REQUIRED} $PIP_INDEX_ARGS -q
+        # 优先从本地 githubrefs 安装（避免网络问题）
+        LOCAL_DIFFUSERS="$SCRIPT_DIR/../githubrefs/diffusers"
+        if [ -d "$LOCAL_DIFFUSERS" ]; then
+            echo "  - Installing Diffusers (from local githubrefs)..."
+            $PIP install --force-reinstall "$LOCAL_DIFFUSERS" $PIP_INDEX_ARGS -q
+        elif [ "$USE_CHINA_MIRROR" = true ]; then
+            echo "  - Installing Diffusers (from Gitee)..."
+            $PIP install --force-reinstall git+https://gitee.com/mirrors/diffusers.git $PIP_INDEX_ARGS -q
         else
-            echo "  - Installing Diffusers $DIFFUSERS_REQUIRED (from GitHub)..."
-            $PIP install --force-reinstall git+https://github.com/huggingface/diffusers.git@v${DIFFUSERS_REQUIRED} -q
+            echo "  - Installing Diffusers (from GitHub)..."
+            $PIP install --force-reinstall git+https://github.com/huggingface/diffusers.git@${DIFFUSERS_REQUIRED_COMMIT} -q
         fi
     fi
     
