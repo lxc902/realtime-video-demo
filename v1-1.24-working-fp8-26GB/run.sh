@@ -210,11 +210,17 @@ else
 fi
 
 if ! check_package diffusers; then
-    echo "  ❌ Diffusers not found"
-    NEED_INSTALL=true
-else
-    echo "  ✓ Diffusers"
-fi
+        echo "  ❌ Diffusers not found"
+        NEED_INSTALL=true
+    else
+        # 检查 diffusers 是否有 WanRTBlocks（模型需要）
+        if $PYTHON -c "from diffusers import WanRTBlocks" 2>/dev/null; then
+            echo "  ✓ Diffusers (with WanRTBlocks)"
+        else
+            echo "  ⚠️  Diffusers 版本过旧，缺少 WanRTBlocks"
+            NEED_INSTALL=true
+        fi
+    fi
 
 if ! check_package fastapi; then
     echo "  ❌ FastAPI not found"
@@ -327,26 +333,32 @@ if [ "$NEED_INSTALL" = true ]; then
         fi
     fi
     
-    if ! check_package diffusers; then
+    # 检查是否需要安装/更新 diffusers
+    DIFFUSERS_OK=false
+    if check_package diffusers; then
+        if $PYTHON -c "from diffusers import WanRTBlocks" 2>/dev/null; then
+            DIFFUSERS_OK=true
+        fi
+    fi
+    
+    if [ "$DIFFUSERS_OK" = false ]; then
         if [ "$USE_CHINA_MIRROR" = true ]; then
             # 中国镜像：从 Gitee 镜像安装最新版
             echo "  - Installing Diffusers (from Gitee mirror)..."
-            $PIP install git+https://gitee.com/mirrors/diffusers.git $PIP_INDEX_ARGS -q
+            $PIP install --force-reinstall git+https://gitee.com/mirrors/diffusers.git $PIP_INDEX_ARGS -q
             
-            # 验证安装，如果失败则尝试 PyPI 稳定版
-            if ! $PYTHON -c "import diffusers" 2>/dev/null; then
-                echo "    ⚠️  Gitee 安装失败，尝试 PyPI 稳定版..."
-                $PIP install --force-reinstall "diffusers>=0.32.0" $PIP_INDEX_ARGS -q
+            # 验证安装
+            if ! $PYTHON -c "from diffusers import WanRTBlocks" 2>/dev/null; then
+                echo "    ❌ Diffusers 安装失败或版本不兼容"
             fi
         else
             echo "  - Installing Diffusers (from source)..."
-            # 先尝试安装最新版本
-            $PIP install git+https://github.com/huggingface/diffusers.git -q
+            # 从 GitHub 安装最新版本
+            $PIP install --force-reinstall git+https://github.com/huggingface/diffusers.git -q
             
-            # 验证安装，如果失败则尝试稳定版本
-            if ! $PYTHON -c "import diffusers" 2>/dev/null; then
-                echo "    ⚠️  最新版本安装失败，尝试稳定版本..."
-                $PIP install --force-reinstall "diffusers>=0.32.0" -q
+            # 验证安装
+            if ! $PYTHON -c "from diffusers import WanRTBlocks" 2>/dev/null; then
+                echo "    ❌ Diffusers 安装失败或版本不兼容"
             fi
         fi
     fi
