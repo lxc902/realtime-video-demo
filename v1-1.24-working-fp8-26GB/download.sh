@@ -71,7 +71,9 @@ download_model() {
     local url=$1
     local name=$2
     local model_dir=$3
-    local temp_file="./tmp/krea-model-temp.tar.gz"
+    # 从 URL 提取原始文件名
+    local filename=$(basename "$url")
+    local temp_file="./tmp/$filename"
     
     # 检查版本是否匹配
     local url_version=$(get_url_version "$url")
