@@ -213,13 +213,7 @@ if ! check_package diffusers; then
         echo "  ❌ Diffusers not found"
         NEED_INSTALL=true
     else
-        # 检查 diffusers 是否有 WanRTBlocks（模型需要）
-        if $PYTHON -c "from diffusers import WanRTBlocks" 2>/dev/null; then
-            echo "  ✓ Diffusers (with WanRTBlocks)"
-        else
-            echo "  ⚠️  Diffusers 版本过旧，缺少 WanRTBlocks"
-            NEED_INSTALL=true
-        fi
+        echo "  ✓ Diffusers"
     fi
 
 if ! check_package fastapi; then
@@ -334,32 +328,15 @@ if [ "$NEED_INSTALL" = true ]; then
     fi
     
     # 检查是否需要安装/更新 diffusers
-    DIFFUSERS_OK=false
-    if check_package diffusers; then
-        if $PYTHON -c "from diffusers import WanRTBlocks" 2>/dev/null; then
-            DIFFUSERS_OK=true
-        fi
-    fi
-    
-    if [ "$DIFFUSERS_OK" = false ]; then
+    # 注意：模型需要 diffusers 0.36.0.dev0，使用 modular_blocks.py 中的自定义 WanRTBlocks
+    # 不需要检查 WanRTBlocks 是否在 diffusers 中，因为它是模型自定义代码
+    if ! check_package diffusers; then
         if [ "$USE_CHINA_MIRROR" = true ]; then
-            # 中国镜像：从 Gitee 镜像安装最新版
-            echo "  - Installing Diffusers (from Gitee mirror)..."
-            $PIP install --force-reinstall git+https://gitee.com/mirrors/diffusers.git $PIP_INDEX_ARGS -q
-            
-            # 验证安装
-            if ! $PYTHON -c "from diffusers import WanRTBlocks" 2>/dev/null; then
-                echo "    ❌ Diffusers 安装失败或版本不兼容"
-            fi
+            echo "  - Installing Diffusers..."
+            $PIP install "diffusers>=0.36.0" $PIP_INDEX_ARGS -q
         else
             echo "  - Installing Diffusers (from source)..."
-            # 从 GitHub 安装最新版本
-            $PIP install --force-reinstall git+https://github.com/huggingface/diffusers.git -q
-            
-            # 验证安装
-            if ! $PYTHON -c "from diffusers import WanRTBlocks" 2>/dev/null; then
-                echo "    ❌ Diffusers 安装失败或版本不兼容"
-            fi
+            $PIP install git+https://github.com/huggingface/diffusers.git -q
         fi
     fi
     
