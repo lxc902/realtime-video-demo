@@ -329,9 +329,15 @@ if [ "$NEED_INSTALL" = true ]; then
     
     if ! check_package diffusers; then
         if [ "$USE_CHINA_MIRROR" = true ]; then
-            # 中国镜像：直接从 PyPI 安装稳定版（避免 GitHub 网络问题）
-            echo "  - Installing Diffusers (from PyPI)..."
-            $PIP install "diffusers>=0.32.0" $PIP_INDEX_ARGS -q
+            # 中国镜像：从 Gitee 镜像安装最新版
+            echo "  - Installing Diffusers (from Gitee mirror)..."
+            $PIP install git+https://gitee.com/mirrors/diffusers.git $PIP_INDEX_ARGS -q
+            
+            # 验证安装，如果失败则尝试 PyPI 稳定版
+            if ! $PYTHON -c "import diffusers" 2>/dev/null; then
+                echo "    ⚠️  Gitee 安装失败，尝试 PyPI 稳定版..."
+                $PIP install --force-reinstall "diffusers>=0.32.0" $PIP_INDEX_ARGS -q
+            fi
         else
             echo "  - Installing Diffusers (from source)..."
             # 先尝试安装最新版本
