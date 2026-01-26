@@ -66,7 +66,7 @@ COS_BUCKET="rtcos-1394285684"
 COS_REGION="ap-nanjing"
 COS_BASE_KEY="models/krea-models-base-6b5d204f.tar.gz"
 COS_FP8_KEY="models/krea-models-fp8-f0c953ce.tar.gz"
-COS_WAN_AI_KEY="models/wan-ai-models.tar.gz"
+COS_WAN_AI_KEY="models/wan-ai-models-38ec498c.tar.gz"
 
 # 临时下载目录
 TEMP_DIR="./tmp/gcs_download"

@@ -27,7 +27,7 @@ if [ "$USE_CHINA_MIRROR" = true ]; then
     # 腾讯云 COS（中国源）
     BASE_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/krea-models-base-6b5d204f.tar.gz"
     FP8_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/krea-models-fp8-f0c953ce.tar.gz"
-    TEXT_ENCODER_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/wan-ai-models.tar.gz"
+    TEXT_ENCODER_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/wan-ai-models-38ec498c.tar.gz"
     SOURCE_NAME="COS (中国)"
 else
     # Google Cloud Storage（海外源）
