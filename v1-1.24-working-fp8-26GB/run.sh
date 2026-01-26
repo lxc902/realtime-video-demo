@@ -370,7 +370,9 @@ triton-3.2.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
                 $PIP install --no-index --find-links="$SCRIPT_DIR/vendor/wheels" \
                     filelock typing-extensions sympy networkx jinja2 fsspec mpmath markupsafe -q 2>/dev/null || true
             fi
-            $PIP install --pre torch torchvision torchaudio --index-url $PYTORCH_INDEX_URL
+            # 固定 PyTorch nightly 版本（避免依赖版本变化）
+            PYTORCH_NIGHTLY_VERSION="2.11.0.dev20260126"
+            $PIP install "torch==${PYTORCH_NIGHTLY_VERSION}+cu128" "torchvision==0.25.0.dev20260126+cu128" "torchaudio==${PYTORCH_NIGHTLY_VERSION}+cu128" --index-url $PYTORCH_INDEX_URL
         fi
     else
         # 其他 GPU: 使用稳定版

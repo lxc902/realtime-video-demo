@@ -71,7 +71,8 @@ class KreaLocalInference:
         
         self.state = None
         self.current_frames = []
-        self._text_encoder_offloaded = False  # 追踪 Text Encoder 是否已卸载到 CPU
+        # Text Encoder 在量化模式下会在加载后立即 offload 到 CPU
+        self._text_encoder_offloaded = hasattr(self.pipe, '_text_encoder_offload_helper')
         
     def initialize_generation(self, prompt, start_frame=None, num_inference_steps=4, strength=0.45, seed=None):
         """初始化生成过程（旧 API，保留兼容性）"""
@@ -256,6 +257,14 @@ class KreaLocalInference:
         # 清理 state 中的大张量，避免 deepcopy OOM
         self._cleanup_state_tensors_for_state(state, block_idx)
         
+        # 第一个 block 需要 Text Encoder 来编码 prompt
+        # 如果 Text Encoder 已 offload 到 CPU，需要临时恢复到 GPU
+        need_restore_text_encoder = (block_idx == 0 and self._text_encoder_offloaded and 
+                                      hasattr(self.pipe, '_text_encoder_offload_helper'))
+        if need_restore_text_encoder:
+            from quantization.offload import restore_text_encoder
+            restore_text_encoder(self.pipe)
+        
         # 使用 inference_mode 比 no_grad 更激进，完全禁用 autograd 追踪
         with torch.inference_mode():
             kwargs = {
@@ -337,13 +346,11 @@ class KreaLocalInference:
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
         
-        # 第一个 block 生成完成后，将 Text Encoder 卸载到 CPU
+        # 如果恢复了 Text Encoder（用于编码 prompt），现在 offload 回 CPU
         # prompt embeddings 已经编码并缓存在 state 中，后续 block 不需要 Text Encoder
-        if block_idx == 0 and not self._text_encoder_offloaded:
-            if hasattr(self.pipe, '_text_encoder_offload_helper'):
-                from quantization.offload import offload_text_encoder
-                offload_text_encoder(self.pipe)
-                self._text_encoder_offloaded = True
+        if need_restore_text_encoder:
+            from quantization.offload import offload_text_encoder
+            offload_text_encoder(self.pipe)
         
         return new_state, new_frames
     

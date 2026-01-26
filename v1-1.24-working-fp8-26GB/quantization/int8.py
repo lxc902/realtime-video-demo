@@ -61,8 +61,9 @@ def load_int8(pipe, repo_id, device, dtype):
     
     print("   ✅ INT8 量化完成")
     
-    # 设置 Text Encoder Offload（用于释放显存给 KV cache）
-    from .offload import setup_text_encoder_offload
+    # 设置 Text Encoder Offload 并立即执行（用于释放显存给 KV cache）
+    from .offload import setup_text_encoder_offload, offload_text_encoder
     pipe = setup_text_encoder_offload(pipe)
+    offload_text_encoder(pipe)  # 立即 offload，释放 ~10GB 显存
     
     return pipe
