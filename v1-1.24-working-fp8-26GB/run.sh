@@ -347,8 +347,9 @@ triton-3.2.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
                     
                     for pkg in $NVIDIA_PKGS; do
                         if [ ! -f "$NVIDIA_WHEELS_DIR/$pkg" ]; then
-                            wget -q -O "$NVIDIA_WHEELS_DIR/$pkg" "$COS_WHEELS_URL/$pkg" 2>/dev/null || \
-                            curl -sL -o "$NVIDIA_WHEELS_DIR/$pkg" "$COS_WHEELS_URL/$pkg" 2>/dev/null || true
+                            echo "    下载: $pkg"
+                            wget -q --show-progress -O "$NVIDIA_WHEELS_DIR/$pkg" "$COS_WHEELS_URL/$pkg" 2>&1 || \
+                            curl -L --progress-bar -o "$NVIDIA_WHEELS_DIR/$pkg" "$COS_WHEELS_URL/$pkg" || true
                         fi
                     done
                     echo "  ✓ NVIDIA 依赖下载完成"
