@@ -309,4 +309,8 @@ def load_fp8(pipe, repo_id, device, dtype):
     torch.cuda.empty_cache()
     print("   ✅ FP8 优化完成")
     
+    # 设置 Text Encoder Offload（用于释放显存给 KV cache）
+    from .offload import setup_text_encoder_offload
+    pipe = setup_text_encoder_offload(pipe)
+    
     return pipe

@@ -71,6 +71,7 @@ class KreaLocalInference:
         
         self.state = None
         self.current_frames = []
+        self._text_encoder_offloaded = False  # 追踪 Text Encoder 是否已卸载到 CPU
         
     def initialize_generation(self, prompt, start_frame=None, num_inference_steps=4, strength=0.45, seed=None):
         """初始化生成过程（旧 API，保留兼容性）"""
@@ -88,6 +89,13 @@ class KreaLocalInference:
     
     def initialize_generation_with_state(self, prompt, start_frame=None, num_inference_steps=4, strength=0.45, seed=None):
         """初始化生成过程，返回独立的 state（新 API，支持多 session）"""
+        
+        # 如果 Text Encoder 已经卸载到 CPU，需要恢复到 GPU 用于编码新 prompt
+        if self._text_encoder_offloaded and hasattr(self.pipe, '_text_encoder_offload_helper'):
+            from quantization.offload import restore_text_encoder
+            restore_text_encoder(self.pipe)
+            self._text_encoder_offloaded = False
+        
         # 彻底重置编译缓存，确保新生成使用正确的 block_mask
         torch._dynamo.reset()
         
@@ -328,6 +336,14 @@ class KreaLocalInference:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
+        
+        # 第一个 block 生成完成后，将 Text Encoder 卸载到 CPU
+        # prompt embeddings 已经编码并缓存在 state 中，后续 block 不需要 Text Encoder
+        if block_idx == 0 and not self._text_encoder_offloaded:
+            if hasattr(self.pipe, '_text_encoder_offload_helper'):
+                from quantization.offload import offload_text_encoder
+                offload_text_encoder(self.pipe)
+                self._text_encoder_offloaded = True
         
         return new_state, new_frames
     

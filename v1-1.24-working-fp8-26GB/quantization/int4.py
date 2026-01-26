@@ -57,4 +57,9 @@ def load_int4(pipe, repo_id, device, dtype):
     print("   ⚠️  量化模式下跳过 fuse_projections（不兼容）")
     
     print("   ✅ INT4 量化完成")
+    
+    # 设置 Text Encoder Offload（用于释放显存给 KV cache）
+    from .offload import setup_text_encoder_offload
+    pipe = setup_text_encoder_offload(pipe)
+    
     return pipe
