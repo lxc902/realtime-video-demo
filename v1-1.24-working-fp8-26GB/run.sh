@@ -33,7 +33,7 @@ if [ -n "$QUANTIZATION" ]; then
     echo "Quantization: ${QUANTIZATION^^}"
 fi
 if [ "$USE_CHINA_MIRROR" = true ]; then
-    echo "Mirror: China (Tsinghua)"
+    echo "Mirror: China (Aliyun)"
 fi
 echo "================================="
 echo ""
