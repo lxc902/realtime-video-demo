@@ -213,7 +213,14 @@ if ! check_package diffusers; then
         echo "  ❌ Diffusers not found"
         NEED_INSTALL=true
     else
-        echo "  ✓ Diffusers"
+        # 检查版本是否正确（需要 0.35.0）
+        DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "unknown")
+        if [ "$DIFFUSERS_VER" = "0.35.0" ]; then
+            echo "  ✓ Diffusers ($DIFFUSERS_VER)"
+        else
+            echo "  ⚠️  Diffusers ($DIFFUSERS_VER) - 需要 0.35.0"
+            NEED_INSTALL=true
+        fi
     fi
 
 if ! check_package fastapi; then
@@ -327,16 +334,25 @@ if [ "$NEED_INSTALL" = true ]; then
         fi
     fi
     
-    # 检查是否需要安装/更新 diffusers
-    # 注意：模型需要 diffusers 0.36.0.dev0，使用 modular_blocks.py 中的自定义 WanRTBlocks
-    # 不需要检查 WanRTBlocks 是否在 diffusers 中，因为它是模型自定义代码
-    if ! check_package diffusers; then
-        if [ "$USE_CHINA_MIRROR" = true ]; then
-            echo "  - Installing Diffusers..."
-            $PIP install "diffusers>=0.36.0" $PIP_INDEX_ARGS -q
+    # 检查 diffusers 版本（模型需要 0.35.0）
+    DIFFUSERS_REQUIRED="0.35.0"
+    DIFFUSERS_OK=false
+    if check_package diffusers; then
+        DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "unknown")
+        if [ "$DIFFUSERS_VER" = "$DIFFUSERS_REQUIRED" ]; then
+            DIFFUSERS_OK=true
         else
-            echo "  - Installing Diffusers (from source)..."
-            $PIP install git+https://github.com/huggingface/diffusers.git -q
+            echo "  ⚠️  Diffusers 版本不匹配: $DIFFUSERS_VER (需要 $DIFFUSERS_REQUIRED)"
+        fi
+    fi
+    
+    if [ "$DIFFUSERS_OK" = false ]; then
+        if [ "$USE_CHINA_MIRROR" = true ]; then
+            echo "  - Installing Diffusers $DIFFUSERS_REQUIRED (from Gitee)..."
+            $PIP install --force-reinstall git+https://gitee.com/mirrors/diffusers.git@v${DIFFUSERS_REQUIRED} $PIP_INDEX_ARGS -q
+        else
+            echo "  - Installing Diffusers $DIFFUSERS_REQUIRED (from GitHub)..."
+            $PIP install --force-reinstall git+https://github.com/huggingface/diffusers.git@v${DIFFUSERS_REQUIRED} -q
         fi
     fi
     
