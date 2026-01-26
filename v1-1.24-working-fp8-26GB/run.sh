@@ -355,7 +355,13 @@ if [ "$NEED_INSTALL" = true ]; then
     $PIP install transformers==4.57.6 accelerate safetensors $PIP_INDEX_ARGS -q
     $PIP install fastapi uvicorn websockets httpx $PIP_INDEX_ARGS -q
     $PIP install opencv-python pillow numpy $PIP_INDEX_ARGS -q
-    $PIP install msgpack einops imageio ftfy protobuf $PIP_INDEX_ARGS -q
+    $PIP install msgpack $PIP_INDEX_ARGS -q
+    # 从本地 wheels 安装（避免网络问题）
+    if [ -d "$SCRIPT_DIR/vendor/wheels" ]; then
+        $PIP install --no-index --find-links="$SCRIPT_DIR/vendor/wheels" einops imageio ftfy protobuf -q
+    else
+        $PIP install einops imageio ftfy protobuf $PIP_INDEX_ARGS -q
+    fi
     
     # Step 4: 再次固定 huggingface-hub（防止被覆盖）
     $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
