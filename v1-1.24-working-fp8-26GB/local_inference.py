@@ -91,11 +91,8 @@ class KreaLocalInference:
     def initialize_generation_with_state(self, prompt, start_frame=None, num_inference_steps=4, strength=0.45, seed=None):
         """初始化生成过程，返回独立的 state（新 API，支持多 session）"""
         
-        # 如果 Text Encoder 已经卸载到 CPU，需要恢复到 GPU 用于编码新 prompt
-        if self._text_encoder_offloaded and hasattr(self.pipe, '_text_encoder_offload_helper'):
-            from quantization.offload import restore_text_encoder
-            restore_text_encoder(self.pipe)
-            self._text_encoder_offloaded = False
+        # Text Encoder 的恢复/offload 在 generate_next_block_with_state 中处理
+        # 因为 prompt 编码发生在 pipe() 调用时，不是在初始化时
         
         # 彻底重置编译缓存，确保新生成使用正确的 block_mask
         torch._dynamo.reset()
