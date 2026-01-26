@@ -322,47 +322,36 @@ if [ "$NEED_INSTALL" = true ]; then
         else
             echo "  - Installing PyTorch nightly (for Blackwell GPU)..."
             
-            # 中国镜像：从 COS 下载 NVIDIA wheels（避免官方源网络问题）
+            # 中国镜像：从 COS 下载阿里云没有的特殊版本包
             if [ "$USE_CHINA_MIRROR" = true ]; then
                 COS_WHEELS_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/pypi/wheels"
-                NVIDIA_WHEELS_DIR="$SCRIPT_DIR/vendor/nvidia_wheels"
+                SPECIAL_WHEELS_DIR="$SCRIPT_DIR/vendor/special_wheels"
                 
-                # 检查是否有足够的 wheel 文件（应该有 13 个）
-                WHEEL_COUNT=$(ls -1 "$NVIDIA_WHEELS_DIR"/*.whl 2>/dev/null | wc -l)
-                if [ "$WHEEL_COUNT" -lt 13 ]; then
-                    echo "  - 从 COS 下载 NVIDIA 依赖 (已有 $WHEEL_COUNT/13)..."
-                    mkdir -p "$NVIDIA_WHEELS_DIR"
+                # 只有 4 个包是阿里云没有的（PyTorch nightly 特定版本）
+                SPECIAL_PKGS="nvidia_cudnn_cu12-9.15.1.9-py3-none-manylinux_2_27_x86_64.whl
+nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl
+cuda_bindings-12.9.4-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
+cuda_pathfinder-1.2.2-py3-none-any.whl"
+                
+                WHEEL_COUNT=$(ls -1 "$SPECIAL_WHEELS_DIR"/*.whl 2>/dev/null | wc -l)
+                if [ "$WHEEL_COUNT" -lt 4 ]; then
+                    echo "  - 从 COS 下载特殊依赖 (已有 $WHEEL_COUNT/4)..."
+                    mkdir -p "$SPECIAL_WHEELS_DIR"
                     
-                    NVIDIA_PKGS="nvidia_cuda_nvrtc_cu12-12.9.86-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl
-nvidia_cuda_runtime_cu12-12.9.79-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-nvidia_cuda_cupti_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-nvidia_cudnn_cu12-9.5.0.50-py3-none-manylinux2014_x86_64.whl
-nvidia_cublas_cu12-12.6.4.1-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-nvidia_cufft_cu12-11.4.1.4-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-nvidia_curand_cu12-10.3.7.77-py3-none-manylinux2014_x86_64.whl
-nvidia_cusolver_cu12-11.7.1.2-py3-none-manylinux2014_x86_64.whl
-nvidia_cusparse_cu12-12.5.10.65-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-nvidia_nccl_cu12-2.27.7-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-nvidia_nvtx_cu12-12.9.79-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl
-nvidia_nvjitlink_cu12-12.9.86-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl
-triton-3.2.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-                    
-                    for pkg in $NVIDIA_PKGS; do
-                        if [ ! -f "$NVIDIA_WHEELS_DIR/$pkg" ]; then
+                    for pkg in $SPECIAL_PKGS; do
+                        if [ ! -f "$SPECIAL_WHEELS_DIR/$pkg" ]; then
                             echo "    下载: $pkg"
-                            wget -q --show-progress -O "$NVIDIA_WHEELS_DIR/$pkg" "$COS_WHEELS_URL/$pkg" 2>&1 || \
-                            curl -L --progress-bar -o "$NVIDIA_WHEELS_DIR/$pkg" "$COS_WHEELS_URL/$pkg" || true
+                            wget -q --show-progress -O "$SPECIAL_WHEELS_DIR/$pkg" "$COS_WHEELS_URL/$pkg" 2>&1 || \
+                            curl -L --progress-bar -o "$SPECIAL_WHEELS_DIR/$pkg" "$COS_WHEELS_URL/$pkg" || true
                         fi
                     done
-                    echo "  ✓ NVIDIA 依赖下载完成"
+                    echo "  ✓ 特殊依赖下载完成"
                 fi
                 
-                # 从本地安装 NVIDIA 依赖
-                $PIP install --no-index --find-links="$NVIDIA_WHEELS_DIR" \
-                    nvidia-cuda-nvrtc-cu12 nvidia-cuda-runtime-cu12 nvidia-cuda-cupti-cu12 \
-                    nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cufft-cu12 nvidia-curand-cu12 \
-                    nvidia-cusolver-cu12 nvidia-cusparse-cu12 nvidia-nccl-cu12 nvidia-nvtx-cu12 \
-                    nvidia-nvjitlink-cu12 triton -q 2>/dev/null || true
+                # 从本地安装特殊版本
+                $PIP install --no-index --find-links="$SPECIAL_WHEELS_DIR" \
+                    nvidia-cudnn-cu12==9.15.1.9 nvidia-cublas-cu12==12.8.4.1 \
+                    cuda-bindings==12.9.4 -q 2>/dev/null || true
             fi
             
             # 先从本地安装 PyTorch 其他依赖

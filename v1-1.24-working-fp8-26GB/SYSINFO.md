@@ -27,8 +27,6 @@
 > - 实际性能受显存带宽、FP8 支持、Kernel 优化、驱动与框架影响显著  
 > - **RTX 6000 Ada 以上（表格上半部分）均属于可跑 Krea Realtime 14B 的“性能安全区”**
 
-
-
 (main) root@C.30438521:/workspace/realtime-video-demo$ ./tmp/venv/bin/python -V
 Python 3.12.12
 (main) root@C.30438521:/workspace/realtime-video-demo$ lsb_release  -a
