@@ -182,9 +182,9 @@ fi
 
 # 设置 pip 镜像源
 if [ "$USE_CHINA_MIRROR" = true ]; then
-    PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
-    PIP_INDEX_ARGS="-i $PIP_INDEX_URL --trusted-host pypi.tuna.tsinghua.edu.cn"
-    echo "🇨🇳 使用中国镜像源 (清华)"
+    PIP_INDEX_URL="https://mirrors.aliyun.com/pypi/simple"
+    PIP_INDEX_ARGS="-i $PIP_INDEX_URL --trusted-host mirrors.aliyun.com"
+    echo "🇨🇳 使用中国镜像源 (阿里云)"
 else
     PIP_INDEX_ARGS=""
 fi
