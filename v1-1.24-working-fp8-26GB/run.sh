@@ -209,29 +209,16 @@ else
     echo "  ✓ PyTorch"
 fi
 
-# 检查 diffusers 版本（需要 0.33.x，对应 commit e8e88ff）
-LOCAL_DIFFUSERS="$SCRIPT_DIR/../githubrefs/diffusers"
+# 检查 diffusers 和 huggingface-hub 版本
 DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "none")
-if [[ "$DIFFUSERS_VER" == "0.33"* ]]; then
-    echo "  ✓ Diffusers ($DIFFUSERS_VER)"
-elif [ -d "$LOCAL_DIFFUSERS" ]; then
-    echo "  ⚠️  Diffusers ($DIFFUSERS_VER) - 将安装本地 0.33.x"
-    NEED_INSTALL=true
-elif [ "$DIFFUSERS_VER" == "none" ]; then
-    echo "  ❌ Diffusers not found"
-    NEED_INSTALL=true
-else
-    echo "  ⚠️  Diffusers ($DIFFUSERS_VER) - 需要 0.33.x"
-    NEED_INSTALL=true
-fi
+HF_HUB_VER=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "none")
 
-# 检查 huggingface-hub 版本（需要 0.36.0，和 requirements.txt 一致）
-HF_HUB_VER=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "0")
-if [[ "$HF_HUB_VER" != "0.36.0" ]]; then
-    echo "  ⚠️  huggingface-hub ($HF_HUB_VER) - 需要 0.36.0"
-    NEED_INSTALL=true
-else
+if [[ "$DIFFUSERS_VER" == "0.33"* ]] && [[ "$HF_HUB_VER" == "0.36.0" ]]; then
+    echo "  ✓ Diffusers ($DIFFUSERS_VER)"
     echo "  ✓ huggingface-hub ($HF_HUB_VER)"
+else
+    echo "  ⚠️  Diffusers ($DIFFUSERS_VER) / huggingface-hub ($HF_HUB_VER) - 需要重装"
+    NEED_INSTALL=true
 fi
 
 if ! check_package fastapi; then
@@ -345,77 +332,34 @@ if [ "$NEED_INSTALL" = true ]; then
         fi
     fi
     
-    # 安装 diffusers（需要 0.33.x，对应 commit e8e88ff）
-    # 使用 --no-deps 避免升级 huggingface-hub
+    # 简化安装：先装 diffusers，再装其他依赖
+    LOCAL_DIFFUSERS="$SCRIPT_DIR/../githubrefs/diffusers"
+    
+    # Step 1: 安装 diffusers（优先本地，避免 GitHub 访问问题）
     DIFFUSERS_VER=$($PYTHON -c "import diffusers; print(diffusers.__version__)" 2>/dev/null || echo "none")
     if [[ "$DIFFUSERS_VER" != "0.33"* ]]; then
-        # 优先从本地 githubrefs 安装（无论 --cn 与否）
-        LOCAL_DIFFUSERS="$SCRIPT_DIR/../githubrefs/diffusers"
         if [ -d "$LOCAL_DIFFUSERS" ]; then
-            echo "  - Installing Diffusers 0.33.x (from local githubrefs, no-deps)..."
-            $PIP install --force-reinstall --no-deps "$LOCAL_DIFFUSERS" -q
-            # 安装 diffusers 的依赖（除了 huggingface-hub）
-            echo "  - Installing Diffusers dependencies..."
-            $PIP install importlib-metadata filelock numpy regex requests safetensors Pillow httpx $PIP_INDEX_ARGS -q
+            echo "  - Installing Diffusers 0.33.x (from local)..."
+            $PIP install "$LOCAL_DIFFUSERS" $PIP_INDEX_ARGS -q
         else
-            echo "  - Installing Diffusers (from GitHub commit e8e88ff)..."
-            $PIP install --force-reinstall --no-deps git+https://github.com/huggingface/diffusers.git@e8e88ff -q
-            $PIP install importlib-metadata filelock numpy regex requests safetensors Pillow httpx $PIP_INDEX_ARGS -q
+            echo "  - Installing Diffusers (from GitHub @e8e88ff)..."
+            $PIP install "git+https://github.com/huggingface/diffusers.git@e8e88ff" -q
         fi
     fi
     
-    # 确保 huggingface-hub 版本为 0.36.0（和 requirements.txt 一致）
-    HF_HUB_VER=$($PYTHON -c "import huggingface_hub; print(huggingface_hub.__version__)" 2>/dev/null || echo "0")
-    if [[ "$HF_HUB_VER" != "0.36.0" ]]; then
-        echo "  - Installing huggingface-hub==0.36.0..."
-        $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
-    fi
+    # Step 2: 固定 huggingface-hub==0.36.0（和 requirements.txt 一致）
+    echo "  - Fixing huggingface-hub==0.36.0..."
+    $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
     
-    if ! check_package transformers; then
-        echo "  - Installing transformers and accelerate..."
-        # 根据 GPU 架构和量化模式选择版本
-        if [ "$USE_NIGHTLY" = true ]; then
-            # Blackwell 使用最新版
-            $PIP install transformers accelerate safetensors $PIP_INDEX_ARGS -q
-        elif [ "$QUANTIZATION" = "int8" ] || [ "$QUANTIZATION" = "int4" ]; then
-            # 旧架构 + 量化需要 transformers 4.44.x（兼容 torchao 0.7.x）
-            $PIP install transformers${TRANSFORMERS_VERSION} accelerate safetensors $PIP_INDEX_ARGS -q
-        else
-            $PIP install transformers accelerate safetensors $PIP_INDEX_ARGS -q
-        fi
-        # transformers 可能升级了 huggingface-hub，需要再次固定
-        $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
-    fi
+    # Step 3: 安装其他依赖
+    echo "  - Installing other dependencies..."
+    $PIP install transformers==4.57.6 accelerate safetensors $PIP_INDEX_ARGS -q
+    $PIP install fastapi uvicorn websockets httpx $PIP_INDEX_ARGS -q
+    $PIP install opencv-python pillow numpy $PIP_INDEX_ARGS -q
+    $PIP install msgpack einops imageio ftfy protobuf $PIP_INDEX_ARGS -q
     
-    if ! check_package fastapi; then
-        echo "  - Installing FastAPI and utilities..."
-        $PIP install fastapi uvicorn websockets httpx $PIP_INDEX_ARGS -q
-    fi
-    
-    if ! check_package cv2; then
-        echo "  - Installing OpenCV and image processing..."
-        $PIP install opencv-python pillow numpy $PIP_INDEX_ARGS -q
-    fi
-    
-    if ! check_package msgpack; then
-        echo "  - Installing msgpack..."
-        $PIP install msgpack $PIP_INDEX_ARGS -q
-    fi
-    
-    if ! check_package einops; then
-        echo "  - Installing einops..."
-        $PIP install einops $PIP_INDEX_ARGS -q
-    fi
-    
-    if ! check_package imageio; then
-        echo "  - Installing imageio..."
-        $PIP install imageio $PIP_INDEX_ARGS -q
-    fi
-    
-    if ! check_package ftfy; then
-        echo "  - Installing ftfy..."
-        $PIP install ftfy $PIP_INDEX_ARGS -q
-    fi
+    # Step 4: 再次固定 huggingface-hub（防止被覆盖）
+    $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
     
     # Optional: flash-attention for better performance (disabled by default)
     if [ "$INSTALL_FLASH_ATTN" = true ]; then
@@ -430,24 +374,19 @@ if [ "$NEED_INSTALL" = true ]; then
         echo "  - 配置 ${QUANTIZATION^^} 量化依赖..."
         
         if [ "$USE_NIGHTLY" = true ]; then
-            # Blackwell 使用最新版 torchao 和 transformers
-            echo "    Blackwell GPU: 升级到最新版 torchao 和 transformers..."
-            $PIP install --upgrade torchao transformers $PIP_INDEX_ARGS
+            # Blackwell 使用 torchao（不动 transformers）
+            echo "    Blackwell GPU: 安装 torchao..."
+            $PIP install torchao $PIP_INDEX_ARGS -q
         else
-            # 旧架构使用 torchao 0.7.x + transformers 4.44.x
+            # 旧架构使用 torchao 0.7.x
             TORCHAO_VER=$($PYTHON -c "import torchao; print(torchao.__version__)" 2>/dev/null || echo "none")
             if [[ "$TORCHAO_VER" != 0.7* ]]; then
                 echo "    安装 torchao${TORCHAO_VERSION} (兼容 PyTorch 2.5.x)..."
                 $PIP install torchao${TORCHAO_VERSION} $PIP_INDEX_ARGS -q
             fi
-            
-            # 检查并安装 transformers 4.44.x（兼容 torchao 0.7.x）
-            TRANSFORMERS_VER=$($PYTHON -c "import transformers; print(transformers.__version__)" 2>/dev/null || echo "none")
-            if [[ "$TRANSFORMERS_VER" != 4.44* ]] && [[ "$TRANSFORMERS_VER" != 4.43* ]] && [[ "$TRANSFORMERS_VER" != 4.42* ]]; then
-                echo "    安装 transformers${TRANSFORMERS_VERSION} (兼容 torchao 0.7.x)..."
-                $PIP install transformers${TRANSFORMERS_VERSION} $PIP_INDEX_ARGS -q
-            fi
         fi
+        # 再次固定 huggingface-hub
+        $PIP install "huggingface-hub==0.36.0" $PIP_INDEX_ARGS -q
         
         echo "    ✅ ${QUANTIZATION^^} 量化依赖已配置"
     fi
@@ -478,12 +417,10 @@ if [ "$NEED_INSTALL" = true ]; then
     
     # 验证关键包是否可以正常导入
     echo "🔍 验证安装..."
-    if ! $PYTHON -c "import torch, diffusers, fastapi" 2>/dev/null; then
-        echo "⚠️  检测到导入问题，尝试修复..."
-        echo "   重新安装 diffusers..."
-        $PIP install --force-reinstall "diffusers>=0.32.0" $PIP_INDEX_ARGS -q
-    else
+    if $PYTHON -c "import torch, diffusers, fastapi" 2>/dev/null; then
         echo "✓ 所有包导入正常"
+    else
+        echo "⚠️  导入失败，请检查错误信息"
     fi
     echo ""
 fi
