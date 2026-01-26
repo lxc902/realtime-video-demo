@@ -33,7 +33,7 @@ if [ -n "$QUANTIZATION" ]; then
     echo "Quantization: ${QUANTIZATION^^}"
 fi
 if [ "$USE_CHINA_MIRROR" = true ]; then
-    echo "Mirror: China (Tsinghua)"
+    echo "Mirror: China (Aliyun)"
 fi
 echo "================================="
 echo ""
@@ -182,9 +182,9 @@ fi
 
 # 设置 pip 镜像源
 if [ "$USE_CHINA_MIRROR" = true ]; then
-    PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple"
-    PIP_INDEX_ARGS="-i $PIP_INDEX_URL --trusted-host pypi.tuna.tsinghua.edu.cn"
-    echo "🇨🇳 使用中国镜像源 (清华)"
+    PIP_INDEX_URL="https://mirrors.aliyun.com/pypi/simple"
+    PIP_INDEX_ARGS="-i $PIP_INDEX_URL --trusted-host mirrors.aliyun.com"
+    echo "🇨🇳 使用中国镜像源 (阿里云)"
 else
     PIP_INDEX_ARGS=""
 fi
@@ -321,7 +321,97 @@ if [ "$NEED_INSTALL" = true ]; then
             fi
         else
             echo "  - Installing PyTorch nightly (for Blackwell GPU)..."
-            $PIP install --pre torch torchvision torchaudio --index-url $PYTORCH_INDEX_URL
+            
+            # 中国镜像：从 COS 下载所有 PyTorch nightly 需要的 NVIDIA 依赖
+            if [ "$USE_CHINA_MIRROR" = true ]; then
+                COS_WHEELS_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/pypi/wheels"
+                SPECIAL_WHEELS_DIR="$SCRIPT_DIR/vendor/special_wheels"
+                
+                # PyTorch 2.11.0.dev20260126+cu128 需要的 NVIDIA 依赖（精确版本匹配）
+                SPECIAL_PKGS="cuda_bindings-12.9.4-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
+cuda_pathfinder-1.2.2-py3-none-any.whl
+nvidia_cublas_cu12-12.8.4.1-py3-none-manylinux_2_27_x86_64.whl
+nvidia_cuda_cupti_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+nvidia_cuda_nvrtc_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl
+nvidia_cuda_runtime_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+nvidia_cudnn_cu12-9.15.1.9-py3-none-manylinux_2_27_x86_64.whl
+nvidia_cufft_cu12-11.3.3.83-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+nvidia_cufile_cu12-1.13.1.3-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+nvidia_curand_cu12-10.3.9.90-py3-none-manylinux_2_27_x86_64.whl
+nvidia_cusolver_cu12-11.7.3.90-py3-none-manylinux_2_27_x86_64.whl
+nvidia_cusparse_cu12-12.5.8.93-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+nvidia_cusparselt_cu12-0.7.1-py3-none-manylinux2014_x86_64.whl
+nvidia_nccl_cu12-2.28.9-py3-none-manylinux_2_18_x86_64.whl
+nvidia_nvjitlink_cu12-12.8.93-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl
+nvidia_nvshmem_cu12-3.4.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+nvidia_nvtx_cu12-12.8.90-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+triton-3.6.0+git9844da95-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+                
+                WHEEL_COUNT=$(ls -1 "$SPECIAL_WHEELS_DIR"/*.whl 2>/dev/null | wc -l)
+                if [ "$WHEEL_COUNT" -lt 18 ]; then
+                    echo "  - 从 COS 下载 NVIDIA 依赖 (已有 $WHEEL_COUNT/18)..."
+                    mkdir -p "$SPECIAL_WHEELS_DIR"
+                    
+                    for pkg in $SPECIAL_PKGS; do
+                        if [ ! -f "$SPECIAL_WHEELS_DIR/$pkg" ]; then
+                            echo "    下载: $pkg"
+                            wget -q --show-progress -O "$SPECIAL_WHEELS_DIR/$pkg" "$COS_WHEELS_URL/$pkg" 2>&1 || \
+                            curl -L --progress-bar -o "$SPECIAL_WHEELS_DIR/$pkg" "$COS_WHEELS_URL/$pkg" || true
+                        fi
+                    done
+                    echo "  ✓ NVIDIA 依赖下载完成"
+                fi
+                
+                # 从本地安装所有 NVIDIA 依赖
+                $PIP install --no-index --find-links="$SPECIAL_WHEELS_DIR" \
+                    cuda-bindings cuda-pathfinder nvidia-cuda-nvrtc-cu12 nvidia-cuda-runtime-cu12 nvidia-cuda-cupti-cu12 \
+                    nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cufft-cu12 nvidia-curand-cu12 \
+                    nvidia-cusolver-cu12 nvidia-cusparse-cu12 nvidia-cusparselt-cu12 nvidia-nccl-cu12 \
+                    nvidia-nvshmem-cu12 nvidia-nvtx-cu12 nvidia-nvjitlink-cu12 nvidia-cufile-cu12 \
+                    triton -q 2>/dev/null || true
+                
+                # 从 COS 下载 PyTorch nightly wheels
+                COS_PYTORCH_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/pypi/pytorch"
+                PYTORCH_WHEELS_DIR="$SCRIPT_DIR/vendor/pytorch_wheels"
+                
+                PYTORCH_PKGS="torch-2.11.0.dev20260126+cu128-cp312-cp312-manylinux_2_28_x86_64.whl
+torchaudio-2.11.0.dev20260126+cu128-cp312-cp312-manylinux_2_28_x86_64.whl
+torchvision-0.25.0.dev20260126+cu128-cp312-cp312-manylinux_2_28_x86_64.whl"
+                
+                PYTORCH_WHEEL_COUNT=$(ls -1 "$PYTORCH_WHEELS_DIR"/*.whl 2>/dev/null | wc -l)
+                if [ "$PYTORCH_WHEEL_COUNT" -lt 3 ]; then
+                    echo "  - 从 COS 下载 PyTorch nightly wheels (已有 $PYTORCH_WHEEL_COUNT/3)..."
+                    mkdir -p "$PYTORCH_WHEELS_DIR"
+                    
+                    for pkg in $PYTORCH_PKGS; do
+                        if [ ! -f "$PYTORCH_WHEELS_DIR/$pkg" ]; then
+                            echo "    下载: $pkg"
+                            wget -q --show-progress -O "$PYTORCH_WHEELS_DIR/$pkg" "$COS_PYTORCH_URL/$pkg" 2>&1 || \
+                            curl -L --progress-bar -o "$PYTORCH_WHEELS_DIR/$pkg" "$COS_PYTORCH_URL/$pkg" || true
+                        fi
+                    done
+                    echo "  ✓ PyTorch wheels 下载完成"
+                fi
+            fi
+            
+            # 先从本地安装 PyTorch 其他依赖
+            if [ -d "$SCRIPT_DIR/vendor/wheels" ]; then
+                $PIP install --no-index --find-links="$SCRIPT_DIR/vendor/wheels" \
+                    filelock typing-extensions sympy networkx jinja2 fsspec mpmath markupsafe -q 2>/dev/null || true
+            fi
+            
+            # 安装 PyTorch nightly
+            PYTORCH_NIGHTLY_VERSION="2.11.0.dev20260126"
+            if [ "$USE_CHINA_MIRROR" = true ] && [ -d "$PYTORCH_WHEELS_DIR" ]; then
+                # 中国镜像：先安装网络依赖（setuptools, numpy），再从本地 wheels 安装
+                $PIP install setuptools numpy pillow $PIP_INDEX_ARGS -q
+                echo "  - 从本地 wheels 安装 PyTorch nightly..."
+                $PIP install --no-index --find-links="$PYTORCH_WHEELS_DIR" --find-links="$SPECIAL_WHEELS_DIR" \
+                    torch torchvision torchaudio
+            else
+                # 非中国镜像：从官方源安装
+                $PIP install "torch==${PYTORCH_NIGHTLY_VERSION}+cu128" "torchvision==0.25.0.dev20260126+cu128" "torchaudio==${PYTORCH_NIGHTLY_VERSION}+cu128" --index-url $PYTORCH_INDEX_URL
+            fi
         fi
     else
         # 其他 GPU: 使用稳定版
