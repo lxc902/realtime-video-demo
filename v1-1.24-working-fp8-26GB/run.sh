@@ -321,6 +321,11 @@ if [ "$NEED_INSTALL" = true ]; then
             fi
         else
             echo "  - Installing PyTorch nightly (for Blackwell GPU)..."
+            # 先从本地安装 PyTorch 依赖（避免清华镜像网络问题）
+            if [ -d "$SCRIPT_DIR/vendor/wheels" ]; then
+                $PIP install --no-index --find-links="$SCRIPT_DIR/vendor/wheels" \
+                    filelock typing-extensions sympy networkx jinja2 fsspec mpmath markupsafe -q 2>/dev/null || true
+            fi
             $PIP install --pre torch torchvision torchaudio --index-url $PYTORCH_INDEX_URL
         fi
     else
