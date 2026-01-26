@@ -105,8 +105,10 @@ upload_model() {
 # 检查有哪些模型
 HAS_BASE=false
 HAS_FP8=false
+HAS_TEXT_ENCODER=false
 BASE_VERSION=""
 FP8_VERSION=""
+TEXT_ENCODER_VERSION=""
 
 if [ -d "$MODEL_DIR/models--krea--krea-realtime-video" ]; then
     HAS_BASE=true
@@ -118,7 +120,35 @@ if [ -d "$MODEL_DIR/models--6chan--krea-realtime-video-fp8" ]; then
     FP8_VERSION=$(get_model_version "$MODEL_DIR/models--6chan--krea-realtime-video-fp8")
 fi
 
-if [ "$HAS_BASE" = false ] && [ "$HAS_FP8" = false ]; then
+# Text Encoder 可能在 hub/ 或 transformers/ 目录
+TEXT_ENCODER_HUB_DIR="$MODEL_DIR/models--Wan-AI--Wan2.1-T2V-14B-Diffusers"
+TEXT_ENCODER_TRANSFORMERS_DIR="./tmp/.hf_home/transformers/models--Wan-AI--Wan2.1-T2V-14B-Diffusers"
+
+if [ -d "$TEXT_ENCODER_TRANSFORMERS_DIR" ]; then
+    # transformers 库缓存目录（大文件在这里）
+    TEXT_ENCODER_SIZE=$(du -sm "$TEXT_ENCODER_TRANSFORMERS_DIR" 2>/dev/null | cut -f1 || echo "0")
+    if [ "$TEXT_ENCODER_SIZE" -gt 10000 ]; then
+        HAS_TEXT_ENCODER=true
+        TEXT_ENCODER_VERSION=$(get_model_version "$TEXT_ENCODER_TRANSFORMERS_DIR")
+        TEXT_ENCODER_LOCATION="transformers"
+    else
+        echo "⚠️  Text Encoder (transformers) 不完整 (${TEXT_ENCODER_SIZE}MB < 10GB)"
+    fi
+fi
+
+if [ "$HAS_TEXT_ENCODER" = false ] && [ -d "$TEXT_ENCODER_HUB_DIR" ]; then
+    # hub 目录备选
+    TEXT_ENCODER_SIZE=$(du -sm "$TEXT_ENCODER_HUB_DIR" 2>/dev/null | cut -f1 || echo "0")
+    if [ "$TEXT_ENCODER_SIZE" -gt 10000 ]; then
+        HAS_TEXT_ENCODER=true
+        TEXT_ENCODER_VERSION=$(get_model_version "$TEXT_ENCODER_HUB_DIR")
+        TEXT_ENCODER_LOCATION="hub"
+    else
+        echo "⚠️  Text Encoder (hub) 不完整 (${TEXT_ENCODER_SIZE}MB < 10GB)，跳过"
+    fi
+fi
+
+if [ "$HAS_BASE" = false ] && [ "$HAS_FP8" = false ] && [ "$HAS_TEXT_ENCODER" = false ]; then
     echo "❌ 错误: 没有找到任何模型"
     echo "   请先运行 bash run.sh 下载模型"
     exit 1
@@ -129,11 +159,14 @@ echo "📁 检测到以下模型:"
 if [ "$HAS_BASE" = true ]; then
     echo "   [BASE] 基础模型 (版本: $BASE_VERSION):"
     du -sh $MODEL_DIR/models--krea--krea-realtime-video 2>/dev/null || true
-    du -sh $MODEL_DIR/models--Wan-AI--Wan2.1-T2V-14B-Diffusers 2>/dev/null || true
 fi
 if [ "$HAS_FP8" = true ]; then
     echo "   [FP8] FP8 量化模型 (版本: $FP8_VERSION):"
     du -sh $MODEL_DIR/models--6chan--krea-realtime-video-fp8 2>/dev/null || true
+fi
+if [ "$HAS_TEXT_ENCODER" = true ]; then
+    echo "   [TEXT] Text Encoder (版本: $TEXT_ENCODER_VERSION):"
+    du -sh $MODEL_DIR/models--Wan-AI--Wan2.1-T2V-14B-Diffusers 2>/dev/null || true
 fi
 echo ""
 
@@ -145,17 +178,10 @@ fi
 # 安装 gsutil
 install_gsutil
 
-# 上传基础模型
+# 上传基础模型（不再包含 text encoder，因为太大）
 if [ "$HAS_BASE" = true ]; then
     BASE_BACKUP="krea-models-base-${BASE_VERSION}.tar.gz"
-    BASE_DIRS=("models--krea--krea-realtime-video")
-    
-    # 如果有 text encoder 也一起打包
-    if [ -d "$MODEL_DIR/models--Wan-AI--Wan2.1-T2V-14B-Diffusers" ]; then
-        BASE_DIRS+=("models--Wan-AI--Wan2.1-T2V-14B-Diffusers")
-    fi
-    
-    upload_model "基础模型" "$BASE_BACKUP" "${BASE_DIRS[@]}"
+    upload_model "基础模型" "$BASE_BACKUP" "models--krea--krea-realtime-video"
 fi
 
 # 上传 FP8 模型
@@ -164,14 +190,40 @@ if [ "$HAS_FP8" = true ]; then
     upload_model "FP8 模型" "$FP8_BACKUP" "models--6chan--krea-realtime-video-fp8"
 fi
 
+# 上传 Text Encoder（单独打包，约 20GB）
+if [ "$HAS_TEXT_ENCODER" = true ]; then
+    TEXT_ENCODER_BACKUP="wan-text-encoder-${TEXT_ENCODER_VERSION}.tar.gz"
+    
+    if [ "$TEXT_ENCODER_LOCATION" = "transformers" ]; then
+        # 从 transformers 目录打包
+        echo "📦 打包 Text Encoder (from transformers cache)..."
+        echo "   目标: $BUCKET/$TEXT_ENCODER_BACKUP"
+        cd ./tmp/.hf_home/transformers
+        tar -czf - "models--Wan-AI--Wan2.1-T2V-14B-Diffusers" \
+            | gsutil -o GSUtil:parallel_composite_upload_threshold=150M \
+                     cp - $BUCKET/$TEXT_ENCODER_BACKUP
+        cd - > /dev/null
+        echo "   ✅ 上传成功"
+        echo "   📥 https://storage.googleapis.com/lxcpublic/$TEXT_ENCODER_BACKUP"
+    else
+        # 从 hub 目录打包
+        upload_model "Text Encoder" "$TEXT_ENCODER_BACKUP" "models--Wan-AI--Wan2.1-T2V-14B-Diffusers"
+    fi
+fi
+
 echo "==========================================="
 echo "✅ 全部完成！"
 echo ""
 echo "📝 download.sh 中的 URL:"
 if [ "$HAS_BASE" = true ]; then
-    echo "   GCS_BASE_URL=\"https://storage.googleapis.com/lxcpublic/$BASE_BACKUP\""
+    echo "   BASE_URL: https://storage.googleapis.com/lxcpublic/$BASE_BACKUP"
 fi
 if [ "$HAS_FP8" = true ]; then
-    echo "   GCS_FP8_URL=\"https://storage.googleapis.com/lxcpublic/$FP8_BACKUP\""
+    echo "   FP8_URL: https://storage.googleapis.com/lxcpublic/$FP8_BACKUP"
 fi
+if [ "$HAS_TEXT_ENCODER" = true ]; then
+    echo "   TEXT_ENCODER_URL: https://storage.googleapis.com/lxcpublic/$TEXT_ENCODER_BACKUP"
+fi
+echo ""
+echo "⚠️  上传完成后，请运行 move_gcs_to_cos.sh 迁移到 COS"
 echo "==========================================="

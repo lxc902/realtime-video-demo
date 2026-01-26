@@ -27,11 +27,14 @@ if [ "$USE_CHINA_MIRROR" = true ]; then
     # 腾讯云 COS（中国源）
     BASE_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/krea-models-base-6b5d204f.tar.gz"
     FP8_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/krea-models-fp8-f0c953ce.tar.gz"
+    TEXT_ENCODER_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/models/wan-text-encoder.tar.gz"
+    # 注：COS 上使用固定名称，不含版本号（简化管理）
     SOURCE_NAME="COS (中国)"
 else
     # Google Cloud Storage（海外源）
     BASE_URL="https://storage.googleapis.com/lxcpublic/krea-models-base-6b5d204f.tar.gz"
     FP8_URL="https://storage.googleapis.com/lxcpublic/krea-models-fp8-f0c953ce.tar.gz"
+    TEXT_ENCODER_URL="https://storage.googleapis.com/lxcpublic/wan-text-encoder.tar.gz"
     SOURCE_NAME="GCS"
 fi
 
@@ -139,6 +142,50 @@ if [ "$DOWNLOAD_FP8" = true ]; then
         else
             echo "✅ FP8 模型已存在"
         fi
+    fi
+fi
+
+# 下载 Text Encoder（Wan-AI）- 注意：存放在 transformers 目录
+TEXT_ENCODER_TRANSFORMERS_DIR="./tmp/.hf_home/transformers/models--Wan-AI--Wan2.1-T2V-14B-Diffusers"
+TEXT_ENCODER_HUB_DIR="$TARGET_DIR/models--Wan-AI--Wan2.1-T2V-14B-Diffusers"
+
+# 检查 text_encoder 是否完整（至少需要 10GB）
+TEXT_ENCODER_SIZE_T=$(du -sm "$TEXT_ENCODER_TRANSFORMERS_DIR" 2>/dev/null | cut -f1 || echo "0")
+TEXT_ENCODER_SIZE_H=$(du -sm "$TEXT_ENCODER_HUB_DIR" 2>/dev/null | cut -f1 || echo "0")
+
+if [ "$TEXT_ENCODER_SIZE_T" -lt 10000 ] && [ "$TEXT_ENCODER_SIZE_H" -lt 10000 ]; then
+    if [ -n "$TEXT_ENCODER_URL" ]; then
+        echo ""
+        echo "📥 下载 Text Encoder (Wan-AI)..."
+        echo "   URL: $TEXT_ENCODER_URL"
+        
+        temp_file="./tmp/wan-text-encoder-temp.tar.gz"
+        success=false
+        
+        if command -v wget &> /dev/null; then
+            wget -O "$temp_file" "$TEXT_ENCODER_URL" && success=true
+        elif command -v curl &> /dev/null; then
+            curl -L -o "$temp_file" "$TEXT_ENCODER_URL" && success=true
+        fi
+        
+        if [ "$success" = true ]; then
+            echo "   ✅ 下载成功"
+            echo "   📦 解压到 transformers 缓存..."
+            mkdir -p ./tmp/.hf_home/transformers
+            tar -xzf "$temp_file" -C ./tmp/.hf_home/transformers
+            rm -f "$temp_file"
+            echo "   ✅ 完成"
+        else
+            echo "   ⚠️  下载失败，将在运行时从 HuggingFace 下载"
+        fi
+    else
+        echo "⚠️  Text Encoder 不完整，将在运行时从 HuggingFace 下载"
+    fi
+else
+    if [ "$TEXT_ENCODER_SIZE_T" -gt 10000 ]; then
+        echo "✅ Text Encoder 已存在 (transformers: ${TEXT_ENCODER_SIZE_T}MB)"
+    else
+        echo "✅ Text Encoder 已存在 (hub: ${TEXT_ENCODER_SIZE_H}MB)"
     fi
 fi
 

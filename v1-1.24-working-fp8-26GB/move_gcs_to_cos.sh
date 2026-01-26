@@ -51,15 +51,17 @@ echo "GCS -> COS 模型迁移工具"
 echo "==========================================="
 echo ""
 
-# GCS 文件 URL
+# GCS 文件 URL（运行 upload.sh 后会显示这些 URL）
 GCS_BASE_URL="https://storage.googleapis.com/lxcpublic/krea-models-base-6b5d204f.tar.gz"
 GCS_FP8_URL="https://storage.googleapis.com/lxcpublic/krea-models-fp8-f0c953ce.tar.gz"
+GCS_TEXT_ENCODER_URL="https://storage.googleapis.com/lxcpublic/wan-text-encoder-67c2c7d8.tar.gz"
 
 # COS 配置
 COS_BUCKET="rtcos-1394285684"
 COS_REGION="ap-nanjing"
 COS_BASE_KEY="models/krea-models-base-6b5d204f.tar.gz"
 COS_FP8_KEY="models/krea-models-fp8-f0c953ce.tar.gz"
+COS_TEXT_ENCODER_KEY="models/wan-text-encoder.tar.gz"
 
 # 临时下载目录
 TEMP_DIR="./tmp/gcs_download"
@@ -132,6 +134,9 @@ fi
 # 处理 FP8 模型
 download_and_upload "$GCS_FP8_URL" "$COS_FP8_KEY"
 
+# 处理 Text Encoder
+download_and_upload "$GCS_TEXT_ENCODER_URL" "$COS_TEXT_ENCODER_KEY"
+
 echo ""
 echo "==========================================="
 echo "✅ 全部完成!"
@@ -139,10 +144,12 @@ echo ""
 echo "COS 文件:"
 echo "  - cos://$COS_BUCKET/$COS_BASE_KEY"
 echo "  - cos://$COS_BUCKET/$COS_FP8_KEY"
+echo "  - cos://$COS_BUCKET/$COS_TEXT_ENCODER_KEY"
 echo ""
 echo "公开访问 URL:"
 echo "  - https://$COS_BUCKET.cos.$COS_REGION.myqcloud.com/$COS_BASE_KEY"
 echo "  - https://$COS_BUCKET.cos.$COS_REGION.myqcloud.com/$COS_FP8_KEY"
+echo "  - https://$COS_BUCKET.cos.$COS_REGION.myqcloud.com/$COS_TEXT_ENCODER_KEY"
 echo "==========================================="
 
 # 可选：清理临时文件
