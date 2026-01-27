@@ -1043,18 +1043,26 @@
                 if (!video.videoWidth) return null;
 
                 const ctx = canvas.getContext('2d');
-                // 激进分辨率以提高速度
-                canvas.width = 384;
-                canvas.height = 240;
+                
+                // 自适应宽高比：保持输入比例，限制最大边为 384
+                const maxSize = 384;
+                const aspectRatio = video.videoWidth / video.videoHeight;
+                let targetWidth, targetHeight;
+                
+                if (aspectRatio > 1) {
+                    // 横屏
+                    targetWidth = maxSize;
+                    targetHeight = Math.round(maxSize / aspectRatio);
+                } else {
+                    // 竖屏
+                    targetHeight = maxSize;
+                    targetWidth = Math.round(maxSize * aspectRatio);
+                }
+                
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
 
-                // Scale and crop
-                const scale = Math.max(384 / video.videoWidth, 240 / video.videoHeight);
-                const scaledWidth = video.videoWidth * scale;
-                const scaledHeight = video.videoHeight * scale;
-                const offsetX = (384 - scaledWidth) / 2;
-                const offsetY = (240 - scaledHeight) / 2;
-
-                ctx.drawImage(video, offsetX, offsetY, scaledWidth, scaledHeight);
+                ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
 
                 return new Promise((resolve) => {
                     canvas.toBlob(async (blob) => {
