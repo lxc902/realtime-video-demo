@@ -338,4 +338,15 @@ async def clear_cache():
 
 if __name__ == "__main__":
     import uvicorn
+    import signal
+    import sys
+    
+    # Ctrl+C 立即退出，不等待连接关闭
+    def force_exit(sig, frame):
+        print("\n强制退出...")
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, force_exit)
+    signal.signal(signal.SIGTERM, force_exit)
+    
     uvicorn.run(app, host="0.0.0.0", port=7860)
