@@ -312,24 +312,28 @@ class KreaLocalInference:
                 kwargs["video_stream"] = pil_list
                 
                 # 从输入帧提取宽高比，按比例缩放到模型可用的分辨率
-                # KREA 模型训练分辨率 832x480，需要保持足够的分辨率
+                # KREA 模型训练分辨率 832x480，必须保持固定的宽或高
                 if pil_list:
                     first_frame = pil_list[0]
                     input_w, input_h = first_frame.width, first_frame.height
                     aspect = input_w / input_h
                     
-                    # 目标：保持宽高比，总像素约 832*480 = 399360
-                    TARGET_PIXELS = 832 * 480
-                    
-                    # 根据宽高比计算目标尺寸
-                    target_height = int((TARGET_PIXELS / aspect) ** 0.5)
-                    target_width = int(target_height * aspect)
+                    # 横屏：固定 width=832，计算 height
+                    # 竖屏：固定 height=480，计算 width
+                    if aspect >= 1.0:
+                        # 横屏或正方形
+                        target_width = 832
+                        target_height = int(832 / aspect)
+                    else:
+                        # 竖屏
+                        target_height = 480
+                        target_width = int(480 * aspect)
                     
                     # 对齐到 8 的倍数
                     target_width = (target_width // 8) * 8
                     target_height = (target_height // 8) * 8
                     
-                    # 确保最小尺寸（至少 256）
+                    # 确保最小尺寸
                     target_width = max(target_width, 256)
                     target_height = max(target_height, 256)
                     
