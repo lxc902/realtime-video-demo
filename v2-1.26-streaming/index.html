@@ -937,15 +937,16 @@
                 if (!video.videoWidth) return null;
 
                 const ctx = canvas.getContext('2d');
-                canvas.width = 832;
-                canvas.height = 480;
+                // 降低分辨率以提高速度（原 832x480）
+                canvas.width = 512;
+                canvas.height = 320;
 
                 // Scale and crop
-                const scale = Math.max(832 / video.videoWidth, 480 / video.videoHeight);
+                const scale = Math.max(512 / video.videoWidth, 320 / video.videoHeight);
                 const scaledWidth = video.videoWidth * scale;
                 const scaledHeight = video.videoHeight * scale;
-                const offsetX = (832 - scaledWidth) / 2;
-                const offsetY = (480 - scaledHeight) / 2;
+                const offsetX = (512 - scaledWidth) / 2;
+                const offsetY = (320 - scaledHeight) / 2;
 
                 ctx.drawImage(video, offsetX, offsetY, scaledWidth, scaledHeight);
 
