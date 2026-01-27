@@ -911,8 +911,8 @@
                         // 忽略
                     }
                     
-                    // 每 500ms 发送一帧（2 FPS，节省带宽）
-                    this.frameUpdateTimer = setTimeout(sendFrame, 500);
+                    // 每 2000ms 发送一帧（后端每 ~3 秒才用一次，节省带宽）
+                    this.frameUpdateTimer = setTimeout(sendFrame, 2000);
                 };
                 
                 sendFrame();
