@@ -993,9 +993,10 @@
                 
                 this.playFpsStartTime = performance.now();
                 this.lastFrameBitmap = null;
-                this.lastFrameTimestamp = 0;
-                this.playbackStartTime = 0;
-                this.timestampOffset = 0;
+                this.playbackReady = false;  // 缓冲是否就绪
+                
+                const BUFFER_TARGET = 6;  // 目标缓冲帧数
+                const FIXED_INTERVAL = 1000;  // 固定 1 FPS（与生成速度匹配）
                 
                 const playFrame = () => {
                     if (!this.isGenerating && this.frameQueue.length === 0) {
@@ -1005,65 +1006,50 @@
                     
                     const now = performance.now();
                     
-                    if (this.frameQueue.length > 0) {
-                        const frameData = this.frameQueue[0];
+                    // 缓冲策略：等积累够帧数再开始播放
+                    if (!this.playbackReady) {
+                        if (this.frameQueue.length >= BUFFER_TARGET) {
+                            this.playbackReady = true;
+                            this.lastPlayTime = now;
+                            console.log(`[Play] 缓冲就绪! queue=${this.frameQueue.length}`);
+                        } else {
+                            document.getElementById('queueSize').textContent = `缓冲 ${this.frameQueue.length}/${BUFFER_TARGET}`;
+                            this.playbackTimer = requestAnimationFrame(playFrame);
+                            return;
+                        }
+                    }
+                    
+                    // 固定间隔播放
+                    const shouldPlay = this.frameQueue.length > 0 && (now - this.lastPlayTime) >= FIXED_INTERVAL;
+                    
+                    if (shouldPlay) {
+                        const frameData = this.frameQueue.shift();
                         const bitmap = frameData.bitmap || frameData;
                         const frameTs = frameData.timestamp || 0;
                         
-                        // 初始化播放基准
-                        if (this.playbackStartTime === 0 && frameTs > 0) {
-                            this.playbackStartTime = now;
-                            this.timestampOffset = frameTs;
-                        }
+                        console.log(`[Play] 播放帧 ts=${frameTs.toFixed(0)}, queue=${this.frameQueue.length}`);
+                        const canvas = document.getElementById('outputCanvas');
+                        canvas.width = bitmap.width;
+                        canvas.height = bitmap.height;
+                        canvas.getContext('2d').drawImage(bitmap, 0, 0);
                         
-                        // 计算这帧应该播放的时间
-                        let shouldPlay = false;
-                        if (frameTs > 0 && this.timestampOffset > 0) {
-                            // 帧的相对时间 = frameTs - 第一帧的 ts
-                            // 应该播放时间 = playbackStartTime + 相对时间
-                            const relativeTs = frameTs - this.timestampOffset;
-                            const targetPlayTime = this.playbackStartTime + relativeTs;
-                            shouldPlay = now >= targetPlayTime;
-                            
-                            // 如果帧太"旧"（比目标时间晚 2 秒以上），重置基准
-                            if (targetPlayTime < now - 2000) {
-                                console.log(`[Play] 重置基准! targetPlayTime=${targetPlayTime.toFixed(0)}, now=${now.toFixed(0)}, diff=${(now - targetPlayTime).toFixed(0)}ms`);
-                                this.playbackStartTime = now;
-                                this.timestampOffset = frameTs;
-                                shouldPlay = true;
-                            }
-                        } else {
-                            // 无时间戳，固定 333ms
-                            shouldPlay = !this.lastPlayTime || (now - this.lastPlayTime) >= 333;
+                        if (this.lastFrameBitmap && this.lastFrameBitmap.close) {
+                            this.lastFrameBitmap.close();
                         }
+                        this.lastFrameBitmap = bitmap;
+                        this.lastPlayTime = now;
                         
-                        if (shouldPlay) {
-                            this.frameQueue.shift();
-                            console.log(`[Play] 播放帧 ts=${frameTs.toFixed(0)}, relTs=${(frameTs - this.timestampOffset).toFixed(0)}, queue=${this.frameQueue.length}`);
-                            const canvas = document.getElementById('outputCanvas');
-                            canvas.width = bitmap.width;
-                            canvas.height = bitmap.height;
-                            canvas.getContext('2d').drawImage(bitmap, 0, 0);
-                            
-                            if (this.lastFrameBitmap && this.lastFrameBitmap.close) {
-                                this.lastFrameBitmap.close();
-                            }
-                            this.lastFrameBitmap = bitmap;
-                            this.lastFrameTimestamp = frameTs;
-                            this.lastPlayTime = now;
-                            
-                            // FPS 统计
-                            this.playFpsFrameCount++;
-                            if (now - this.playFpsStartTime >= 1000) {
-                                this.currentPlayFps = this.playFpsFrameCount;
-                                this.playFpsFrameCount = 0;
-                                this.playFpsStartTime = now;
-                            }
-                            document.getElementById('playFpsDisplay').textContent = this.currentPlayFps;
+                        // FPS 统计
+                        this.playFpsFrameCount++;
+                        if (now - this.playFpsStartTime >= 1000) {
+                            this.currentPlayFps = this.playFpsFrameCount;
+                            this.playFpsFrameCount = 0;
+                            this.playFpsStartTime = now;
                         }
+                        document.getElementById('playFpsDisplay').textContent = this.currentPlayFps;
                     }
-                    document.getElementById('queueSize').textContent = this.frameQueue.length;
                     
+                    document.getElementById('queueSize').textContent = this.frameQueue.length;
                     this.playbackTimer = requestAnimationFrame(playFrame);
                 };
                 
