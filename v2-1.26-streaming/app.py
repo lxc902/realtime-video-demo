@@ -221,6 +221,7 @@ async def api_stream_generation(req: StreamGenerationRequest):
                 
                 def generate_block():
                     nonlocal state, start_frames_list
+                    input_client_ts = 0  # 输入帧的客户端时间戳
                     with inference_lock:
                         # 获取最新帧、strength、prompt
                         current_prompt = req.prompt
@@ -229,6 +230,7 @@ async def api_stream_generation(req: StreamGenerationRequest):
                             if latest_frame_data["frame"] is not None:
                                 latest_frame = latest_frame_data["frame"]
                                 start_frames_list = [latest_frame] * V2V_INITIAL_FRAMES
+                                input_client_ts = latest_frame_data["client_ts"]
                             if latest_frame_data["strength"] is not None:
                                 current_strength = latest_frame_data["strength"]
                             if latest_frame_data["prompt"] is not None:
@@ -251,9 +253,9 @@ async def api_stream_generation(req: StreamGenerationRequest):
                             num_blocks=max_blocks
                         )
                         state = new_state
-                        return frames
+                        return frames, input_client_ts
                 
-                frames = await asyncio.to_thread(generate_block)
+                frames, input_ts = await asyncio.to_thread(generate_block)
                 block_end_time = time.time() * 1000  # ms
                 
                 # 时间插值：将生成耗时均匀分配给每帧
@@ -275,6 +277,7 @@ async def api_stream_generation(req: StreamGenerationRequest):
                         "block": block_idx,
                         "frame_idx": global_frame_idx,
                         "timestamp": frame_ts,
+                        "input_ts": input_ts,  # 输入帧的客户端时间戳（用于计算延迟）
                         "data": frame_b64
                     })
                     yield f"data: {event_data}\n\n"

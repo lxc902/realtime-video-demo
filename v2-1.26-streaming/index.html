@@ -595,7 +595,7 @@
                         <span id="statusText">Ready</span>
                     </div>
                     <div class="progress-info">
-                        <span id="frameCount">0</span> frames | Gen: <span id="genFpsDisplay">0</span> | Play: <span id="playFpsDisplay">0</span> FPS | Q: <span id="queueSize">0</span>
+                        <span id="playFpsDisplay">0</span> FPS | Latency: <span id="latencyDisplay">0</span>s | Q: <span id="queueSize">0</span>
                     </div>
                 </div>
             </div>
@@ -649,6 +649,7 @@
             playFpsStartTime: 0,
             playFpsFrameCount: 0,
             currentPlayFps: 0,
+            currentLatency: 0,
 
             async init() {
                 this.setupEventListeners();
@@ -861,7 +862,12 @@
                                     if (data.type === 'frame') {
                                         const frameBytes = this.base64ToArrayBuffer(data.data);
                                         const timestamp = data.timestamp || 0;
-                                        console.log(`[SSE] 收到帧 #${data.frame_idx}, ts=${timestamp.toFixed(0)}, queue=${this.frameQueue.length}`);
+                                        const inputTs = data.input_ts || 0;
+                                        // 计算延迟：当前时间 - 输入帧时间
+                                        if (inputTs > 0) {
+                                            this.currentLatency = performance.now() - inputTs;
+                                        }
+                                        console.log(`[SSE] 收到帧 #${data.frame_idx}, ts=${timestamp.toFixed(0)}, latency=${this.currentLatency.toFixed(0)}ms, queue=${this.frameQueue.length}`);
                                         await this.displayFrame(frameBytes, timestamp);
                                     } else if (data.type === 'error') {
                                         console.error('Generation error:', data.message);
@@ -977,9 +983,9 @@
                     this.genFpsStartTime = now;
                 }
 
-                document.getElementById('frameCount').textContent = this.frameCount;
-                document.getElementById('genFpsDisplay').textContent = this.currentGenFps;
                 document.getElementById('queueSize').textContent = this.frameQueue.length;
+                // 更新延迟显示（秒）
+                document.getElementById('latencyDisplay').textContent = (this.currentLatency / 1000).toFixed(1);
 
                 if (this.frameCount === 1) {
                     document.getElementById('outputSpinner').classList.add('hidden');
