@@ -170,8 +170,8 @@ if [ "$GPU_ARCH" = "blackwell" ]; then
 else
     # Ada, Hopper, Ampere 等使用稳定版
     if [ "$USE_CHINA_MIRROR" = true ]; then
-        # 国内 PyTorch 镜像不稳定，使用官方源
-        PYTORCH_INDEX_URL="https://download.pytorch.org/whl/cu121"
+        # 上海交大 PyTorch 镜像
+        PYTORCH_INDEX_URL="https://mirror.sjtu.edu.cn/pytorch-wheels/cu121"
     else
         PYTORCH_INDEX_URL="https://download.pytorch.org/whl/cu121"
     fi
