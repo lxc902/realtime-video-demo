@@ -539,7 +539,7 @@
                         <span id="statusText">Ready</span>
                     </div>
                     <div class="progress-info">
-                        <span id="frameCount">0</span> frames generated
+                        <span id="frameCount">0</span> frames | <span id="fpsDisplay">0</span> FPS
                     </div>
                 </div>
             </div>
@@ -582,6 +582,10 @@
             currentVideoFile: null,
             frameCount: 0,
             allFrames: [],
+            // FPS 统计
+            fpsStartTime: 0,
+            fpsFrameCount: 0,
+            currentFps: 0,
 
             async init() {
                 this.setupEventListeners();
@@ -745,8 +749,15 @@
             async startSSEGeneration() {
                 this.setStatus('generating', 'Generating...');
                 
-                // 无限循环模式：持续捕获帧 -> 生成 -> 显示
-                while (this.isGenerating) {
+                // 并发请求数（提高实时性）
+                const MAX_CONCURRENT = 2;
+                let activeRequests = 0;
+                
+                // 请求生成的函数
+                const generateOne = async () => {
+                    if (!this.isGenerating) return;
+                    
+                    activeRequests++;
                     try {
                         const strength = parseFloat(document.getElementById('strength').value);
                         const prompt = document.getElementById('prompt').value;
@@ -754,8 +765,7 @@
                         // 捕获当前 webcam/video 帧
                         const startFrame = await this.captureFrame();
                         if (!startFrame) {
-                            await new Promise(r => setTimeout(r, 100));
-                            continue;
+                            return;
                         }
 
                         const payload = {
@@ -773,8 +783,7 @@
 
                         if (!response.ok) {
                             console.error('Server error:', response.status);
-                            await new Promise(r => setTimeout(r, 500));
-                            continue;
+                            return;
                         }
 
                         const reader = response.body.getReader();
@@ -808,9 +817,20 @@
                         }
                         
                     } catch (error) {
-                        console.error('Generation loop error:', error);
-                        await new Promise(r => setTimeout(r, 500));
+                        console.error('Generation error:', error);
+                    } finally {
+                        activeRequests--;
                     }
+                };
+                
+                // 循环调度
+                while (this.isGenerating) {
+                    // 启动新请求（保持并发数）
+                    while (activeRequests < MAX_CONCURRENT && this.isGenerating) {
+                        generateOne();  // 不 await，异步执行
+                        await new Promise(r => setTimeout(r, 50));  // 错开请求
+                    }
+                    await new Promise(r => setTimeout(r, 50));
                 }
             },
 
@@ -854,12 +874,23 @@
                 
                 this.allFrames.push(imageData);
                 this.frameCount++;
+                
+                // FPS 计算
+                this.fpsFrameCount++;
+                const now = performance.now();
+                if (now - this.fpsStartTime >= 1000) {
+                    this.currentFps = this.fpsFrameCount;
+                    this.fpsFrameCount = 0;
+                    this.fpsStartTime = now;
+                }
 
                 document.getElementById('frameCount').textContent = this.frameCount;
+                document.getElementById('fpsDisplay').textContent = this.currentFps;
 
                 if (this.frameCount === 1) {
                     document.getElementById('outputSpinner').classList.add('hidden');
                     document.getElementById('downloadBtn').classList.remove('hidden');
+                    this.fpsStartTime = performance.now();
                 }
                 
                 if (bitmap.close) bitmap.close();
