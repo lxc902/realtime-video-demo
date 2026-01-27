@@ -183,6 +183,11 @@
             width: 100%;
             height: auto;
         }
+        
+        /* Webcam 镜像显示 */
+        #inputVideo {
+            transform: scaleX(-1);
+        }
 
         .placeholder {
             text-align: center;
@@ -1079,7 +1084,11 @@
                 canvas.width = targetWidth;
                 canvas.height = targetHeight;
 
-                ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+                // 镜像捕获（与显示一致）
+                ctx.save();
+                ctx.scale(-1, 1);
+                ctx.drawImage(video, -targetWidth, 0, targetWidth, targetHeight);
+                ctx.restore();
 
                 return new Promise((resolve) => {
                     canvas.toBlob(async (blob) => {
