@@ -171,7 +171,7 @@
         .video-element, .canvas-element {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
         }
 
         .placeholder {
@@ -1044,25 +1044,30 @@
 
                 const ctx = canvas.getContext('2d');
                 
-                // 自适应宽高比：保持输入比例，限制最大边为 384
-                const maxSize = 384;
-                const aspectRatio = video.videoWidth / video.videoHeight;
-                let targetWidth, targetHeight;
-                
-                if (aspectRatio > 1) {
-                    // 横屏
-                    targetWidth = maxSize;
-                    targetHeight = Math.round(maxSize / aspectRatio);
-                } else {
-                    // 竖屏
-                    targetHeight = maxSize;
-                    targetWidth = Math.round(maxSize * aspectRatio);
-                }
+                // 固定输出为横屏 16:10 比例（KREA 模型输出比例）
+                const targetWidth = 384;
+                const targetHeight = 240;
                 
                 canvas.width = targetWidth;
                 canvas.height = targetHeight;
 
-                ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+                // 居中裁剪：保持比例填充整个画布
+                const inputAspect = video.videoWidth / video.videoHeight;
+                const targetAspect = targetWidth / targetHeight;
+                
+                let srcX = 0, srcY = 0, srcW = video.videoWidth, srcH = video.videoHeight;
+                
+                if (inputAspect > targetAspect) {
+                    // 输入更宽，裁剪左右
+                    srcW = video.videoHeight * targetAspect;
+                    srcX = (video.videoWidth - srcW) / 2;
+                } else {
+                    // 输入更高，裁剪上下
+                    srcH = video.videoWidth / targetAspect;
+                    srcY = (video.videoHeight - srcH) / 2;
+                }
+
+                ctx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, targetWidth, targetHeight);
 
                 return new Promise((resolve) => {
                     canvas.toBlob(async (blob) => {
