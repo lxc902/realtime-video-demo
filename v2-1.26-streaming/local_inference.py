@@ -316,7 +316,16 @@ class KreaLocalInference:
                     print(f"  [After pipe] current_denoised_latents shape: {cdl.shape}")
             
             # 提取生成的帧
-            new_frames = new_state.values["videos"][0]
+            all_frames = new_state.values["videos"][0]
+            
+            # KREA 模型每个 block 生成 3 帧，但 videos 可能包含累积的帧
+            # 只返回当前 block 的帧（最后 3 帧）
+            FRAMES_PER_BLOCK = 3
+            if len(all_frames) > FRAMES_PER_BLOCK:
+                new_frames = all_frames[-FRAMES_PER_BLOCK:]
+                print(f"  [generate_next_block] videos has {len(all_frames)} frames, returning last {FRAMES_PER_BLOCK}")
+            else:
+                new_frames = all_frames
         
         # 显式删除临时变量
         del kwargs
