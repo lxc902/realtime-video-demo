@@ -78,6 +78,7 @@ class KreaLocalInference:
         
         self.state = None
         self.current_frames = []
+        self._input_aspect = None  # 输入宽高比，用于输出 resize
         
     def initialize_generation(self, prompt, start_frame=None, num_inference_steps=4, strength=0.45, seed=None):
         """初始化生成过程（旧 API，保留兼容性）"""
@@ -311,39 +312,18 @@ class KreaLocalInference:
                 debug_print(f"  [video_stream] passing {len(pil_list)} frames to pipeline")
                 kwargs["video_stream"] = pil_list
                 
-                # 从输入帧提取宽高比，按比例缩放到模型可用的分辨率
-                # KREA 模型训练分辨率 832x480，必须保持固定的宽或高
+                # KREA 模型固定使用训练分辨率 832x480，确保稳定性
+                # 保存输入宽高比，输出时 resize
                 if pil_list:
                     first_frame = pil_list[0]
-                    input_w, input_h = first_frame.width, first_frame.height
-                    aspect = input_w / input_h
+                    self._input_aspect = first_frame.width / first_frame.height
                     
-                    # 横屏：固定 width=832，计算 height
-                    # 竖屏：固定 height=480，计算 width
-                    if aspect >= 1.0:
-                        # 横屏或正方形
-                        target_width = 832
-                        target_height = int(832 / aspect)
-                    else:
-                        # 竖屏
-                        target_height = 480
-                        target_width = int(480 * aspect)
+                    # 固定模型分辨率
+                    kwargs["width"] = 832
+                    kwargs["height"] = 480
                     
-                    # 对齐到 8 的倍数
-                    target_width = (target_width // 8) * 8
-                    target_height = (target_height // 8) * 8
-                    
-                    # 确保最小尺寸
-                    target_width = max(target_width, 256)
-                    target_height = max(target_height, 256)
-                    
-                    kwargs["width"] = target_width
-                    kwargs["height"] = target_height
-                    
-                    # 第一个 block 打印分辨率信息
                     if block_idx == 0:
-                        print(f"[Resolution] input={input_w}x{input_h} (aspect={aspect:.2f}) -> model={target_width}x{target_height}")
-                    debug_print(f"  [resolution] input={input_w}x{input_h} -> model={target_width}x{target_height}")
+                        print(f"[Resolution] input={first_frame.width}x{first_frame.height} (aspect={self._input_aspect:.2f}) -> model=832x480 (output will be resized)")
                 
             # 生成
             new_state = self.pipe(**kwargs)
@@ -385,21 +365,38 @@ class KreaLocalInference:
         return frame
     
     def frame_to_bytes(self, frame):
-        """将帧转换为 JPEG 字节"""
-        # 如果已经是 PIL Image，直接保存
+        """将帧转换为 JPEG 字节，并根据输入宽高比 resize"""
+        # 转换为 PIL Image
         if isinstance(frame, Image.Image):
-            buf = io.BytesIO()
-            if frame.mode != 'RGB':
-                frame = frame.convert('RGB')
-            frame.save(buf, format='JPEG', quality=80)
-            return buf.getvalue()
+            image = frame
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+        elif isinstance(frame, torch.Tensor):
+            frame_np = frame.cpu().numpy()
+            if frame_np.max() <= 1.0:
+                frame_np = (frame_np * 255).astype(np.uint8)
+            image = Image.fromarray(frame_np)
+        else:
+            image = Image.fromarray(frame)
         
-        if isinstance(frame, torch.Tensor):
-            frame = frame.cpu().numpy()
-            if frame.max() <= 1.0:
-                frame = (frame * 255).astype(np.uint8)
+        # 根据输入宽高比 resize 输出
+        if hasattr(self, '_input_aspect') and self._input_aspect:
+            input_aspect = self._input_aspect
+            output_aspect = image.width / image.height
+            
+            if abs(input_aspect - output_aspect) > 0.01:
+                # 需要 resize
+                if input_aspect > output_aspect:
+                    # 输入更宽，保持宽度，裁剪高度
+                    new_height = int(image.width / input_aspect)
+                    new_width = image.width
+                else:
+                    # 输入更高，保持高度，裁剪宽度
+                    new_width = int(image.height * input_aspect)
+                    new_height = image.height
+                
+                image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
         
-        image = Image.fromarray(frame)
         buf = io.BytesIO()
         image.save(buf, format='JPEG', quality=80)
         return buf.getvalue()
