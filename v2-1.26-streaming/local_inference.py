@@ -2,6 +2,13 @@
 KREA Realtime Video - 本地 GPU 推理模块
 使用 diffusers 库在本地 GPU 上运行 KREA 模型
 """
+# 调试日志开关
+DEBUG_VERBOSE = False
+
+def debug_print(*args, **kwargs):
+    if DEBUG_VERBOSE:
+        print(*args, **kwargs)
+
 import torch
 import torch._dynamo
 import torch._inductor
@@ -127,7 +134,7 @@ class KreaLocalInference:
         # 保存常用参数到实例（用于旧 API 兼容）
         self.num_inference_steps = num_inference_steps
         
-        print(f"[New Session] All caches cleared, starting fresh generation")
+        debug_print(f"[New Session] All caches cleared, starting fresh generation")
         
         return state, generator
         
@@ -153,32 +160,32 @@ class KreaLocalInference:
         if torch.cuda.is_available():
             allocated = torch.cuda.memory_allocated() / 1024 / 1024 / 1024
             reserved = torch.cuda.memory_reserved() / 1024 / 1024 / 1024
-            print(f"[Debug] block_idx={block_idx}, GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
+            debug_print(f"[Debug] block_idx={block_idx}, GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
         
         if state is None or not hasattr(state, 'values'):
-            print(f"  [Cleanup] state is None or has no values")
+            debug_print(f"  [Cleanup] state is None or has no values")
             return
         
         values = state.values
         if not values:
-            print(f"  [Cleanup] state.values is empty")
+            debug_print(f"  [Cleanup] state.values is empty")
             return
         
         # 诊断：打印 state.values 中的所有 key
         all_keys = list(values.keys())
-        print(f"  [Cleanup] state.values keys: {all_keys}")
+        debug_print(f"  [Cleanup] state.values keys: {all_keys}")
         
         # 关键诊断：检查 current_denoised_latents 的状态
         if 'current_denoised_latents' in values:
             cdl = values['current_denoised_latents']
             if cdl is None:
-                print(f"  [WARNING] current_denoised_latents is None!")
+                debug_print(f"  [WARNING] current_denoised_latents is None!")
             elif hasattr(cdl, 'shape'):
-                print(f"  [Debug] current_denoised_latents shape: {cdl.shape}")
+                debug_print(f"  [Debug] current_denoised_latents shape: {cdl.shape}")
             else:
-                print(f"  [Debug] current_denoised_latents type: {type(cdl)}")
+                debug_print(f"  [Debug] current_denoised_latents type: {type(cdl)}")
         else:
-            print(f"  [WARNING] current_denoised_latents not in state.values!")
+            debug_print(f"  [WARNING] current_denoised_latents not in state.values!")
         
         # 暂时禁用删除，测试推理是否正常
         keys_to_delete = []
@@ -190,9 +197,9 @@ class KreaLocalInference:
                 del values[key]
         
         if deleted:
-            print(f"  [Cleanup] Deleted: {deleted}")
+            debug_print(f"  [Cleanup] Deleted: {deleted}")
         else:
-            print(f"  [Cleanup] Nothing to delete from target keys")
+            debug_print(f"  [Cleanup] Nothing to delete from target keys")
         
         # 强制 Python 垃圾回收
         gc.collect()
@@ -206,7 +213,7 @@ class KreaLocalInference:
         if torch.cuda.is_available():
             allocated = torch.cuda.memory_allocated() / 1024 / 1024 / 1024
             reserved = torch.cuda.memory_reserved() / 1024 / 1024 / 1024
-            print(f"  [After cleanup] GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
+            debug_print(f"  [After cleanup] GPU memory: allocated={allocated:.2f}GB, reserved={reserved:.2f}GB")
     
     def generate_next_block(self, input_frame=None, num_blocks=25):
         """生成下一个 block 的帧（旧 API，保留兼容性）"""
@@ -230,20 +237,20 @@ class KreaLocalInference:
         
         返回: (new_state, frames)
         """
-        print(f"\n[generate_next_block] block_idx={block_idx}, input_frame={'provided' if input_frame is not None else 'None'}")
+        debug_print(f"\n[generate_next_block] block_idx={block_idx}, input_frame={'provided' if input_frame is not None else 'None'}")
         
         # 在清理前检查 current_denoised_latents
         if state is not None and hasattr(state, 'values') and state.values:
             if 'current_denoised_latents' in state.values:
                 cdl = state.values['current_denoised_latents']
                 if cdl is None:
-                    print(f"  [BEFORE cleanup] current_denoised_latents is None!")
+                    debug_print(f"  [BEFORE cleanup] current_denoised_latents is None!")
                 elif hasattr(cdl, 'shape'):
-                    print(f"  [BEFORE cleanup] current_denoised_latents shape: {cdl.shape}")
+                    debug_print(f"  [BEFORE cleanup] current_denoised_latents shape: {cdl.shape}")
             else:
-                print(f"  [BEFORE cleanup] current_denoised_latents not in state.values")
+                debug_print(f"  [BEFORE cleanup] current_denoised_latents not in state.values")
         else:
-            print(f"  [BEFORE cleanup] state is empty or None")
+            debug_print(f"  [BEFORE cleanup] state is empty or None")
         
         # 清理 state 中的大张量，避免 deepcopy OOM
         self._cleanup_state_tensors_for_state(state, block_idx)
@@ -301,7 +308,7 @@ class KreaLocalInference:
                 else:
                     pil_list.append(frame_to_use)
                 
-                print(f"  [video_stream] passing {len(pil_list)} frames to pipeline")
+                debug_print(f"  [video_stream] passing {len(pil_list)} frames to pipeline")
                 kwargs["video_stream"] = pil_list
                 
             # 生成
@@ -311,9 +318,9 @@ class KreaLocalInference:
             if hasattr(new_state, 'values') and 'current_denoised_latents' in new_state.values:
                 cdl = new_state.values['current_denoised_latents']
                 if cdl is None:
-                    print(f"  [After pipe] current_denoised_latents is None!")
+                    debug_print(f"  [After pipe] current_denoised_latents is None!")
                 elif hasattr(cdl, 'shape'):
-                    print(f"  [After pipe] current_denoised_latents shape: {cdl.shape}")
+                    debug_print(f"  [After pipe] current_denoised_latents shape: {cdl.shape}")
             
             # 提取生成的帧
             all_frames = new_state.values["videos"][0]
@@ -323,7 +330,7 @@ class KreaLocalInference:
             FRAMES_PER_BLOCK = 3
             if len(all_frames) > FRAMES_PER_BLOCK:
                 new_frames = all_frames[-FRAMES_PER_BLOCK:]
-                print(f"  [generate_next_block] videos has {len(all_frames)} frames, returning last {FRAMES_PER_BLOCK}")
+                debug_print(f"  [generate_next_block] videos has {len(all_frames)} frames, returning last {FRAMES_PER_BLOCK}")
             else:
                 new_frames = all_frames
         
@@ -402,12 +409,12 @@ class KreaLocalInference:
             try:
                 transformer.reset_caches()
                 cleared_count += 1
-                print(f"[Cache Reset] Called transformer.reset_caches()")
+                debug_print(f"[Cache Reset] Called transformer.reset_caches()")
             except Exception as e:
-                print(f"[Cache Reset] transformer.reset_caches() failed: {e}")
+                debug_print(f"[Cache Reset] transformer.reset_caches() failed: {e}")
         
         if cleared_count > 0:
-            print(f"[Cache Reset] Cleared {cleared_count} transformer caches")
+            debug_print(f"[Cache Reset] Cleared {cleared_count} transformer caches")
     
     def _reset_pipeline_caches(self):
         """重置 pipeline 内部的所有缓存，确保新生成完全独立"""

@@ -9,6 +9,11 @@ import base64
 import uuid
 import threading
 import time
+from datetime import datetime, timezone, timedelta
+
+# 北京时间
+def beijing_time():
+    return datetime.now(timezone(timedelta(hours=8))).strftime("%H:%M:%S.%f")[:-3]
 import gc
 from typing import Optional
 
@@ -181,7 +186,7 @@ async def api_stream_generation(req: StreamGenerationRequest):
     
     async def generate_stream():
         session_id = str(uuid.uuid4())[:8]
-        print(f"[SSE] Starting session {session_id}")
+        print(f"[{beijing_time()}] SSE session {session_id} started")
         
         try:
             # 处理起始帧
@@ -284,12 +289,13 @@ async def api_stream_generation(req: StreamGenerationRequest):
                 
                 # 累加时间
                 cumulative_time += block_duration
+                print(f"[{beijing_time()}] Block {block_idx}: {num_frames} frames, {block_duration:.0f}ms")
                 block_idx += 1
             
             # 完成（仅当 num_blocks > 0 时）
             if req.num_blocks > 0:
                 yield f"data: {json.dumps({'type': 'complete'})}\n\n"
-                print(f"[SSE] {session_id}: complete")
+                print(f"[{beijing_time()}] SSE session {session_id} complete")
             
             # 清理
             if model is not None and hasattr(model, 'cleanup_inference'):

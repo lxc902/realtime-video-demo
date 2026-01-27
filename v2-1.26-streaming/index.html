@@ -651,6 +651,13 @@
             currentPlayFps: 0,
             currentLatency: 0,
 
+            // 北京时间格式化
+            beijingTime() {
+                const now = new Date();
+                const beijing = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+                return beijing.toISOString().substr(11, 12).replace('T', ' ');
+            },
+
             async init() {
                 this.setupEventListeners();
                 await this.setMode('webcam');
@@ -867,7 +874,7 @@
                                         if (inputTs > 0) {
                                             this.currentLatency = performance.now() - inputTs;
                                         }
-                                        console.log(`[SSE] 收到帧 #${data.frame_idx}, ts=${timestamp.toFixed(0)}, latency=${this.currentLatency.toFixed(0)}ms, queue=${this.frameQueue.length}`);
+                                        console.log(`[${this.beijingTime()}] IN  #${data.frame_idx} latency=${this.currentLatency.toFixed(0)}ms queue=${this.frameQueue.length}`);
                                         await this.displayFrame(frameBytes, timestamp);
                                     } else if (data.type === 'error') {
                                         console.error('Generation error:', data.message);
@@ -1022,7 +1029,7 @@
                             if (this.frameQueue.length > 0) {
                                 this.lastFrameTs = this.frameQueue[0].timestamp || 0;
                             }
-                            console.log(`[Play] 缓冲就绪! queue=${this.frameQueue.length}`);
+                            console.log(`[${this.beijingTime()}] BUFFER ready queue=${this.frameQueue.length}`);
                         } else {
                             document.getElementById('queueSize').textContent = `缓冲 ${this.frameQueue.length}/${BUFFER_TARGET}`;
                             this.playbackTimer = requestAnimationFrame(playFrame);
@@ -1049,7 +1056,7 @@
                         const bitmap = frameData.bitmap || frameData;
                         const frameTs = frameData.timestamp || 0;
                         
-                        console.log(`[Play] 播放帧 ts=${frameTs.toFixed(0)}, interval=${targetInterval.toFixed(0)}ms, elapsed=${elapsed.toFixed(0)}ms, queue=${this.frameQueue.length}`);
+                        console.log(`[${this.beijingTime()}] OUT #${this.playFpsFrameCount+1} interval=${targetInterval.toFixed(0)}ms queue=${this.frameQueue.length}`);
                         const canvas = document.getElementById('outputCanvas');
                         canvas.width = bitmap.width;
                         canvas.height = bitmap.height;
