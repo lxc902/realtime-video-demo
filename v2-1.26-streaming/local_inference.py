@@ -337,13 +337,11 @@ class KreaLocalInference:
         # 显式删除临时变量
         del kwargs
         
-        # 强制 Python 垃圾回收
-        gc.collect()
-        
-        # 每帧推理后清理中间张量，防止内存累积
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
+        # 每 5 个 block 做一次 GC（减少开销）
+        if block_idx % 5 == 0:
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         
         return new_state, new_frames
     
@@ -360,7 +358,7 @@ class KreaLocalInference:
             buf = io.BytesIO()
             if frame.mode != 'RGB':
                 frame = frame.convert('RGB')
-            frame.save(buf, format='JPEG', quality=90)
+            frame.save(buf, format='JPEG', quality=80)
             return buf.getvalue()
         
         if isinstance(frame, torch.Tensor):
@@ -370,7 +368,7 @@ class KreaLocalInference:
         
         image = Image.fromarray(frame)
         buf = io.BytesIO()
-        image.save(buf, format='JPEG', quality=90)
+        image.save(buf, format='JPEG', quality=80)
         return buf.getvalue()
     
     def _reset_transformer_caches(self):
