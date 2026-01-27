@@ -146,6 +146,12 @@ def load_fp8(pipe, repo_id, device, dtype):
     """
     print("🔧 使用 FP8 优化 (基于 ComfyUI 实现)...")
     
+    # CUDA 性能优化
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    print("   ✅ CUDA 优化已启用 (cudnn.benchmark, TF32)")
+    
     from huggingface_hub import hf_hub_download
     from safetensors.torch import load_file
     from diffusers import AutoModel
