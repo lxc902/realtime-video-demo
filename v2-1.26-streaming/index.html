@@ -933,8 +933,8 @@
                 this.playFpsStartTime = performance.now();
                 this.lastFrameBitmap = null;
                 
-                // 固定间隔播放（100ms = 10 FPS）
-                const FIXED_INTERVAL = 100;
+                // 固定间隔播放（333ms = 3 FPS）
+                const FIXED_INTERVAL = 333;
                 
                 const playFrame = () => {
                     if (!this.isGenerating && this.frameQueue.length === 0) {
