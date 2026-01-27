@@ -117,7 +117,7 @@ detect_gpu_arch() {
         CUDA_CAP="120"
     elif echo "$GPU_NAME" | grep -qiE "Ada|RTX 40|L40|RTX 6000 Ada"; then
         GPU_ARCH="ada"
-    elif echo "$GPU_NAME" | grep -qiE "Hopper|H100|H200"; then
+    elif echo "$GPU_NAME" | grep -qiE "Hopper|H100|H200|H800"; then
         GPU_ARCH="hopper"
     elif echo "$GPU_NAME" | grep -qiE "Ampere|A100|RTX 30|A6000"; then
         GPU_ARCH="ampere"
