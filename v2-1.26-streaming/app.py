@@ -127,11 +127,11 @@ latest_frame_data = {
 
 class StreamGenerationRequest(BaseModel):
     prompt: str
-    num_blocks: int = 5
+    num_blocks: int = 5  # 设为 0 表示无限生成
     num_denoising_steps: int = NUM_INFERENCE_STEPS
     strength: float = DEFAULT_STRENGTH
     seed: Optional[int] = None
-    start_frame: Optional[str] = None  # base64 encoded
+    start_frame: Optional[str] = None  # base64 encoded（首帧，后续用 update_frame）
 
 class UpdateFrameRequest(BaseModel):
     frame: str  # base64 encoded
@@ -198,35 +198,39 @@ async def api_stream_generation(req: StreamGenerationRequest):
             
             await asyncio.to_thread(init_generation)
             
-            # 生成每个 block
-            for block_idx in range(req.num_blocks):
+            # 生成循环（num_blocks=0 表示无限生成）
+            block_idx = 0
+            max_blocks = req.num_blocks if req.num_blocks > 0 else 999999
+            
+            while block_idx < max_blocks:
+                current_block = block_idx  # 闭包捕获
+                
                 def generate_block():
                     nonlocal state, start_frames_list
                     with inference_lock:
-                        # 检查是否有更新的帧（从 /api/update_frame 获取）
+                        # 始终使用最新帧（从 /api/update_frame 获取）
                         with latest_frame_lock:
                             if latest_frame_data["frame"] is not None:
                                 latest_frame = latest_frame_data["frame"]
                                 start_frames_list = [latest_frame] * V2V_INITIAL_FRAMES
-                                print(f"  [block {block_idx}] Using latest frame from update_frame API")
                         
                         input_frames = start_frames_list if start_frames_list else None
                         new_state, frames = model.generate_next_block_with_state(
                             state=state,
                             prompt=req.prompt,
                             strength=req.strength,
-                            block_idx=block_idx,
+                            block_idx=current_block,
                             generator=generator,
                             input_frame=input_frames,
                             start_frame=None,
-                            num_blocks=req.num_blocks
+                            num_blocks=max_blocks
                         )
                         state = new_state
                         return frames
                 
                 frames = await asyncio.to_thread(generate_block)
                 
-                # 逐帧推送（模型层已保证每次返回 3 帧）
+                # 逐帧推送
                 for frame_idx, frame in enumerate(frames):
                     frame_bytes = model.frame_to_bytes(frame)
                     frame_b64 = base64.b64encode(frame_bytes).decode()
@@ -236,15 +240,16 @@ async def api_stream_generation(req: StreamGenerationRequest):
                         "type": "frame",
                         "block": block_idx,
                         "frame_idx": global_frame_idx,
-                        "total_blocks": req.num_blocks,
                         "data": frame_b64
                     })
-                    print(f"[SSE] {session_id}: frame {global_frame_idx}")
                     yield f"data: {event_data}\n\n"
+                
+                block_idx += 1
             
-            # 完成
-            yield f"data: {json.dumps({'type': 'complete'})}\n\n"
-            print(f"[SSE] {session_id}: complete")
+            # 完成（仅当 num_blocks > 0 时）
+            if req.num_blocks > 0:
+                yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+                print(f"[SSE] {session_id}: complete")
             
             # 清理
             if model is not None and hasattr(model, 'cleanup_inference'):
