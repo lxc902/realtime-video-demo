@@ -1019,6 +1019,13 @@
                             const relativeTs = frameTs - this.timestampOffset;
                             const targetPlayTime = this.playbackStartTime + relativeTs;
                             shouldPlay = now >= targetPlayTime;
+                            
+                            // 如果帧太"旧"（比目标时间晚 2 秒以上），重置基准
+                            if (targetPlayTime < now - 2000) {
+                                this.playbackStartTime = now;
+                                this.timestampOffset = frameTs;
+                                shouldPlay = true;
+                            }
                         } else {
                             // 无时间戳，固定 333ms
                             shouldPlay = !this.lastPlayTime || (now - this.lastPlayTime) >= 333;

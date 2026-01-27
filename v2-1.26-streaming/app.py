@@ -204,6 +204,8 @@ async def api_stream_generation(req: StreamGenerationRequest):
             # 生成循环（num_blocks=0 表示无限生成）
             block_idx = 0
             max_blocks = req.num_blocks if req.num_blocks > 0 else 999999
+            global_start_time = time.time() * 1000  # 全局起始时间
+            cumulative_time = 0  # 累计时间（用于帧时间戳）
             
             while block_idx < max_blocks:
                 current_block = block_idx  # 闭包捕获
@@ -236,20 +238,18 @@ async def api_stream_generation(req: StreamGenerationRequest):
                 block_end_time = time.time() * 1000  # ms
                 
                 # 时间插值：将生成耗时均匀分配给每帧
-                # 例如：3秒生成3帧 → 每帧间隔1秒
                 block_duration = block_end_time - block_start_time
                 num_frames = len(frames)
+                frame_interval = block_duration / num_frames  # 每帧间隔
                 
                 for frame_idx, frame in enumerate(frames):
                     frame_bytes = model.frame_to_bytes(frame)
                     frame_b64 = base64.b64encode(frame_bytes).decode()
                     global_frame_idx = block_idx * num_frames + frame_idx + 1
                     
-                    # 插值时间戳：帧均匀分布在 block 时间段内
-                    # 帧 0: block_start + duration * 1/3
-                    # 帧 1: block_start + duration * 2/3
-                    # 帧 2: block_end
-                    frame_ts = block_start_time + block_duration * (frame_idx + 1) / num_frames
+                    # 相对时间戳（从 0 开始，累加）
+                    # 前端可以直接用这个差值来计算播放间隔
+                    frame_ts = cumulative_time + frame_interval * (frame_idx + 1)
                     
                     event_data = json.dumps({
                         "type": "frame",
@@ -260,6 +260,8 @@ async def api_stream_generation(req: StreamGenerationRequest):
                     })
                     yield f"data: {event_data}\n\n"
                 
+                # 累加时间
+                cumulative_time += block_duration
                 block_idx += 1
             
             # 完成（仅当 num_blocks > 0 时）
