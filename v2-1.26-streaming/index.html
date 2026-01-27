@@ -1143,11 +1143,17 @@
                         const frameData = this.frameQueue.shift();
                         const bitmap = frameData.bitmap || frameData;
                         
-                        console.log(`[${this.beijingTime()}] OUT ${bitmap.width}x${bitmap.height} queue=${this.frameQueue.length}`);
+                        // 获取输入 video 的显示尺寸，让输出匹配
+                        const inputVideo = document.getElementById('inputVideo');
+                        const targetWidth = inputVideo.videoWidth || bitmap.width;
+                        const targetHeight = inputVideo.videoHeight || bitmap.height;
+                        
+                        console.log(`[${this.beijingTime()}] OUT ${bitmap.width}x${bitmap.height} -> ${targetWidth}x${targetHeight} queue=${this.frameQueue.length}`);
                         const canvas = document.getElementById('outputCanvas');
-                        canvas.width = bitmap.width;
-                        canvas.height = bitmap.height;
-                        canvas.getContext('2d').drawImage(bitmap, 0, 0);
+                        canvas.width = targetWidth;
+                        canvas.height = targetHeight;
+                        // drawImage 会自动 resize
+                        canvas.getContext('2d').drawImage(bitmap, 0, 0, targetWidth, targetHeight);
                         
                         if (this.lastFrameBitmap && this.lastFrameBitmap.close) {
                             this.lastFrameBitmap.close();
