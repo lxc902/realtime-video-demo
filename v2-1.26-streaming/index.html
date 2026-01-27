@@ -871,6 +871,11 @@
                     return;
                 }
 
+                // 清理后端缓存
+                try {
+                    await fetch('/api/clear-cache', { method: 'POST' });
+                } catch (e) {}
+                
                 this.isGenerating = true;
                 this.frameCount = 0;
                 this.allFrames = [];
