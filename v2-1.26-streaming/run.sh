@@ -126,14 +126,15 @@ detect_gpu_arch() {
     fi
     
     # 根据 CUDA capability 确定架构
+    # 注意顺序：从大到小检测，避免误判
     if [ "$CUDA_CAP" -ge 120 ] 2>/dev/null; then
-        GPU_ARCH="blackwell"
-    elif [ "$CUDA_CAP" -ge 89 ] 2>/dev/null; then
-        GPU_ARCH="ada"
+        GPU_ARCH="blackwell"  # sm_120: B100, B200, RTX 50xx
     elif [ "$CUDA_CAP" -ge 90 ] 2>/dev/null; then
-        GPU_ARCH="hopper"
+        GPU_ARCH="hopper"     # sm_90: H100, H200, H800
+    elif [ "$CUDA_CAP" -ge 89 ] 2>/dev/null; then
+        GPU_ARCH="ada"        # sm_89: RTX 40xx, L40, RTX 6000 Ada
     elif [ "$CUDA_CAP" -ge 80 ] 2>/dev/null; then
-        GPU_ARCH="ampere"
+        GPU_ARCH="ampere"     # sm_80/86: A100, RTX 30xx, A6000
     fi
     
     echo "$GPU_ARCH"
