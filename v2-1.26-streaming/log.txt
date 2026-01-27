@@ -1,0 +1,544 @@
+lockdown-install.js:1 SES Removing unpermitted intrinsics
+(index):870 [SSE] 收到帧 #1, ts=677, latency=2429ms, queue=0
+(index):870 [SSE] 收到帧 #2, ts=1355, latency=2601ms, queue=1
+(index):870 [SSE] 收到帧 #3, ts=2032, latency=3044ms, queue=2
+(index):870 [SSE] 收到帧 #4, ts=3064, latency=3865ms, queue=3
+(index):870 [SSE] 收到帧 #5, ts=4096, latency=4299ms, queue=4
+(index):870 [SSE] 收到帧 #6, ts=5129, latency=4606ms, queue=5
+(index):1025 [Play] 缓冲就绪! queue=6
+(index):1052 [Play] 播放帧 ts=677, elapsed=67ms, queue=5
+(index):1052 [Play] 播放帧 ts=1355, elapsed=683ms, queue=4
+(index):1052 [Play] 播放帧 ts=2032, elapsed=683ms, queue=3
+(index):870 [SSE] 收到帧 #7, ts=6044, latency=4332ms, queue=3
+(index):870 [SSE] 收到帧 #8, ts=6959, latency=4681ms, queue=4
+(index):1052 [Play] 播放帧 ts=3064, elapsed=1033ms, queue=4
+(index):870 [SSE] 收到帧 #9, ts=7874, latency=5410ms, queue=4
+(index):1052 [Play] 播放帧 ts=4096, elapsed=1034ms, queue=4
+(index):1052 [Play] 播放帧 ts=5129, elapsed=1033ms, queue=3
+(index):870 [SSE] 收到帧 #10, ts=8781, latency=5172ms, queue=3
+(index):870 [SSE] 收到帧 #11, ts=9687, latency=5435ms, queue=4
+(index):870 [SSE] 收到帧 #12, ts=10593, latency=6022ms, queue=5
+(index):1052 [Play] 播放帧 ts=6044, elapsed=917ms, queue=5
+(index):1052 [Play] 播放帧 ts=6959, elapsed=917ms, queue=4
+(index):1052 [Play] 播放帧 ts=7874, elapsed=917ms, queue=3
+(index):1052 [Play] 播放帧 ts=8781, elapsed=916ms, queue=2
+(index):1052 [Play] 播放帧 ts=9687, elapsed=917ms, queue=1
+(index):870 [SSE] 收到帧 #13, ts=11494, latency=6447ms, queue=1
+(index):1052 [Play] 播放帧 ts=10593, elapsed=917ms, queue=1
+(index):1052 [Play] 播放帧 ts=11494, elapsed=917ms, queue=0
+(index):870 [SSE] 收到帧 #14, ts=12395, latency=8140ms, queue=0
+(index):1052 [Play] 播放帧 ts=12395, elapsed=917ms, queue=0
+(index):870 [SSE] 收到帧 #15, ts=13296, latency=8486ms, queue=0
+(index):870 [SSE] 收到帧 #16, ts=14198, latency=6914ms, queue=1
+(index):870 [SSE] 收到帧 #17, ts=15099, latency=7219ms, queue=2
+(index):1052 [Play] 播放帧 ts=13296, elapsed=917ms, queue=2
+(index):870 [SSE] 收到帧 #18, ts=16000, latency=8078ms, queue=2
+(index):1052 [Play] 播放帧 ts=14198, elapsed=917ms, queue=2
+(index):870 [SSE] 收到帧 #19, ts=16907, latency=4642ms, queue=2
+(index):870 [SSE] 收到帧 #20, ts=17813, latency=4952ms, queue=3
+(index):1052 [Play] 播放帧 ts=15099, elapsed=916ms, queue=3
+(index):870 [SSE] 收到帧 #21, ts=18719, latency=5179ms, queue=3
+(index):1052 [Play] 播放帧 ts=16000, elapsed=917ms, queue=3
+(index):1052 [Play] 播放帧 ts=16907, elapsed=917ms, queue=2
+(index):870 [SSE] 收到帧 #22, ts=19630, latency=5232ms, queue=2
+(index):1052 [Play] 播放帧 ts=17813, elapsed=917ms, queue=2
+(index):870 [SSE] 收到帧 #23, ts=20542, latency=6356ms, queue=2
+(index):1052 [Play] 播放帧 ts=18719, elapsed=917ms, queue=2
+(index):870 [SSE] 收到帧 #24, ts=21453, latency=6975ms, queue=2
+(index):1052 [Play] 播放帧 ts=19630, elapsed=916ms, queue=2
+(index):870 [SSE] 收到帧 #25, ts=22366, latency=5772ms, queue=2
+(index):1052 [Play] 播放帧 ts=20542, elapsed=917ms, queue=2
+(index):870 [SSE] 收到帧 #26, ts=23280, latency=6657ms, queue=2
+(index):870 [SSE] 收到帧 #27, ts=24193, latency=7053ms, queue=3
+(index):870 [SSE] 收到帧 #28, ts=25075, latency=3356ms, queue=4
+(index):1052 [Play] 播放帧 ts=21453, elapsed=916ms, queue=4
+(index):870 [SSE] 收到帧 #29, ts=25956, latency=4192ms, queue=4
+(index):1052 [Play] 播放帧 ts=22366, elapsed=917ms, queue=4
+(index):870 [SSE] 收到帧 #30, ts=26838, latency=5055ms, queue=4
+(index):1052 [Play] 播放帧 ts=23280, elapsed=918ms, queue=4
+(index):870 [SSE] 收到帧 #31, ts=27713, latency=3946ms, queue=4
+(index):1052 [Play] 播放帧 ts=24193, elapsed=917ms, queue=4
+(index):870 [SSE] 收到帧 #32, ts=28587, latency=4499ms, queue=4
+(index):1052 [Play] 播放帧 ts=25075, elapsed=884ms, queue=4
+(index):1052 [Play] 播放帧 ts=25956, elapsed=883ms, queue=3
+(index):870 [SSE] 收到帧 #33, ts=29462, latency=6466ms, queue=3
+(index):1052 [Play] 播放帧 ts=26838, elapsed=883ms, queue=3
+(index):870 [SSE] 收到帧 #34, ts=30336, latency=5457ms, queue=3
+(index):1052 [Play] 播放帧 ts=27713, elapsed=884ms, queue=3
+(index):870 [SSE] 收到帧 #35, ts=31210, latency=6355ms, queue=3
+(index):1052 [Play] 播放帧 ts=28587, elapsed=882ms, queue=3
+(index):870 [SSE] 收到帧 #36, ts=32084, latency=7167ms, queue=3
+(index):1052 [Play] 播放帧 ts=29462, elapsed=884ms, queue=3
+(index):870 [SSE] 收到帧 #37, ts=32962, latency=3612ms, queue=3
+(index):870 [SSE] 收到帧 #38, ts=33840, latency=3920ms, queue=4
+(index):870 [SSE] 收到帧 #39, ts=34718, latency=4228ms, queue=5
+(index):1052 [Play] 播放帧 ts=30336, elapsed=884ms, queue=5
+(index):1052 [Play] 播放帧 ts=31210, elapsed=884ms, queue=4
+(index):870 [SSE] 收到帧 #40, ts=35623, latency=3988ms, queue=4
+(index):1052 [Play] 播放帧 ts=32084, elapsed=883ms, queue=4
+(index):870 [SSE] 收到帧 #41, ts=36528, latency=4344ms, queue=4
+(index):870 [SSE] 收到帧 #42, ts=37433, latency=4561ms, queue=5
+(index):1052 [Play] 播放帧 ts=32962, elapsed=884ms, queue=5
+(index):1052 [Play] 播放帧 ts=33840, elapsed=883ms, queue=4
+(index):870 [SSE] 收到帧 #43, ts=38334, latency=4460ms, queue=4
+(index):1052 [Play] 播放帧 ts=34718, elapsed=883ms, queue=4
+(index):870 [SSE] 收到帧 #44, ts=39235, latency=5584ms, queue=4
+(index):1052 [Play] 播放帧 ts=35623, elapsed=916ms, queue=4
+(index):870 [SSE] 收到帧 #45, ts=40135, latency=6216ms, queue=4
+(index):1052 [Play] 播放帧 ts=36528, elapsed=916ms, queue=4
+(index):1052 [Play] 播放帧 ts=37433, elapsed=917ms, queue=3
+(index):870 [SSE] 收到帧 #46, ts=41006, latency=3818ms, queue=3
+(index):870 [SSE] 收到帧 #47, ts=41878, latency=4221ms, queue=4
+(index):1052 [Play] 播放帧 ts=38334, elapsed=901ms, queue=4
+(index):870 [SSE] 收到帧 #48, ts=42749, latency=4611ms, queue=4
+(index):1052 [Play] 播放帧 ts=39235, elapsed=916ms, queue=4
+(index):870 [SSE] 收到帧 #49, ts=43627, latency=3664ms, queue=4
+(index):1052 [Play] 播放帧 ts=40135, elapsed=917ms, queue=4
+(index):870 [SSE] 收到帧 #50, ts=44504, latency=4351ms, queue=4
+(index):870 [SSE] 收到帧 #51, ts=45382, latency=4705ms, queue=5
+(index):1052 [Play] 播放帧 ts=41006, elapsed=883ms, queue=5
+(index):1052 [Play] 播放帧 ts=41878, elapsed=884ms, queue=4
+(index):870 [SSE] 收到帧 #52, ts=46266, latency=4568ms, queue=4
+(index):1052 [Play] 播放帧 ts=42749, elapsed=883ms, queue=4
+(index):1052 [Play] 播放帧 ts=43627, elapsed=884ms, queue=3
+(index):870 [SSE] 收到帧 #53, ts=47149, latency=5716ms, queue=3
+(index):1052 [Play] 播放帧 ts=44504, elapsed=883ms, queue=3
+(index):870 [SSE] 收到帧 #54, ts=48033, latency=6637ms, queue=3
+(index):870 [SSE] 收到帧 #55, ts=48930, latency=5193ms, queue=4
+(index):1052 [Play] 播放帧 ts=45382, elapsed=883ms, queue=4
+(index):1052 [Play] 播放帧 ts=46266, elapsed=884ms, queue=3
+(index):870 [SSE] 收到帧 #56, ts=49826, latency=7120ms, queue=3
+(index):1052 [Play] 播放帧 ts=47149, elapsed=899ms, queue=3
+(index):1052 [Play] 播放帧 ts=48033, elapsed=900ms, queue=2
+(index):870 [SSE] 收到帧 #57, ts=50722, latency=8407ms, queue=2
+(index):870 [SSE] 收到帧 #58, ts=51639, latency=4890ms, queue=3
+(index):1052 [Play] 播放帧 ts=48930, elapsed=900ms, queue=3
+(index):870 [SSE] 收到帧 #59, ts=52555, latency=5440ms, queue=3
+(index):1052 [Play] 播放帧 ts=49826, elapsed=900ms, queue=3
+(index):870 [SSE] 收到帧 #60, ts=53472, latency=5957ms, queue=3
+(index):1052 [Play] 播放帧 ts=50722, elapsed=900ms, queue=3
+(index):870 [SSE] 收到帧 #61, ts=54388, latency=5588ms, queue=3
+(index):1052 [Play] 播放帧 ts=51639, elapsed=917ms, queue=3
+(index):1052 [Play] 播放帧 ts=52555, elapsed=933ms, queue=2
+(index):870 [SSE] 收到帧 #62, ts=55304, latency=6814ms, queue=2
+(index):1052 [Play] 播放帧 ts=53472, elapsed=917ms, queue=2
+(index):870 [SSE] 收到帧 #63, ts=56220, latency=8345ms, queue=2
+(index):1052 [Play] 播放帧 ts=54388, elapsed=916ms, queue=2
+(index):870 [SSE] 收到帧 #64, ts=57132, latency=7245ms, queue=2
+(index):1052 [Play] 播放帧 ts=55304, elapsed=917ms, queue=2
+(index):1052 [Play] 播放帧 ts=56220, elapsed=917ms, queue=1
+(index):870 [SSE] 收到帧 #65, ts=58045, latency=8431ms, queue=1
+(index):1052 [Play] 播放帧 ts=57132, elapsed=916ms, queue=1
+(index):870 [SSE] 收到帧 #66, ts=58957, latency=9571ms, queue=1
+(index):1052 [Play] 播放帧 ts=58045, elapsed=917ms, queue=1
+(index):870 [SSE] 收到帧 #67, ts=59869, latency=6467ms, queue=1
+(index):1052 [Play] 播放帧 ts=58957, elapsed=917ms, queue=1
+(index):870 [SSE] 收到帧 #68, ts=60780, latency=7217ms, queue=1
+(index):1052 [Play] 播放帧 ts=59869, elapsed=917ms, queue=1
+(index):870 [SSE] 收到帧 #69, ts=61692, latency=7944ms, queue=1
+(index):1052 [Play] 播放帧 ts=60780, elapsed=916ms, queue=1
+(index):870 [SSE] 收到帧 #70, ts=62612, latency=6973ms, queue=1
+(index):1052 [Play] 播放帧 ts=61692, elapsed=918ms, queue=1
+(index):870 [SSE] 收到帧 #71, ts=63532, latency=8162ms, queue=1
+(index):1052 [Play] 播放帧 ts=62612, elapsed=933ms, queue=1
+(index):870 [SSE] 收到帧 #72, ts=64452, latency=8849ms, queue=1
+(index):1052 [Play] 播放帧 ts=63532, elapsed=933ms, queue=1
+(index):870 [SSE] 收到帧 #73, ts=65377, latency=5824ms, queue=1
+(index):870 [SSE] 收到帧 #74, ts=66303, latency=6240ms, queue=2
+(index):1052 [Play] 播放帧 ts=64452, elapsed=933ms, queue=2
+(index):870 [SSE] 收到帧 #75, ts=67229, latency=6806ms, queue=2
+(index):1052 [Play] 播放帧 ts=65377, elapsed=935ms, queue=2
+(index):870 [SSE] 收到帧 #76, ts=68157, latency=5809ms, queue=2
+(index):870 [SSE] 收到帧 #77, ts=69085, latency=6236ms, queue=3
+(index):1052 [Play] 播放帧 ts=66303, elapsed=932ms, queue=3
+(index):1052 [Play] 播放帧 ts=67229, elapsed=934ms, queue=2
+(index):1052 [Play] 播放帧 ts=68157, elapsed=933ms, queue=1
+(index):1052 [Play] 播放帧 ts=69085, elapsed=933ms, queue=0
+
+
+
+🌐 Server will be available at: http://0.0.0.0:6006
+
+Press Ctrl+C to stop the server
+
+=================================
+
+Modular Diffusers is currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+/root/autodl-tmp/realtime-video-demo/v2-1.26-streaming/tmp/venv/lib/python3.12/site-packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+INFO:     Started server process [36450]
+INFO:     Waiting for application startup.
+
+============================================================
+🔥 Loading KREA model to GPU...
+   From: HuggingFace (krea/krea-realtime-video)
+   Quantization: FP8
+============================================================
+
+正在加载 KREA Realtime Video 模型...
+从 HuggingFace 加载: krea/krea-realtime-video
+`trust_remote_code` is enabled. Downloading code from krea/krea-realtime-video. Please ensure you trust the contents of this repository
+Guiders are currently an experimental feature under active development. The API is subject to breaking changes in future releases.
+🔧 使用 FP8 优化 (基于 ComfyUI 实现)...
+   GPU: 完全支持 FP8 (Compute Capability 12.0)
+   [1/4] 下载 FP8 权重: 6chan/krea-realtime-video-fp8
+   ✅ 已下载: /root/autodl-tmp/realtime-video-demo/v2-1.26-streaming/tmp/.hf_home/hub/models--6chan--krea-realtime-video-fp8/snapshots/f0c953ceb1b3201d67cf8e30d9ec072410410eab/krea-realtime-video-14b-fp8-e4m3fn.safetensors
+   [2/4] 加载其他组件 (VAE, Text Encoder)...
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards: 100%|█| 5/5 [00:01<00:00,  2
+   [3/4] 加载 FP8 权重...
+   [4/4] 加载 transformer 并替换 FP8 权重...
+`trust_remote_code` is enabled. Downloading code from krea/krea-realtime-video. Please ensure you trust the contents of this repository
+This modeling file might require the following packages that were not found in your environment: sageattention, flash_attn_interface, flash_attn, kernels. Run `pip install sageattention flash_attn_interface flash_attn kernels`
+This modeling file might require the following packages that were not found in your environment: sageattention, flash_attn_interface, flash_attn, kernels. Run `pip install sageattention flash_attn_interface flash_attn kernels`
+Fetching 3 files: 100%|█| 3/3 [00:00<00:00, 91846.07it/
+The config attributes {'auto_map': {'AutoModel': 'causal_model.CausalWanModel'}} were passed to CausalWanModel, but are not expected and will be ignored. Please verify your config.json configuration file.
+Loading checkpoint shards: 100%|█| 3/3 [00:01<00:00,  1
+   ✅ 已替换 401 个权重为 FP8 格式
+   📤 移动 transformer 到 GPU...
+   ✅ 已移动到 GPU
+🔧 尝试融合投影层...
+   ✅ 融合成功
+🔧 启用 FP8 矩阵乘法优化...
+   ✅ 已转换 441 个 Linear 层为 FP8
+   ⏭️  跳过 293 个特殊层（保持原精度）
+   ✅ FP8 优化完成
+模型加载完成！
+
+============================================================
+✅ Model loaded successfully!
+🌐 Server ready at http://localhost:7860
+============================================================
+
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:6006 (Press CTRL+C to quit)
+INFO:     10.200.3.254:0 - "GET / HTTP/1.1" 200 OK
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+[SSE] Starting session eb94b856
+INFO:     10.200.3.254:0 - "POST /api/generate/stream HTTP/1.1" 200 OK
+[Cache Reset] Cleared 1 transformer caches
+[New Session] All caches cleared, starting fresh generation
+
+[generate_next_block] block_idx=0, input_frame=provided
+  [BEFORE cleanup] state is empty or None
+[Debug] block_idx=0, GPU memory: allocated=27.28GB, reserved=27.29GB
+  [Cleanup] state.values is empty
+  [video_stream] passing 12 frames to pipeline
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 9 frames, returning last 3
+
+[generate_next_block] block_idx=1, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=1, GPU memory: allocated=36.60GB, reserved=36.79GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=36.60GB, reserved=36.79GB
+Generating block mask
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=2, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=2, GPU memory: allocated=37.65GB, reserved=38.10GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.65GB, reserved=38.10GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=3, input_frame=provided
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+[Debug] block_idx=3, GPU memory: allocated=37.14GB, reserved=37.72GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=37.72GB
+  [video_stream] passing 12 frames to pipeline
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=4, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=4, GPU memory: allocated=37.14GB, reserved=37.92GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=37.92GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=5, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=5, GPU memory: allocated=37.14GB, reserved=38.00GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.00GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+
+[generate_next_block] block_idx=6, input_frame=provided
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=6, GPU memory: allocated=37.14GB, reserved=38.00GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.00GB
+  [video_stream] passing 12 frames to pipeline
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=7, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=7, GPU memory: allocated=37.14GB, reserved=37.96GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=37.96GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=8, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=8, GPU memory: allocated=37.14GB, reserved=37.94GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=37.94GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=9, input_frame=provided
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=9, GPU memory: allocated=37.14GB, reserved=38.10GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.10GB
+  [video_stream] passing 12 frames to pipeline
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=10, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=10, GPU memory: allocated=37.14GB, reserved=38.21GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.21GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=11, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=11, GPU memory: allocated=37.14GB, reserved=38.15GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.15GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+
+[generate_next_block] block_idx=12, input_frame=provided
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=12, GPU memory: allocated=37.14GB, reserved=38.10GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.10GB
+  [video_stream] passing 12 frames to pipeline
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=13, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=13, GPU memory: allocated=37.14GB, reserved=38.02GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.02GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=14, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=14, GPU memory: allocated=37.14GB, reserved=38.12GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.12GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+
+[generate_next_block] block_idx=15, input_frame=provided
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=15, GPU memory: allocated=37.14GB, reserved=38.17GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.17GB
+  [video_stream] passing 12 frames to pipeline
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=16, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=16, GPU memory: allocated=37.14GB, reserved=38.15GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.15GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=17, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=17, GPU memory: allocated=37.14GB, reserved=38.23GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.23GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=18, input_frame=provided
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=18, GPU memory: allocated=37.14GB, reserved=38.10GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.10GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [video_stream] passing 12 frames to pipeline
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=19, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=19, GPU memory: allocated=37.14GB, reserved=38.17GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.17GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=20, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=20, GPU memory: allocated=37.14GB, reserved=38.12GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.12GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=21, input_frame=provided
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+[Debug] block_idx=21, GPU memory: allocated=37.14GB, reserved=38.10GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.10GB
+  [video_stream] passing 12 frames to pipeline
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=22, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=22, GPU memory: allocated=37.14GB, reserved=38.13GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.13GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=23, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=23, GPU memory: allocated=37.14GB, reserved=38.25GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.25GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=24, input_frame=provided
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=24, GPU memory: allocated=37.14GB, reserved=38.10GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.10GB
+  [video_stream] passing 12 frames to pipeline
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=25, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=25, GPU memory: allocated=37.14GB, reserved=38.21GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.21GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=26, input_frame=None
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=26, GPU memory: allocated=37.14GB, reserved=38.23GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.23GB
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+INFO:     10.200.3.254:0 - "POST /api/update_frame HTTP/1.1" 200 OK
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3
+
+[generate_next_block] block_idx=27, input_frame=provided
+  [BEFORE cleanup] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+[Debug] block_idx=27, GPU memory: allocated=37.14GB, reserved=38.29GB
+  [Cleanup] state.values keys: ['prompt', 'negative_prompt', 'prompt_embeds', 'negative_prompt_embeds', 'attention_kwargs', 'num_inference_steps', 'timesteps', 'sigmas', 'strength', 'video', 'height', 'width', 'generator', 'num_blocks', 'init_latents', 'block_idx', 'num_frames_per_block', 'kv_cache', 'crossattn_cache', 'local_attn_size', 'dtype', 'update_prompt_embeds', 'frame_cache_context', 'current_denoised_latents', 'video_stream', 'input_frames_cache', 'num_videos_per_prompt', 'output_type', 'decoder_cache', 'all_timesteps', 'latents', 'current_start_frame', 'videos']
+  [Debug] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [Cleanup] Nothing to delete from target keys
+  [After cleanup] GPU memory: allocated=37.14GB, reserved=38.29GB
+  [video_stream] passing 12 frames to pipeline
+  [After pipe] current_denoised_latents shape: torch.Size([1, 16, 3, 60, 104])
+  [generate_next_block] videos has 12 frames, returning last 3

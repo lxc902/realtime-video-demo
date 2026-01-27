@@ -20,7 +20,7 @@ QUANTIZATION = os.getenv("QUANTIZATION", None)
 
 # 去噪步数：越少越快，但质量越差
 # 推荐：2（极速）, 4（快速）, 5（平衡）, 8（高质量）
-NUM_INFERENCE_STEPS = 2
+NUM_INFERENCE_STEPS = 4
 
 # 强度：越低越快，但对输入的响应越弱
 # 推荐：0.3（最快）, 0.45（平衡）, 0.6（高响应）
