@@ -861,6 +861,7 @@
                                     if (data.type === 'frame') {
                                         const frameBytes = this.base64ToArrayBuffer(data.data);
                                         const timestamp = data.timestamp || 0;
+                                        console.log(`[SSE] 收到帧 #${data.frame_idx}, ts=${timestamp.toFixed(0)}, queue=${this.frameQueue.length}`);
                                         await this.displayFrame(frameBytes, timestamp);
                                     } else if (data.type === 'error') {
                                         console.error('Generation error:', data.message);
@@ -1022,6 +1023,7 @@
                             
                             // 如果帧太"旧"（比目标时间晚 2 秒以上），重置基准
                             if (targetPlayTime < now - 2000) {
+                                console.log(`[Play] 重置基准! targetPlayTime=${targetPlayTime.toFixed(0)}, now=${now.toFixed(0)}, diff=${(now - targetPlayTime).toFixed(0)}ms`);
                                 this.playbackStartTime = now;
                                 this.timestampOffset = frameTs;
                                 shouldPlay = true;
@@ -1033,6 +1035,7 @@
                         
                         if (shouldPlay) {
                             this.frameQueue.shift();
+                            console.log(`[Play] 播放帧 ts=${frameTs.toFixed(0)}, relTs=${(frameTs - this.timestampOffset).toFixed(0)}, queue=${this.frameQueue.length}`);
                             const canvas = document.getElementById('outputCanvas');
                             canvas.width = bitmap.width;
                             canvas.height = bitmap.height;
