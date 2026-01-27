@@ -541,7 +541,7 @@ else
     echo "   如果 OOM，请使用: bash run.sh --int8 或 --int4"
 fi
 echo ""
-echo "🌐 Server will be available at: http://0.0.0.0:7860"
+echo "🌐 Server will be available at: http://0.0.0.0:6006"
 echo ""
 echo "Press Ctrl+C to stop the server"
 echo ""
@@ -549,4 +549,4 @@ echo "================================="
 echo ""
 
 # Run the server
-$PYTHON -m uvicorn app:app --host 0.0.0.0 --port 7860
+$PYTHON -m uvicorn app:app --host 0.0.0.0 --port 6006
