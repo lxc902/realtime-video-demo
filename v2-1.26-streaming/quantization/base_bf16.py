@@ -20,12 +20,6 @@ def load_bf16(pipe, repo_id, device, dtype):
     print("🔧 BF16 标准加载（无量化）...")
     print("   ⚠️  需要 ~54GB+ 显存")
     
-    # CUDA 性能优化
-    torch.backends.cudnn.benchmark = True
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
-    print("   ✅ CUDA 优化已启用 (cudnn.benchmark, TF32)")
-    
     pipe.load_components(
         trust_remote_code=True,
         device_map=device,
