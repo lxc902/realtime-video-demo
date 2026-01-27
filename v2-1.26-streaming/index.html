@@ -585,7 +585,8 @@
             // 帧缓冲队列（平滑播放）
             frameQueue: [],
             playbackTimer: null,
-            targetPlaybackFps: 10,  // 目标播放帧率
+            lastPlayTime: 0,
+            lastFrameBitmap: null,
             // FPS 统计
             genFpsStartTime: 0,
             genFpsFrameCount: 0,
@@ -756,15 +757,9 @@
             async startSSEGeneration() {
                 this.setStatus('generating', 'Generating...');
                 
-                // 并发请求数（提高实时性）
-                const MAX_CONCURRENT = 2;
-                let activeRequests = 0;
-                
-                // 请求生成的函数
-                const generateOne = async () => {
-                    if (!this.isGenerating) return;
-                    
-                    activeRequests++;
+                // 顺序请求模式：一个请求完成后再发下一个
+                // 这样帧是逐个到达，不会批量堆积
+                while (this.isGenerating) {
                     try {
                         const strength = parseFloat(document.getElementById('strength').value);
                         const prompt = document.getElementById('prompt').value;
@@ -772,7 +767,8 @@
                         // 捕获当前 webcam/video 帧
                         const startFrame = await this.captureFrame();
                         if (!startFrame) {
-                            return;
+                            await new Promise(r => setTimeout(r, 50));
+                            continue;
                         }
 
                         const payload = {
@@ -790,7 +786,8 @@
 
                         if (!response.ok) {
                             console.error('Server error:', response.status);
-                            return;
+                            await new Promise(r => setTimeout(r, 100));
+                            continue;
                         }
 
                         const reader = response.body.getReader();
@@ -825,19 +822,8 @@
                         
                     } catch (error) {
                         console.error('Generation error:', error);
-                    } finally {
-                        activeRequests--;
+                        await new Promise(r => setTimeout(r, 100));
                     }
-                };
-                
-                // 循环调度
-                while (this.isGenerating) {
-                    // 启动新请求（保持并发数）
-                    while (activeRequests < MAX_CONCURRENT && this.isGenerating) {
-                        generateOne();  // 不 await，异步执行
-                        await new Promise(r => setTimeout(r, 50));  // 错开请求
-                    }
-                    await new Promise(r => setTimeout(r, 50));
                 }
             },
 
@@ -903,35 +889,69 @@
                 if (this.playbackTimer) return;
                 
                 this.playFpsStartTime = performance.now();
-                const interval = 1000 / this.targetPlaybackFps;
+                this.lastFrameBitmap = null;  // 保存上一帧（队列空时显示）
                 
-                this.playbackTimer = setInterval(() => {
-                    if (this.frameQueue.length === 0) return;
-                    
-                    const bitmap = this.frameQueue.shift();
-                    const canvas = document.getElementById('outputCanvas');
-                    canvas.width = bitmap.width;
-                    canvas.height = bitmap.height;
-                    canvas.getContext('2d').drawImage(bitmap, 0, 0);
-                    
-                    if (bitmap.close) bitmap.close();
-                    
-                    // 播放 FPS 计算
-                    this.playFpsFrameCount++;
-                    const now = performance.now();
-                    if (now - this.playFpsStartTime >= 1000) {
-                        this.currentPlayFps = this.playFpsFrameCount;
-                        this.playFpsFrameCount = 0;
-                        this.playFpsStartTime = now;
+                // 使用 requestAnimationFrame 实现自适应播放
+                const playFrame = () => {
+                    if (!this.isGenerating && this.frameQueue.length === 0) {
+                        this.playbackTimer = null;
+                        return;
                     }
-                    document.getElementById('playFpsDisplay').textContent = this.currentPlayFps;
-                    document.getElementById('queueSize').textContent = this.frameQueue.length;
-                }, interval);
+                    
+                    // 自适应播放速率
+                    let targetInterval;
+                    const queueLen = this.frameQueue.length;
+                    if (queueLen > 9) {
+                        targetInterval = 50;   // 20 FPS - 队列积压，加速消费
+                    } else if (queueLen > 6) {
+                        targetInterval = 80;   // 12.5 FPS
+                    } else if (queueLen > 3) {
+                        targetInterval = 100;  // 10 FPS - 正常
+                    } else if (queueLen > 0) {
+                        targetInterval = 150;  // 6.7 FPS - 队列少，减速
+                    } else {
+                        targetInterval = 200;  // 队列空，慢速等待
+                    }
+                    
+                    // 检查是否该播放下一帧
+                    const now = performance.now();
+                    if (!this.lastPlayTime || (now - this.lastPlayTime) >= targetInterval) {
+                        if (this.frameQueue.length > 0) {
+                            const bitmap = this.frameQueue.shift();
+                            const canvas = document.getElementById('outputCanvas');
+                            canvas.width = bitmap.width;
+                            canvas.height = bitmap.height;
+                            canvas.getContext('2d').drawImage(bitmap, 0, 0);
+                            
+                            // 保存为上一帧
+                            if (this.lastFrameBitmap && this.lastFrameBitmap.close) {
+                                this.lastFrameBitmap.close();
+                            }
+                            this.lastFrameBitmap = bitmap;
+                            
+                            this.lastPlayTime = now;
+                            
+                            // 播放 FPS 计算
+                            this.playFpsFrameCount++;
+                            if (now - this.playFpsStartTime >= 1000) {
+                                this.currentPlayFps = this.playFpsFrameCount;
+                                this.playFpsFrameCount = 0;
+                                this.playFpsStartTime = now;
+                            }
+                            document.getElementById('playFpsDisplay').textContent = this.currentPlayFps;
+                        }
+                        document.getElementById('queueSize').textContent = this.frameQueue.length;
+                    }
+                    
+                    this.playbackTimer = requestAnimationFrame(playFrame);
+                };
+                
+                this.playbackTimer = requestAnimationFrame(playFrame);
             },
             
             stopPlayback() {
                 if (this.playbackTimer) {
-                    clearInterval(this.playbackTimer);
+                    cancelAnimationFrame(this.playbackTimer);
                     this.playbackTimer = null;
                 }
             },
