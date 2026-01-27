@@ -38,16 +38,18 @@ def load_bf16(pipe, repo_id, device, dtype):
     for block in pipe.transformer.blocks:
         block.self_attn.fuse_projections()
     
-    # torch.compile 优化（大显存推荐）
+    # torch.compile 优化
+    # 注意：KREA 模型的动态缓存与 CUDAGraphs 不兼容
+    # 使用 mode="default" 而非 "reduce-overhead"
     if os.environ.get("DISABLE_COMPILE", "0") != "1":
         try:
-            print("🔧 编译 transformer (torch.compile)...")
+            print("🔧 编译 transformer (torch.compile, mode=default)...")
             pipe.transformer = torch.compile(
                 pipe.transformer,
-                mode="reduce-overhead",  # 减少 kernel launch 开销
+                mode="default",  # 不使用 CUDAGraphs，避免缓存冲突
                 fullgraph=False,
             )
-            print("   ✅ torch.compile 完成")
+            print("   ✅ torch.compile 完成（首次推理会较慢）")
         except Exception as e:
             print(f"   ⚠️  torch.compile 跳过: {e}")
     
