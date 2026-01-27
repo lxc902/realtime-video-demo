@@ -539,7 +539,7 @@
                         <span id="statusText">Ready</span>
                     </div>
                     <div class="progress-info">
-                        <span id="frameCount">0</span> frames | <span id="fpsDisplay">0</span> FPS
+                        <span id="frameCount">0</span> frames | Gen: <span id="genFpsDisplay">0</span> | Play: <span id="playFpsDisplay">0</span> FPS | Q: <span id="queueSize">0</span>
                     </div>
                 </div>
             </div>
@@ -582,10 +582,17 @@
             currentVideoFile: null,
             frameCount: 0,
             allFrames: [],
+            // 帧缓冲队列（平滑播放）
+            frameQueue: [],
+            playbackTimer: null,
+            targetPlaybackFps: 10,  // 目标播放帧率
             // FPS 统计
-            fpsStartTime: 0,
-            fpsFrameCount: 0,
-            currentFps: 0,
+            genFpsStartTime: 0,
+            genFpsFrameCount: 0,
+            currentGenFps: 0,
+            playFpsStartTime: 0,
+            playFpsFrameCount: 0,
+            currentPlayFps: 0,
 
             async init() {
                 this.setupEventListeners();
@@ -866,38 +873,78 @@
                 const blob = new Blob([imageData], { type: 'image/jpeg' });
                 const bitmap = await createImageBitmap(blob);
 
-                // 直接显示帧（实时模式）
-                const canvas = document.getElementById('outputCanvas');
-                canvas.width = bitmap.width;
-                canvas.height = bitmap.height;
-                canvas.getContext('2d').drawImage(bitmap, 0, 0);
-                
+                // 入队（稍后平滑播放）
+                this.frameQueue.push(bitmap);
                 this.allFrames.push(imageData);
                 this.frameCount++;
                 
-                // FPS 计算
-                this.fpsFrameCount++;
+                // 生成 FPS 计算
+                this.genFpsFrameCount++;
                 const now = performance.now();
-                if (now - this.fpsStartTime >= 1000) {
-                    this.currentFps = this.fpsFrameCount;
-                    this.fpsFrameCount = 0;
-                    this.fpsStartTime = now;
+                if (now - this.genFpsStartTime >= 1000) {
+                    this.currentGenFps = this.genFpsFrameCount;
+                    this.genFpsFrameCount = 0;
+                    this.genFpsStartTime = now;
                 }
 
                 document.getElementById('frameCount').textContent = this.frameCount;
-                document.getElementById('fpsDisplay').textContent = this.currentFps;
+                document.getElementById('genFpsDisplay').textContent = this.currentGenFps;
+                document.getElementById('queueSize').textContent = this.frameQueue.length;
 
                 if (this.frameCount === 1) {
                     document.getElementById('outputSpinner').classList.add('hidden');
                     document.getElementById('downloadBtn').classList.remove('hidden');
-                    this.fpsStartTime = performance.now();
+                    this.genFpsStartTime = performance.now();
+                    this.startPlayback();
                 }
+            },
+            
+            startPlayback() {
+                if (this.playbackTimer) return;
                 
-                if (bitmap.close) bitmap.close();
+                this.playFpsStartTime = performance.now();
+                const interval = 1000 / this.targetPlaybackFps;
+                
+                this.playbackTimer = setInterval(() => {
+                    if (this.frameQueue.length === 0) return;
+                    
+                    const bitmap = this.frameQueue.shift();
+                    const canvas = document.getElementById('outputCanvas');
+                    canvas.width = bitmap.width;
+                    canvas.height = bitmap.height;
+                    canvas.getContext('2d').drawImage(bitmap, 0, 0);
+                    
+                    if (bitmap.close) bitmap.close();
+                    
+                    // 播放 FPS 计算
+                    this.playFpsFrameCount++;
+                    const now = performance.now();
+                    if (now - this.playFpsStartTime >= 1000) {
+                        this.currentPlayFps = this.playFpsFrameCount;
+                        this.playFpsFrameCount = 0;
+                        this.playFpsStartTime = now;
+                    }
+                    document.getElementById('playFpsDisplay').textContent = this.currentPlayFps;
+                    document.getElementById('queueSize').textContent = this.frameQueue.length;
+                }, interval);
+            },
+            
+            stopPlayback() {
+                if (this.playbackTimer) {
+                    clearInterval(this.playbackTimer);
+                    this.playbackTimer = null;
+                }
             },
 
             stopGeneration() {
                 this.isGenerating = false;
+                
+                // 播放完缓冲区剩余帧后停止
+                setTimeout(() => {
+                    if (this.frameQueue.length === 0) {
+                        this.stopPlayback();
+                    }
+                }, 2000);
 
                 document.getElementById('outputSpinner').classList.add('hidden');
                 
