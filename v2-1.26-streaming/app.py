@@ -142,7 +142,7 @@ class StreamGenerationRequest(BaseModel):
     start_frame: Optional[str] = None  # base64 encoded（首帧，后续用 update_frame）
 
 class UpdateFrameRequest(BaseModel):
-    frame: str  # base64 encoded
+    frame: Optional[str] = None  # base64 encoded (可选)
     timestamp: float = 0  # 客户端时间戳（ms）
     strength: Optional[float] = None
     prompt: Optional[str] = None
@@ -157,13 +157,16 @@ async def api_update_frame(req: UpdateFrameRequest):
     """前端持续发送最新帧，后端缓存"""
     global latest_frame_data
     try:
-        frame_bytes = base64.b64decode(req.frame)
-        frame = model.process_frame_bytes(frame_bytes) if model else None
-        
         with latest_frame_lock:
-            latest_frame_data["frame"] = frame
-            latest_frame_data["timestamp"] = time.time()
-            latest_frame_data["client_ts"] = req.timestamp
+            # 只有 frame 存在时才更新帧数据
+            if req.frame:
+                frame_bytes = base64.b64decode(req.frame)
+                frame = model.process_frame_bytes(frame_bytes) if model else None
+                latest_frame_data["frame"] = frame
+                latest_frame_data["timestamp"] = time.time()
+                latest_frame_data["client_ts"] = req.timestamp
+            
+            # strength/prompt 始终更新
             if req.strength is not None:
                 latest_frame_data["strength"] = req.strength
             if req.prompt is not None:

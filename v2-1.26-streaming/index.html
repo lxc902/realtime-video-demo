@@ -674,10 +674,21 @@
                 });
                 document.getElementById('videoFileInput').addEventListener('change', (e) => this.handleVideoUpload(e));
 
-                // Strength slider
+                // Strength slider - 实时更新 UI 和后端
                 document.getElementById('strength').addEventListener('input', (e) => {
                     const val = Math.round(parseFloat(e.target.value) * 100);
                     document.getElementById('strengthValue').textContent = val;
+                    // 生成中时立即发送更新
+                    if (this.isGenerating) {
+                        this.sendParamsUpdate();
+                    }
+                });
+                
+                // Prompt 变化时也立即发送
+                document.getElementById('prompt').addEventListener('input', () => {
+                    if (this.isGenerating) {
+                        this.sendParamsUpdate();
+                    }
                 });
 
                 // Start/Stop
@@ -896,6 +907,26 @@
                         }
                     }
                 }
+            },
+            
+            // 立即发送 strength/prompt 更新（无需等待帧）
+            async sendParamsUpdate() {
+                try {
+                    const frame = await this.captureFrame();
+                    const strength = parseFloat(document.getElementById('strength').value);
+                    const prompt = document.getElementById('prompt').value;
+                    console.log(`[${this.beijingTime()}] PARAM strength=${strength.toFixed(2)} prompt="${prompt.slice(0,20)}..."`);
+                    fetch('/api/update_frame', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            frame: frame ? this.arrayBufferToBase64(frame) : null,
+                            timestamp: performance.now(),
+                            strength: strength,
+                            prompt: prompt
+                        })
+                    }).catch(() => {});
+                } catch (e) {}
             },
             
             // 帧更新循环：持续发送最新帧给后端
