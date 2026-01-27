@@ -311,21 +311,35 @@ class KreaLocalInference:
                 debug_print(f"  [video_stream] passing {len(pil_list)} frames to pipeline")
                 kwargs["video_stream"] = pil_list
                 
-                # 从输入帧提取宽高，让模型输出相同比例
-                # 对齐到 8 的倍数（VAE 要求）
+                # 从输入帧提取宽高比，按比例缩放到模型可用的分辨率
+                # KREA 模型训练分辨率 832x480，需要保持足够的分辨率
                 if pil_list:
                     first_frame = pil_list[0]
-                    target_width = (first_frame.width // 8) * 8
-                    target_height = (first_frame.height // 8) * 8
-                    # 确保最小尺寸
-                    target_width = max(target_width, 64)
-                    target_height = max(target_height, 64)
+                    input_w, input_h = first_frame.width, first_frame.height
+                    aspect = input_w / input_h
+                    
+                    # 目标：保持宽高比，总像素约 832*480 = 399360
+                    TARGET_PIXELS = 832 * 480
+                    
+                    # 根据宽高比计算目标尺寸
+                    target_height = int((TARGET_PIXELS / aspect) ** 0.5)
+                    target_width = int(target_height * aspect)
+                    
+                    # 对齐到 8 的倍数
+                    target_width = (target_width // 8) * 8
+                    target_height = (target_height // 8) * 8
+                    
+                    # 确保最小尺寸（至少 256）
+                    target_width = max(target_width, 256)
+                    target_height = max(target_height, 256)
+                    
                     kwargs["width"] = target_width
                     kwargs["height"] = target_height
+                    
                     # 第一个 block 打印分辨率信息
                     if block_idx == 0:
-                        print(f"[Resolution] input={first_frame.width}x{first_frame.height} -> model={target_width}x{target_height}")
-                    debug_print(f"  [resolution] input={first_frame.width}x{first_frame.height} -> model={target_width}x{target_height}")
+                        print(f"[Resolution] input={input_w}x{input_h} (aspect={aspect:.2f}) -> model={target_width}x{target_height}")
+                    debug_print(f"  [resolution] input={input_w}x{input_h} -> model={target_width}x{target_height}")
                 
             # 生成
             new_state = self.pipe(**kwargs)
