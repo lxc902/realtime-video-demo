@@ -512,10 +512,70 @@
             background: rgba(239, 68, 68, 0.1);
         }
 
-        /* Responsive */
+        /* Responsive - 移动端保持左右分屏 */
         @media (max-width: 900px) {
             .canvas-container {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            
+            .panel-header {
+                padding: 8px 12px;
+            }
+            
+            .panel-title {
+                font-size: 0.75rem;
+            }
+            
+            .panel-footer {
+                padding: 8px 12px;
+                font-size: 0.7rem;
+            }
+            
+            .header {
+                padding: 8px 12px;
+            }
+            
+            .logo {
+                font-size: 0.9rem;
+            }
+            
+            .mode-btn {
+                padding: 6px 10px;
+                font-size: 0.75rem;
+            }
+            
+            .krea-controls {
+                bottom: 10px;
+            }
+            
+            .krea-slider-container {
+                width: 280px;
+            }
+            
+            .krea-prompt-box {
+                min-width: 300px;
+                max-width: 90vw;
+            }
+            
+            .krea-prompt {
+                font-size: 12px;
+            }
+        }
+        
+        /* 超小屏幕 */
+        @media (max-width: 500px) {
+            .main {
+                padding: 8px;
+                gap: 8px;
+            }
+            
+            .panel-header, .panel-footer {
+                padding: 6px 8px;
+            }
+            
+            .mode-switcher {
+                display: none;
             }
         }
     </style>
@@ -635,6 +695,7 @@
             currentVideoFile: null,
             frameCount: 0,
             allFrames: [],
+            allInputFrames: [],  // 保存输入帧用于下载对比视频
             // 帧缓冲队列（平滑播放）
             frameQueue: [],
             playbackTimer: null,
@@ -813,6 +874,7 @@
                 this.isGenerating = true;
                 this.frameCount = 0;
                 this.allFrames = [];
+                this.allInputFrames = [];
                 this.frameBuffer = [];
                 this.updateUI();
 
@@ -1010,6 +1072,13 @@
                 // 入队（附带时间戳，稍后平滑播放）
                 this.frameQueue.push({ bitmap, timestamp });
                 this.allFrames.push(imageData);
+                
+                // 同时捕获输入帧用于下载对比
+                const inputFrame = await this.captureFrame();
+                if (inputFrame) {
+                    this.allInputFrames.push(inputFrame);
+                }
+                
                 this.frameCount++;
                 
                 // 生成 FPS 计算
@@ -1133,8 +1202,12 @@
                 // Load first frame to get dimensions
                 const firstBlob = new Blob([this.allFrames[0]], { type: 'image/jpeg' });
                 const firstBitmap = await createImageBitmap(firstBlob);
-                canvas.width = firstBitmap.width;
-                canvas.height = firstBitmap.height;
+                const frameWidth = firstBitmap.width;
+                const frameHeight = firstBitmap.height;
+                
+                // 上下对比布局：输入在上，输出在下
+                canvas.width = frameWidth;
+                canvas.height = frameHeight * 2;
 
                 const stream = canvas.captureStream(0);
                 const videoTrack = stream.getVideoTracks()[0];
@@ -1142,7 +1215,7 @@
 
                 const recorder = new MediaRecorder(stream, {
                     mimeType: 'video/webm',
-                    videoBitsPerSecond: 5000000
+                    videoBitsPerSecond: 8000000
                 });
 
                 recorder.ondataavailable = (e) => {
@@ -1154,7 +1227,7 @@
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `krea-video-${Date.now()}.webm`;
+                    a.download = `krea-compare-${Date.now()}.webm`;
                     a.click();
                     URL.revokeObjectURL(url);
                     this.showToast('Download complete!');
@@ -1162,12 +1235,31 @@
 
                 recorder.start();
 
-                for (const frameData of this.allFrames) {
-                    const blob = new Blob([frameData], { type: 'image/jpeg' });
-                    const bitmap = await createImageBitmap(blob);
-                    ctx.drawImage(bitmap, 0, 0);
+                const frameCount = Math.min(this.allFrames.length, this.allInputFrames.length);
+                for (let i = 0; i < frameCount; i++) {
+                    // 绘制输入帧（上半部分）
+                    if (this.allInputFrames[i]) {
+                        const inputBlob = new Blob([this.allInputFrames[i]], { type: 'image/jpeg' });
+                        const inputBitmap = await createImageBitmap(inputBlob);
+                        ctx.drawImage(inputBitmap, 0, 0, frameWidth, frameHeight);
+                        inputBitmap.close();
+                    }
+                    
+                    // 绘制输出帧（下半部分）
+                    const outputBlob = new Blob([this.allFrames[i]], { type: 'image/jpeg' });
+                    const outputBitmap = await createImageBitmap(outputBlob);
+                    ctx.drawImage(outputBitmap, 0, frameHeight, frameWidth, frameHeight);
+                    outputBitmap.close();
+                    
+                    // 添加分割线
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(0, frameHeight);
+                    ctx.lineTo(frameWidth, frameHeight);
+                    ctx.stroke();
+                    
                     if (videoTrack.requestFrame) videoTrack.requestFrame();
-                    bitmap.close();
                     await new Promise(r => setTimeout(r, 1000 / fps));
                 }
 
