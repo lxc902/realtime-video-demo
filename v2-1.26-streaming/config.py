@@ -30,8 +30,8 @@ DEFAULT_STRENGTH = 0.35
 # V2V 帧缓存配置
 # ============================================================
 
-# 第一次 V2V 生成的帧数（6帧 = 2 blocks，平衡质量和延迟）
-V2V_INITIAL_FRAMES = 6
+# 第一次 V2V 生成的帧数（KREA 模型 VAE 需要 12 帧才能正确编码）
+V2V_INITIAL_FRAMES = 12
 
 # 后续 V2V 生成的帧数（最小 3）
 V2V_SUBSEQUENT_FRAMES = 3
