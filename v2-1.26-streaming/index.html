@@ -871,11 +871,6 @@
                     return;
                 }
 
-                // 清理后端缓存
-                try {
-                    await fetch('/api/clear-cache', { method: 'POST' });
-                } catch (e) {}
-                
                 this.isGenerating = true;
                 this.frameCount = 0;
                 this.allFrames = [];
@@ -1182,6 +1177,9 @@
                 
                 // 停止帧更新循环
                 this.stopFrameUpdateLoop();
+                
+                // 清理后端缓存
+                fetch('/api/clear-cache', { method: 'POST' }).catch(() => {});
                 
                 // 播放完缓冲区剩余帧后停止
                 setTimeout(() => {
