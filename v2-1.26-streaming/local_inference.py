@@ -311,6 +311,22 @@ class KreaLocalInference:
                 debug_print(f"  [video_stream] passing {len(pil_list)} frames to pipeline")
                 kwargs["video_stream"] = pil_list
                 
+                # 从输入帧提取宽高，让模型输出相同比例
+                # 对齐到 8 的倍数（VAE 要求）
+                if pil_list:
+                    first_frame = pil_list[0]
+                    target_width = (first_frame.width // 8) * 8
+                    target_height = (first_frame.height // 8) * 8
+                    # 确保最小尺寸
+                    target_width = max(target_width, 64)
+                    target_height = max(target_height, 64)
+                    kwargs["width"] = target_width
+                    kwargs["height"] = target_height
+                    # 第一个 block 打印分辨率信息
+                    if block_idx == 0:
+                        print(f"[Resolution] input={first_frame.width}x{first_frame.height} -> model={target_width}x{target_height}")
+                    debug_print(f"  [resolution] input={first_frame.width}x{first_frame.height} -> model={target_width}x{target_height}")
+                
             # 生成
             new_state = self.pipe(**kwargs)
             
