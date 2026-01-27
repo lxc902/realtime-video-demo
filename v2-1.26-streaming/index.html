@@ -855,8 +855,8 @@
                         // 忽略
                     }
                     
-                    // 每 200ms 发送一帧（5 FPS）
-                    this.frameUpdateTimer = setTimeout(sendFrame, 200);
+                    // 每 500ms 发送一帧（2 FPS，节省带宽）
+                    this.frameUpdateTimer = setTimeout(sendFrame, 500);
                 };
                 
                 sendFrame();
@@ -932,10 +932,10 @@
                 
                 this.playFpsStartTime = performance.now();
                 this.lastFrameBitmap = null;
-                this.lastFrameTimestamp = 0;  // 上一帧的时间戳
-                this.playbackBaseTime = 0;    // 播放基准时间
                 
-                // 使用 requestAnimationFrame 实现时间戳同步播放
+                // 固定间隔播放（100ms = 10 FPS）
+                const FIXED_INTERVAL = 100;
+                
                 const playFrame = () => {
                     if (!this.isGenerating && this.frameQueue.length === 0) {
                         this.playbackTimer = null;
@@ -943,58 +943,31 @@
                     }
                     
                     const now = performance.now();
+                    const shouldPlay = !this.lastPlayTime || (now - this.lastPlayTime) >= FIXED_INTERVAL;
                     
-                    if (this.frameQueue.length > 0) {
-                        const frameData = this.frameQueue[0];
-                        const { bitmap, timestamp } = frameData;
+                    if (shouldPlay && this.frameQueue.length > 0) {
+                        const frameData = this.frameQueue.shift();
+                        const bitmap = frameData.bitmap || frameData;
                         
-                        // 初始化播放基准
-                        if (this.playbackBaseTime === 0 && timestamp > 0) {
-                            this.playbackBaseTime = now;
-                            this.lastFrameTimestamp = timestamp;
-                        }
+                        const canvas = document.getElementById('outputCanvas');
+                        canvas.width = bitmap.width;
+                        canvas.height = bitmap.height;
+                        canvas.getContext('2d').drawImage(bitmap, 0, 0);
                         
-                        // 计算这帧应该播放的时间
-                        let shouldPlay = false;
-                        if (timestamp > 0 && this.lastFrameTimestamp > 0) {
-                            // 基于时间戳差计算播放时间
-                            const tsDiff = timestamp - this.lastFrameTimestamp;
-                            const targetTime = this.lastPlayTime + Math.max(tsDiff, 50); // 至少 50ms 间隔
-                            shouldPlay = now >= targetTime;
-                        } else {
-                            // 无时间戳，固定 100ms 间隔
-                            shouldPlay = !this.lastPlayTime || (now - this.lastPlayTime) >= 100;
+                        if (this.lastFrameBitmap && this.lastFrameBitmap.close) {
+                            this.lastFrameBitmap.close();
                         }
+                        this.lastFrameBitmap = bitmap;
+                        this.lastPlayTime = now;
                         
-                        // 防止队列积压：如果队列太长，加速播放
-                        if (this.frameQueue.length > 6) {
-                            shouldPlay = !this.lastPlayTime || (now - this.lastPlayTime) >= 50;
+                        // FPS 统计
+                        this.playFpsFrameCount++;
+                        if (now - this.playFpsStartTime >= 1000) {
+                            this.currentPlayFps = this.playFpsFrameCount;
+                            this.playFpsFrameCount = 0;
+                            this.playFpsStartTime = now;
                         }
-                        
-                        if (shouldPlay) {
-                            this.frameQueue.shift();
-                            const canvas = document.getElementById('outputCanvas');
-                            canvas.width = bitmap.width;
-                            canvas.height = bitmap.height;
-                            canvas.getContext('2d').drawImage(bitmap, 0, 0);
-                            
-                            // 保存状态
-                            if (this.lastFrameBitmap && this.lastFrameBitmap.close) {
-                                this.lastFrameBitmap.close();
-                            }
-                            this.lastFrameBitmap = bitmap;
-                            this.lastFrameTimestamp = timestamp;
-                            this.lastPlayTime = now;
-                            
-                            // 播放 FPS 计算
-                            this.playFpsFrameCount++;
-                            if (now - this.playFpsStartTime >= 1000) {
-                                this.currentPlayFps = this.playFpsFrameCount;
-                                this.playFpsFrameCount = 0;
-                                this.playFpsStartTime = now;
-                            }
-                            document.getElementById('playFpsDisplay').textContent = this.currentPlayFps;
-                        }
+                        document.getElementById('playFpsDisplay').textContent = this.currentPlayFps;
                     }
                     document.getElementById('queueSize').textContent = this.frameQueue.length;
                     
