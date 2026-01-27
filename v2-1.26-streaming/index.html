@@ -1000,10 +1000,10 @@
                 
                 this.playFpsStartTime = performance.now();
                 this.lastFrameBitmap = null;
-                this.playbackReady = false;  // 缓冲是否就绪
+                this.playbackReady = false;
+                this.lastFrameTs = 0;  // 上一帧的时间戳
                 
                 const BUFFER_TARGET = 6;  // 目标缓冲帧数
-                const FIXED_INTERVAL = 1000;  // 固定 1 FPS（与生成速度匹配）
                 
                 const playFrame = () => {
                     if (!this.isGenerating && this.frameQueue.length === 0) {
@@ -1018,6 +1018,10 @@
                         if (this.frameQueue.length >= BUFFER_TARGET) {
                             this.playbackReady = true;
                             this.lastPlayTime = now;
+                            // 初始化时间戳
+                            if (this.frameQueue.length > 0) {
+                                this.lastFrameTs = this.frameQueue[0].timestamp || 0;
+                            }
                             console.log(`[Play] 缓冲就绪! queue=${this.frameQueue.length}`);
                         } else {
                             document.getElementById('queueSize').textContent = `缓冲 ${this.frameQueue.length}/${BUFFER_TARGET}`;
@@ -1026,9 +1030,19 @@
                         }
                     }
                     
-                    // 固定间隔播放
+                    // 自适应播放间隔：根据帧时间戳差计算
+                    let targetInterval = 333;  // 默认 3 FPS
+                    if (this.frameQueue.length > 0) {
+                        const nextTs = this.frameQueue[0].timestamp || 0;
+                        if (nextTs > 0 && this.lastFrameTs > 0) {
+                            // 帧间隔 = 时间戳差
+                            targetInterval = Math.max(nextTs - this.lastFrameTs, 50);  // 最快 20 FPS
+                            targetInterval = Math.min(targetInterval, 2000);  // 最慢 0.5 FPS
+                        }
+                    }
+                    
                     const elapsed = now - this.lastPlayTime;
-                    const shouldPlay = this.frameQueue.length > 0 && elapsed >= FIXED_INTERVAL;
+                    const shouldPlay = this.frameQueue.length > 0 && elapsed >= targetInterval;
                     
                     if (shouldPlay) {
                         const frameData = this.frameQueue.shift();
@@ -1045,6 +1059,7 @@
                             this.lastFrameBitmap.close();
                         }
                         this.lastFrameBitmap = bitmap;
+                        this.lastFrameTs = frameTs;
                         this.lastPlayTime = now;
                         
                         // FPS 统计
