@@ -812,7 +812,8 @@
                                     
                                     if (data.type === 'frame') {
                                         const frameBytes = this.base64ToArrayBuffer(data.data);
-                                        await this.displayFrame(frameBytes);
+                                        const timestamp = data.timestamp || 0;
+                                        await this.displayFrame(frameBytes, timestamp);
                                     } else if (data.type === 'error') {
                                         console.error('Generation error:', data.message);
                                     }
@@ -848,11 +849,14 @@
                     try {
                         const frame = await this.captureFrame();
                         if (frame) {
-                            // 发送帧（不等待响应）
+                            // 发送帧（附带时间戳）
                             fetch('/api/update_frame', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ frame: this.arrayBufferToBase64(frame) })
+                                body: JSON.stringify({ 
+                                    frame: this.arrayBufferToBase64(frame),
+                                    timestamp: performance.now()
+                                })
                             }).catch(() => {}); // 忽略错误
                         }
                     } catch (e) {
@@ -901,12 +905,12 @@
                 });
             },
 
-            async displayFrame(imageData) {
+            async displayFrame(imageData, timestamp = 0) {
                 const blob = new Blob([imageData], { type: 'image/jpeg' });
                 const bitmap = await createImageBitmap(blob);
 
-                // 入队（稍后平滑播放）
-                this.frameQueue.push(bitmap);
+                // 入队（附带时间戳，稍后平滑播放）
+                this.frameQueue.push({ bitmap, timestamp });
                 this.allFrames.push(imageData);
                 this.frameCount++;
                 
@@ -935,35 +939,59 @@
                 if (this.playbackTimer) return;
                 
                 this.playFpsStartTime = performance.now();
-                this.lastFrameBitmap = null;  // 保存上一帧（队列空时显示）
+                this.lastFrameBitmap = null;
+                this.lastFrameTimestamp = 0;  // 上一帧的时间戳
+                this.playbackBaseTime = 0;    // 播放基准时间
                 
-                // 使用 requestAnimationFrame 实现自适应播放
+                // 使用 requestAnimationFrame 实现时间戳同步播放
                 const playFrame = () => {
                     if (!this.isGenerating && this.frameQueue.length === 0) {
                         this.playbackTimer = null;
                         return;
                     }
                     
-                    // 固定播放速率（避免加速导致跳变）
-                    // 目标 10 FPS，稳定输出
-                    const targetInterval = 100;
-                    
-                    // 检查是否该播放下一帧
                     const now = performance.now();
-                    if (!this.lastPlayTime || (now - this.lastPlayTime) >= targetInterval) {
-                        if (this.frameQueue.length > 0) {
-                            const bitmap = this.frameQueue.shift();
+                    
+                    if (this.frameQueue.length > 0) {
+                        const frameData = this.frameQueue[0];
+                        const { bitmap, timestamp } = frameData;
+                        
+                        // 初始化播放基准
+                        if (this.playbackBaseTime === 0 && timestamp > 0) {
+                            this.playbackBaseTime = now;
+                            this.lastFrameTimestamp = timestamp;
+                        }
+                        
+                        // 计算这帧应该播放的时间
+                        let shouldPlay = false;
+                        if (timestamp > 0 && this.lastFrameTimestamp > 0) {
+                            // 基于时间戳差计算播放时间
+                            const tsDiff = timestamp - this.lastFrameTimestamp;
+                            const targetTime = this.lastPlayTime + Math.max(tsDiff, 50); // 至少 50ms 间隔
+                            shouldPlay = now >= targetTime;
+                        } else {
+                            // 无时间戳，固定 100ms 间隔
+                            shouldPlay = !this.lastPlayTime || (now - this.lastPlayTime) >= 100;
+                        }
+                        
+                        // 防止队列积压：如果队列太长，加速播放
+                        if (this.frameQueue.length > 6) {
+                            shouldPlay = !this.lastPlayTime || (now - this.lastPlayTime) >= 50;
+                        }
+                        
+                        if (shouldPlay) {
+                            this.frameQueue.shift();
                             const canvas = document.getElementById('outputCanvas');
                             canvas.width = bitmap.width;
                             canvas.height = bitmap.height;
                             canvas.getContext('2d').drawImage(bitmap, 0, 0);
                             
-                            // 保存为上一帧
+                            // 保存状态
                             if (this.lastFrameBitmap && this.lastFrameBitmap.close) {
                                 this.lastFrameBitmap.close();
                             }
                             this.lastFrameBitmap = bitmap;
-                            
+                            this.lastFrameTimestamp = timestamp;
                             this.lastPlayTime = now;
                             
                             // 播放 FPS 计算
@@ -975,8 +1003,8 @@
                             }
                             document.getElementById('playFpsDisplay').textContent = this.currentPlayFps;
                         }
-                        document.getElementById('queueSize').textContent = this.frameQueue.length;
                     }
+                    document.getElementById('queueSize').textContent = this.frameQueue.length;
                     
                     this.playbackTimer = requestAnimationFrame(playFrame);
                 };

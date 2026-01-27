@@ -118,7 +118,8 @@ async def health():
 latest_frame_lock = threading.Lock()
 latest_frame_data = {
     "frame": None,  # 最新帧 (numpy array)
-    "timestamp": 0
+    "timestamp": 0,  # 服务器时间
+    "client_ts": 0   # 客户端时间戳（前端发送）
 }
 
 # ============================================================
@@ -135,6 +136,7 @@ class StreamGenerationRequest(BaseModel):
 
 class UpdateFrameRequest(BaseModel):
     frame: str  # base64 encoded
+    timestamp: float = 0  # 客户端时间戳（ms）
 
 
 # ============================================================
@@ -152,6 +154,7 @@ async def api_update_frame(req: UpdateFrameRequest):
         with latest_frame_lock:
             latest_frame_data["frame"] = frame
             latest_frame_data["timestamp"] = time.time()
+            latest_frame_data["client_ts"] = req.timestamp
         
         return {"status": "ok"}
     except Exception as e:
@@ -207,12 +210,14 @@ async def api_stream_generation(req: StreamGenerationRequest):
                 
                 def generate_block():
                     nonlocal state, start_frames_list
+                    input_client_ts = 0
                     with inference_lock:
                         # 始终使用最新帧（从 /api/update_frame 获取）
                         with latest_frame_lock:
                             if latest_frame_data["frame"] is not None:
                                 latest_frame = latest_frame_data["frame"]
                                 start_frames_list = [latest_frame] * V2V_INITIAL_FRAMES
+                                input_client_ts = latest_frame_data["client_ts"]
                         
                         input_frames = start_frames_list if start_frames_list else None
                         new_state, frames = model.generate_next_block_with_state(
@@ -226,20 +231,25 @@ async def api_stream_generation(req: StreamGenerationRequest):
                             num_blocks=max_blocks
                         )
                         state = new_state
-                        return frames
+                        return frames, input_client_ts
                 
-                frames = await asyncio.to_thread(generate_block)
+                frames, input_ts = await asyncio.to_thread(generate_block)
                 
-                # 逐帧推送
+                # 逐帧推送（附带输入帧时间戳）
                 for frame_idx, frame in enumerate(frames):
                     frame_bytes = model.frame_to_bytes(frame)
                     frame_b64 = base64.b64encode(frame_bytes).decode()
                     global_frame_idx = block_idx * len(frames) + frame_idx + 1
                     
+                    # 计算这帧的时间戳（输入时间 + 帧在 block 内的偏移）
+                    # 假设每帧间隔 100ms (10 FPS)
+                    frame_ts = input_ts + frame_idx * 100
+                    
                     event_data = json.dumps({
                         "type": "frame",
                         "block": block_idx,
                         "frame_idx": global_frame_idx,
+                        "timestamp": frame_ts,
                         "data": frame_b64
                     })
                     yield f"data: {event_data}\n\n"
