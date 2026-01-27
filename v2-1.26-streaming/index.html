@@ -622,7 +622,7 @@
                     </div>
                 </div>
                 <div class="panel-content">
-                    <video id="inputVideo" class="video-element" autoplay playsinline muted loop></video>
+                    <video id="inputVideo" class="video-element" autoplay playsinline webkit-playsinline muted loop></video>
                     <div id="inputPlaceholder" class="placeholder">
                         <div class="placeholder-icon">📷</div>
                         <div class="placeholder-text">Webcam will appear here</div>
@@ -817,6 +817,12 @@
 
                     const video = document.getElementById('inputVideo');
                     video.srcObject = this.webcamStream;
+                    // 微信浏览器兼容：显式调用 play()
+                    try {
+                        await video.play();
+                    } catch (e) {
+                        console.warn('Video autoplay failed:', e);
+                    }
                     document.getElementById('inputPlaceholder').classList.add('hidden');
                     this.showToast('Webcam started');
                 } catch (error) {
