@@ -898,13 +898,17 @@
                     try {
                         const frame = await this.captureFrame();
                         if (frame) {
-                            // 发送帧（附带时间戳）
+                            // 发送帧 + 当前 strength/prompt
+                            const strength = parseFloat(document.getElementById('strength').value);
+                            const prompt = document.getElementById('prompt').value;
                             fetch('/api/update_frame', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ 
                                     frame: this.arrayBufferToBase64(frame),
-                                    timestamp: performance.now()
+                                    timestamp: performance.now(),
+                                    strength: strength,
+                                    prompt: prompt
                                 })
                             }).catch(() => {}); // 忽略错误
                         }

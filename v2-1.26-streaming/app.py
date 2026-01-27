@@ -119,7 +119,9 @@ latest_frame_lock = threading.Lock()
 latest_frame_data = {
     "frame": None,  # 最新帧 (numpy array)
     "timestamp": 0,  # 服务器时间
-    "client_ts": 0   # 客户端时间戳（前端发送）
+    "client_ts": 0,  # 客户端时间戳（前端发送）
+    "strength": None,  # 最新 strength
+    "prompt": None     # 最新 prompt
 }
 
 # ============================================================
@@ -137,6 +139,8 @@ class StreamGenerationRequest(BaseModel):
 class UpdateFrameRequest(BaseModel):
     frame: str  # base64 encoded
     timestamp: float = 0  # 客户端时间戳（ms）
+    strength: Optional[float] = None
+    prompt: Optional[str] = None
 
 
 # ============================================================
@@ -155,6 +159,10 @@ async def api_update_frame(req: UpdateFrameRequest):
             latest_frame_data["frame"] = frame
             latest_frame_data["timestamp"] = time.time()
             latest_frame_data["client_ts"] = req.timestamp
+            if req.strength is not None:
+                latest_frame_data["strength"] = req.strength
+            if req.prompt is not None:
+                latest_frame_data["prompt"] = req.prompt
         
         return {"status": "ok"}
     except Exception as e:
@@ -214,17 +222,23 @@ async def api_stream_generation(req: StreamGenerationRequest):
                 def generate_block():
                     nonlocal state, start_frames_list
                     with inference_lock:
-                        # 始终使用最新帧
+                        # 获取最新帧、strength、prompt
+                        current_prompt = req.prompt
+                        current_strength = req.strength
                         with latest_frame_lock:
                             if latest_frame_data["frame"] is not None:
                                 latest_frame = latest_frame_data["frame"]
                                 start_frames_list = [latest_frame] * V2V_INITIAL_FRAMES
+                            if latest_frame_data["strength"] is not None:
+                                current_strength = latest_frame_data["strength"]
+                            if latest_frame_data["prompt"] is not None:
+                                current_prompt = latest_frame_data["prompt"]
                         
                         input_frames = start_frames_list if start_frames_list else None
                         new_state, frames = model.generate_next_block_with_state(
                             state=state,
-                            prompt=req.prompt,
-                            strength=req.strength,
+                            prompt=current_prompt,
+                            strength=current_strength,
                             block_idx=current_block,
                             generator=generator,
                             input_frame=input_frames,
