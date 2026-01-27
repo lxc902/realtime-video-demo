@@ -207,17 +207,16 @@ async def api_stream_generation(req: StreamGenerationRequest):
             
             while block_idx < max_blocks:
                 current_block = block_idx  # 闭包捕获
+                block_start_time = time.time() * 1000  # ms
                 
                 def generate_block():
                     nonlocal state, start_frames_list
-                    input_client_ts = 0
                     with inference_lock:
-                        # 始终使用最新帧（从 /api/update_frame 获取）
+                        # 始终使用最新帧
                         with latest_frame_lock:
                             if latest_frame_data["frame"] is not None:
                                 latest_frame = latest_frame_data["frame"]
                                 start_frames_list = [latest_frame] * V2V_INITIAL_FRAMES
-                                input_client_ts = latest_frame_data["client_ts"]
                         
                         input_frames = start_frames_list if start_frames_list else None
                         new_state, frames = model.generate_next_block_with_state(
@@ -231,19 +230,26 @@ async def api_stream_generation(req: StreamGenerationRequest):
                             num_blocks=max_blocks
                         )
                         state = new_state
-                        return frames, input_client_ts
+                        return frames
                 
-                frames, input_ts = await asyncio.to_thread(generate_block)
+                frames = await asyncio.to_thread(generate_block)
+                block_end_time = time.time() * 1000  # ms
                 
-                # 逐帧推送（附带输入帧时间戳）
+                # 时间插值：将生成耗时均匀分配给每帧
+                # 例如：3秒生成3帧 → 每帧间隔1秒
+                block_duration = block_end_time - block_start_time
+                num_frames = len(frames)
+                
                 for frame_idx, frame in enumerate(frames):
                     frame_bytes = model.frame_to_bytes(frame)
                     frame_b64 = base64.b64encode(frame_bytes).decode()
-                    global_frame_idx = block_idx * len(frames) + frame_idx + 1
+                    global_frame_idx = block_idx * num_frames + frame_idx + 1
                     
-                    # 计算这帧的时间戳（输入时间 + 帧在 block 内的偏移）
-                    # 假设每帧间隔 100ms (10 FPS)
-                    frame_ts = input_ts + frame_idx * 100
+                    # 插值时间戳：帧均匀分布在 block 时间段内
+                    # 帧 0: block_start + duration * 1/3
+                    # 帧 1: block_start + duration * 2/3
+                    # 帧 2: block_end
+                    frame_ts = block_start_time + block_duration * (frame_idx + 1) / num_frames
                     
                     event_data = json.dumps({
                         "type": "frame",
