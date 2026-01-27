@@ -3,6 +3,7 @@ BF16 标准加载（无量化）
 需要 ~54GB+ 显存
 """
 import torch
+import os
 
 
 def load_bf16(pipe, repo_id, device, dtype):
@@ -20,6 +21,12 @@ def load_bf16(pipe, repo_id, device, dtype):
     print("🔧 BF16 标准加载（无量化）...")
     print("   ⚠️  需要 ~54GB+ 显存")
     
+    # CUDA 性能优化
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    print("   ✅ CUDA 优化已启用 (cudnn.benchmark, TF32)")
+    
     pipe.load_components(
         trust_remote_code=True,
         device_map=device,
@@ -30,6 +37,19 @@ def load_bf16(pipe, repo_id, device, dtype):
     print("🔧 融合投影层...")
     for block in pipe.transformer.blocks:
         block.self_attn.fuse_projections()
+    
+    # torch.compile 优化（大显存推荐）
+    if os.environ.get("DISABLE_COMPILE", "0") != "1":
+        try:
+            print("🔧 编译 transformer (torch.compile)...")
+            pipe.transformer = torch.compile(
+                pipe.transformer,
+                mode="reduce-overhead",  # 减少 kernel launch 开销
+                fullgraph=False,
+            )
+            print("   ✅ torch.compile 完成")
+        except Exception as e:
+            print(f"   ⚠️  torch.compile 跳过: {e}")
     
     print("   ✅ BF16 加载完成")
     return pipe

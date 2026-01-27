@@ -5,6 +5,7 @@ FP8 量化加载
 """
 import torch
 import torch.nn as nn
+import os
 
 
 def check_fp8_support():
@@ -145,6 +146,12 @@ def load_fp8(pipe, repo_id, device, dtype):
         加载完成的 pipe
     """
     print("🔧 使用 FP8 优化 (基于 ComfyUI 实现)...")
+    
+    # CUDA 性能优化
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+    print("   ✅ CUDA 优化已启用 (cudnn.benchmark, TF32)")
     
     from huggingface_hub import hf_hub_download
     from safetensors.torch import load_file
@@ -307,6 +314,20 @@ def load_fp8(pipe, repo_id, device, dtype):
     convert_fp8_linear(pipe.transformer, dtype, params_to_keep, scale_weights)
     
     torch.cuda.empty_cache()
+    
+    # torch.compile 优化（大显存推荐）
+    if os.environ.get("DISABLE_COMPILE", "0") != "1":
+        try:
+            print("🔧 编译 transformer (torch.compile)...")
+            pipe.transformer = torch.compile(
+                pipe.transformer,
+                mode="reduce-overhead",
+                fullgraph=False,
+            )
+            print("   ✅ torch.compile 完成")
+        except Exception as e:
+            print(f"   ⚠️  torch.compile 跳过: {e}")
+    
     print("   ✅ FP8 优化完成")
     
     return pipe

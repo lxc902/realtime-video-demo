@@ -337,11 +337,10 @@ class KreaLocalInference:
         # 显式删除临时变量
         del kwargs
         
-        # 每 5 个 block 做一次 GC（减少开销）
-        if block_idx % 5 == 0:
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+        # 大显存下禁用 GC（减少开销）
+        # 只在每 20 个 block 做一次轻量清理
+        if block_idx % 20 == 0 and torch.cuda.is_available():
+            torch.cuda.empty_cache()
         
         return new_state, new_frames
     
