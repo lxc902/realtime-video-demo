@@ -898,20 +898,9 @@
                         return;
                     }
                     
-                    // 自适应播放速率
-                    let targetInterval;
-                    const queueLen = this.frameQueue.length;
-                    if (queueLen > 9) {
-                        targetInterval = 50;   // 20 FPS - 队列积压，加速消费
-                    } else if (queueLen > 6) {
-                        targetInterval = 80;   // 12.5 FPS
-                    } else if (queueLen > 3) {
-                        targetInterval = 100;  // 10 FPS - 正常
-                    } else if (queueLen > 0) {
-                        targetInterval = 150;  // 6.7 FPS - 队列少，减速
-                    } else {
-                        targetInterval = 200;  // 队列空，慢速等待
-                    }
+                    // 固定播放速率（避免加速导致跳变）
+                    // 目标 10 FPS，稳定输出
+                    const targetInterval = 100;
                     
                     // 检查是否该播放下一帧
                     const now = performance.now();
