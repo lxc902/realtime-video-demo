@@ -1020,14 +1020,15 @@
                     }
                     
                     // 固定间隔播放
-                    const shouldPlay = this.frameQueue.length > 0 && (now - this.lastPlayTime) >= FIXED_INTERVAL;
+                    const elapsed = now - this.lastPlayTime;
+                    const shouldPlay = this.frameQueue.length > 0 && elapsed >= FIXED_INTERVAL;
                     
                     if (shouldPlay) {
                         const frameData = this.frameQueue.shift();
                         const bitmap = frameData.bitmap || frameData;
                         const frameTs = frameData.timestamp || 0;
                         
-                        console.log(`[Play] 播放帧 ts=${frameTs.toFixed(0)}, queue=${this.frameQueue.length}`);
+                        console.log(`[Play] 播放帧 ts=${frameTs.toFixed(0)}, elapsed=${elapsed.toFixed(0)}ms, queue=${this.frameQueue.length}`);
                         const canvas = document.getElementById('outputCanvas');
                         canvas.width = bitmap.width;
                         canvas.height = bitmap.height;
