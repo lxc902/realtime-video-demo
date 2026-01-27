@@ -593,6 +593,7 @@
             playbackTimer: null,
             lastPlayTime: 0,
             lastFrameBitmap: null,
+            frameUpdateTimer: null,
             // FPS 统计
             genFpsStartTime: 0,
             genFpsFrameCount: 0,
@@ -763,14 +764,16 @@
             async startSSEGeneration() {
                 this.setStatus('generating', 'Generating...');
                 
-                // 顺序请求模式：一个请求完成后再发下一个
-                // 这样帧是逐个到达，不会批量堆积
+                // 启动帧更新循环（每 200ms 发送一帧，5 FPS）
+                this.startFrameUpdateLoop();
+                
+                // 生成循环
                 while (this.isGenerating) {
                     try {
                         const strength = parseFloat(document.getElementById('strength').value);
                         const prompt = document.getElementById('prompt').value;
 
-                        // 捕获当前 webcam/video 帧
+                        // 捕获当前帧（也作为初始帧）
                         const startFrame = await this.captureFrame();
                         if (!startFrame) {
                             await new Promise(r => setTimeout(r, 50));
@@ -779,7 +782,7 @@
 
                         const payload = {
                             prompt: prompt,
-                            num_blocks: 1,  // 每次只生成 1 block（3帧）
+                            num_blocks: 1,
                             strength: strength,
                             start_frame: this.arrayBufferToBase64(startFrame)
                         };
@@ -830,6 +833,44 @@
                         console.error('Generation error:', error);
                         await new Promise(r => setTimeout(r, 100));
                     }
+                }
+            },
+            
+            // 帧更新循环：持续发送最新帧给后端
+            startFrameUpdateLoop() {
+                if (this.frameUpdateTimer) return;
+                
+                const sendFrame = async () => {
+                    if (!this.isGenerating) {
+                        this.frameUpdateTimer = null;
+                        return;
+                    }
+                    
+                    try {
+                        const frame = await this.captureFrame();
+                        if (frame) {
+                            // 发送帧（不等待响应）
+                            fetch('/api/update_frame', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ frame: this.arrayBufferToBase64(frame) })
+                            }).catch(() => {}); // 忽略错误
+                        }
+                    } catch (e) {
+                        // 忽略
+                    }
+                    
+                    // 每 200ms 发送一帧（5 FPS）
+                    this.frameUpdateTimer = setTimeout(sendFrame, 200);
+                };
+                
+                sendFrame();
+            },
+            
+            stopFrameUpdateLoop() {
+                if (this.frameUpdateTimer) {
+                    clearTimeout(this.frameUpdateTimer);
+                    this.frameUpdateTimer = null;
                 }
             },
 
@@ -953,6 +994,9 @@
 
             stopGeneration() {
                 this.isGenerating = false;
+                
+                // 停止帧更新循环
+                this.stopFrameUpdateLoop();
                 
                 // 播放完缓冲区剩余帧后停止
                 setTimeout(() => {

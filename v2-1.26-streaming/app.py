@@ -8,6 +8,7 @@ import json
 import base64
 import uuid
 import threading
+import time
 import gc
 from typing import Optional
 
@@ -112,6 +113,15 @@ async def health():
 
 
 # ============================================================
+# 实时帧缓存（前端持续更新，后端生成时使用最新帧）
+# ============================================================
+latest_frame_lock = threading.Lock()
+latest_frame_data = {
+    "frame": None,  # 最新帧 (numpy array)
+    "timestamp": 0
+}
+
+# ============================================================
 # API Models
 # ============================================================
 
@@ -122,6 +132,30 @@ class StreamGenerationRequest(BaseModel):
     strength: float = DEFAULT_STRENGTH
     seed: Optional[int] = None
     start_frame: Optional[str] = None  # base64 encoded
+
+class UpdateFrameRequest(BaseModel):
+    frame: str  # base64 encoded
+
+
+# ============================================================
+# 帧更新 API（前端持续调用）
+# ============================================================
+
+@app.post("/api/update_frame")
+async def api_update_frame(req: UpdateFrameRequest):
+    """前端持续发送最新帧，后端缓存"""
+    global latest_frame_data
+    try:
+        frame_bytes = base64.b64decode(req.frame)
+        frame = model.process_frame_bytes(frame_bytes) if model else None
+        
+        with latest_frame_lock:
+            latest_frame_data["frame"] = frame
+            latest_frame_data["timestamp"] = time.time()
+        
+        return {"status": "ok"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 # ============================================================
@@ -167,9 +201,16 @@ async def api_stream_generation(req: StreamGenerationRequest):
             # 生成每个 block
             for block_idx in range(req.num_blocks):
                 def generate_block():
-                    nonlocal state
+                    nonlocal state, start_frames_list
                     with inference_lock:
-                        input_frames = start_frames_list if block_idx == 0 and start_frames_list else None
+                        # 检查是否有更新的帧（从 /api/update_frame 获取）
+                        with latest_frame_lock:
+                            if latest_frame_data["frame"] is not None:
+                                latest_frame = latest_frame_data["frame"]
+                                start_frames_list = [latest_frame] * V2V_INITIAL_FRAMES
+                                print(f"  [block {block_idx}] Using latest frame from update_frame API")
+                        
+                        input_frames = start_frames_list if start_frames_list else None
                         new_state, frames = model.generate_next_block_with_state(
                             state=state,
                             prompt=req.prompt,
