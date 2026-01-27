@@ -170,7 +170,8 @@ if [ "$GPU_ARCH" = "blackwell" ]; then
 else
     # Ada, Hopper, Ampere 等使用稳定版
     if [ "$USE_CHINA_MIRROR" = true ]; then
-        PYTORCH_INDEX_URL="https://mirrors.tuna.tsinghua.edu.cn/pytorch-wheels/cu121"
+        # 清华 PyTorch 镜像不稳定，使用官方源
+        PYTORCH_INDEX_URL="https://download.pytorch.org/whl/cu121"
     else
         PYTORCH_INDEX_URL="https://download.pytorch.org/whl/cu121"
     fi
@@ -411,7 +412,7 @@ torchvision-0.25.0.dev20260126+cu128-cp312-cp312-manylinux_2_28_x86_64.whl"
         # 其他 GPU: 使用稳定版
         if ! check_package torch; then
             echo "  - Installing PyTorch with CUDA support..."
-            $PIP install torch torchvision torchaudio --index-url $PYTORCH_INDEX_URL -q
+            $PIP install torch torchvision torchaudio --index-url $PYTORCH_INDEX_URL
         fi
     fi
     
