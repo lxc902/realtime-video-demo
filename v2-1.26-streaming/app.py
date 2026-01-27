@@ -234,7 +234,12 @@ async def api_stream_generation(req: StreamGenerationRequest):
                             if latest_frame_data["prompt"] is not None:
                                 current_prompt = latest_frame_data["prompt"]
                         
-                        input_frames = start_frames_list if start_frames_list else None
+                        # 优化：只有每 3 个 block 更新一次输入帧
+                        # 其他 block 让模型自己延续，减少帧处理开销
+                        if current_block % 3 == 0:
+                            input_frames = start_frames_list if start_frames_list else None
+                        else:
+                            input_frames = None
                         new_state, frames = model.generate_next_block_with_state(
                             state=state,
                             prompt=current_prompt,
