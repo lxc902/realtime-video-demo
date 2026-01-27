@@ -152,7 +152,8 @@ WAN_AI_TRANSFORMERS_DIR="./tmp/.hf_home/transformers/models--Wan-AI--Wan2.1-T2V-
 WAN_AI_HUB_DIR="$TARGET_DIR/models--Wan-AI--Wan2.1-T2V-14B-Diffusers"
 
 # 检查是否完整（transformers 目录至少 10GB）
-WAN_AI_SIZE_T=$(du -sm "$WAN_AI_TRANSFORMERS_DIR" 2>/dev/null | cut -f1 || echo "0")
+WAN_AI_SIZE_T=$(du -sm "$WAN_AI_TRANSFORMERS_DIR" 2>/dev/null | cut -f1)
+WAN_AI_SIZE_T=${WAN_AI_SIZE_T:-0}
 
 if [ "$WAN_AI_SIZE_T" -lt 10000 ]; then
     if [ -n "$TEXT_ENCODER_URL" ]; then
