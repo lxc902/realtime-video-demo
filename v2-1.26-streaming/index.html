@@ -334,12 +334,18 @@
 
         .slider {
             flex: 1;
-            height: 8px;
+            height: 24px;
             -webkit-appearance: none;
             appearance: none;
-            background: var(--bg-tertiary);
-            border-radius: 2px;
+            background: transparent;
             outline: none;
+            cursor: pointer;
+        }
+
+        .slider::-webkit-slider-runnable-track {
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
         }
 
         .slider::-webkit-slider-thumb {
