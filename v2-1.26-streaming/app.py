@@ -51,7 +51,7 @@ class CSPMiddleware(BaseHTTPMiddleware):
         if "text/html" in response.headers.get("content-type", ""):
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com; "
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
                 "font-src 'self' https://fonts.gstatic.com; "
                 "connect-src 'self' wss: https:; "
