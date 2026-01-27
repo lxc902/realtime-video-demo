@@ -1003,7 +1003,7 @@
                 this.playbackReady = false;
                 this.lastFrameTs = 0;  // 上一帧的时间戳
                 
-                const BUFFER_TARGET = 6;  // 目标缓冲帧数
+                const BUFFER_TARGET = 3;  // 目标缓冲帧数（减少等待时间）
                 
                 const playFrame = () => {
                     if (!this.isGenerating && this.frameQueue.length === 0) {
@@ -1049,7 +1049,7 @@
                         const bitmap = frameData.bitmap || frameData;
                         const frameTs = frameData.timestamp || 0;
                         
-                        console.log(`[Play] 播放帧 ts=${frameTs.toFixed(0)}, elapsed=${elapsed.toFixed(0)}ms, queue=${this.frameQueue.length}`);
+                        console.log(`[Play] 播放帧 ts=${frameTs.toFixed(0)}, interval=${targetInterval.toFixed(0)}ms, elapsed=${elapsed.toFixed(0)}ms, queue=${this.frameQueue.length}`);
                         const canvas = document.getElementById('outputCanvas');
                         canvas.width = bitmap.width;
                         canvas.height = bitmap.height;
