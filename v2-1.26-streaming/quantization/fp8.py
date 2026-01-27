@@ -315,18 +315,9 @@ def load_fp8(pipe, repo_id, device, dtype):
     
     torch.cuda.empty_cache()
     
-    # torch.compile 优化（大显存推荐）
-    if os.environ.get("DISABLE_COMPILE", "0") != "1":
-        try:
-            print("🔧 编译 transformer (torch.compile)...")
-            pipe.transformer = torch.compile(
-                pipe.transformer,
-                mode="reduce-overhead",
-                fullgraph=False,
-            )
-            print("   ✅ torch.compile 完成")
-        except Exception as e:
-            print(f"   ⚠️  torch.compile 跳过: {e}")
+    # FP8 模式不支持 torch.compile（自定义 forward 与 CUDAGraphs 冲突）
+    print("   ⚠️  FP8 模式跳过 torch.compile（不兼容）")
+    print("   💡 如需 torch.compile 加速，请使用 BF16 模式（不加 --fp8）")
     
     print("   ✅ FP8 优化完成")
     
