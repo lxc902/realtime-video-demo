@@ -279,8 +279,49 @@
             padding: 20px;
         }
 
-        .prompt-container {
+        .prompt-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             margin-bottom: 16px;
+        }
+
+        .strength-widget {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 4px 8px;
+            flex-shrink: 0;
+        }
+
+        .strength-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+
+        .strength-btn:hover {
+            background: var(--accent);
+        }
+
+        .strength-value {
+            min-width: 40px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--accent);
+            font-weight: 500;
         }
 
         .prompt-input {
@@ -310,65 +351,6 @@
             display: flex;
             align-items: center;
             gap: 24px;
-        }
-
-        .slider-group {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .slider-label {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            white-space: nowrap;
-        }
-
-        .slider-wrapper {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .slider {
-            flex: 1;
-            height: 24px;
-            -webkit-appearance: none;
-            appearance: none;
-            background: transparent;
-            outline: none;
-            cursor: pointer;
-        }
-
-        .slider::-webkit-slider-runnable-track {
-            height: 8px;
-            background: var(--bg-tertiary);
-            border-radius: 4px;
-        }
-
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 24px;
-            height: 24px;
-            background: var(--accent);
-            border-radius: 50%;
-            cursor: pointer;
-            transition: transform 0.15s;
-        }
-
-        .slider::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-        }
-
-        .slider-value {
-            font-size: 0.875rem;
-            color: var(--accent);
-            font-weight: 500;
-            min-width: 40px;
-            text-align: right;
         }
 
         .btn-group {
@@ -553,17 +535,16 @@
 
         <!-- Controls -->
         <div class="controls">
-            <div class="prompt-container">
-                <textarea id="prompt" class="prompt-input" placeholder="Describe your video... (e.g., A cyberpunk city at night with neon lights)">A cinematic scene with dramatic lighting, high quality, detailed</textarea>
+            <div class="prompt-row">
+                <div class="strength-widget">
+                    <button class="strength-btn" id="strengthDown">−</button>
+                    <span class="strength-value" id="strengthValue">0.35</span>
+                    <button class="strength-btn" id="strengthUp">+</button>
+                </div>
+                <textarea id="prompt" class="prompt-input" placeholder="Describe your video...">donald trump</textarea>
+                <input type="hidden" id="strength" value="0.35">
             </div>
             <div class="controls-row">
-                <div class="slider-group">
-                    <span class="slider-label">AI Strength</span>
-                    <div class="slider-wrapper">
-                        <input type="range" id="strength" class="slider" min="0.1" max="1" step="0.05" value="0.35">
-                        <span id="strengthValue" class="slider-value">0.35</span>
-                    </div>
-                </div>
                 <div class="btn-group">
                     <button id="startStopBtn" class="btn btn-primary">
                         <span>▶</span> Start Generation
@@ -619,9 +600,20 @@
                 });
                 document.getElementById('videoFileInput').addEventListener('change', (e) => this.handleVideoUpload(e));
 
-                // Strength slider
-                document.getElementById('strength').addEventListener('input', (e) => {
-                    document.getElementById('strengthValue').textContent = parseFloat(e.target.value).toFixed(2);
+                // Strength up/down buttons
+                document.getElementById('strengthUp').addEventListener('click', () => {
+                    const input = document.getElementById('strength');
+                    let val = parseFloat(input.value) + 0.05;
+                    if (val > 1) val = 1;
+                    input.value = val.toFixed(2);
+                    document.getElementById('strengthValue').textContent = val.toFixed(2);
+                });
+                document.getElementById('strengthDown').addEventListener('click', () => {
+                    const input = document.getElementById('strength');
+                    let val = parseFloat(input.value) - 0.05;
+                    if (val < 0) val = 0;
+                    input.value = val.toFixed(2);
+                    document.getElementById('strengthValue').textContent = val.toFixed(2);
                 });
 
                 // Start/Stop
