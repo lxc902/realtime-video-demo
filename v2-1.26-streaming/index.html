@@ -1038,10 +1038,7 @@
                 
                 this.playFpsStartTime = performance.now();
                 this.lastFrameBitmap = null;
-                this.playbackReady = false;
-                this.lastFrameTs = 0;  // 上一帧的时间戳
-                
-                const BUFFER_TARGET = 3;  // 目标缓冲帧数（减少等待时间）
+                this.lastPlayTime = 0;
                 
                 const playFrame = () => {
                     if (!this.isGenerating && this.frameQueue.length === 0) {
@@ -1051,43 +1048,12 @@
                     
                     const now = performance.now();
                     
-                    // 缓冲策略：等积累够帧数再开始播放
-                    if (!this.playbackReady) {
-                        if (this.frameQueue.length >= BUFFER_TARGET) {
-                            this.playbackReady = true;
-                            this.lastPlayTime = now;
-                            // 初始化时间戳
-                            if (this.frameQueue.length > 0) {
-                                this.lastFrameTs = this.frameQueue[0].timestamp || 0;
-                            }
-                            console.log(`[${this.beijingTime()}] BUFFER ready queue=${this.frameQueue.length}`);
-                        } else {
-                            document.getElementById('queueSize').textContent = `缓冲 ${this.frameQueue.length}/${BUFFER_TARGET}`;
-                            this.playbackTimer = requestAnimationFrame(playFrame);
-                            return;
-                        }
-                    }
-                    
-                    // 自适应播放间隔：根据帧时间戳差计算
-                    let targetInterval = 333;  // 默认 3 FPS
+                    // 零缓冲策略：收到即播，最低延迟
                     if (this.frameQueue.length > 0) {
-                        const nextTs = this.frameQueue[0].timestamp || 0;
-                        if (nextTs > 0 && this.lastFrameTs > 0) {
-                            // 帧间隔 = 时间戳差
-                            targetInterval = Math.max(nextTs - this.lastFrameTs, 50);  // 最快 20 FPS
-                            targetInterval = Math.min(targetInterval, 2000);  // 最慢 0.5 FPS
-                        }
-                    }
-                    
-                    const elapsed = now - this.lastPlayTime;
-                    const shouldPlay = this.frameQueue.length > 0 && elapsed >= targetInterval;
-                    
-                    if (shouldPlay) {
                         const frameData = this.frameQueue.shift();
                         const bitmap = frameData.bitmap || frameData;
-                        const frameTs = frameData.timestamp || 0;
                         
-                        console.log(`[${this.beijingTime()}] OUT #${this.playFpsFrameCount+1} interval=${targetInterval.toFixed(0)}ms queue=${this.frameQueue.length}`);
+                        console.log(`[${this.beijingTime()}] OUT queue=${this.frameQueue.length}`);
                         const canvas = document.getElementById('outputCanvas');
                         canvas.width = bitmap.width;
                         canvas.height = bitmap.height;
@@ -1097,7 +1063,6 @@
                             this.lastFrameBitmap.close();
                         }
                         this.lastFrameBitmap = bitmap;
-                        this.lastFrameTs = frameTs;
                         this.lastPlayTime = now;
                         
                         // FPS 统计
