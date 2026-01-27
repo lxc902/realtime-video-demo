@@ -185,11 +185,14 @@ async def api_stream_generation(req: StreamGenerationRequest):
                 
                 frames = await asyncio.to_thread(generate_block)
                 
+                # 限制每次只推送 3 帧（1 block = 3 帧）
+                frames_to_send = frames[:3] if len(frames) > 3 else frames
+                
                 # 逐帧推送
-                for frame_idx, frame in enumerate(frames):
+                for frame_idx, frame in enumerate(frames_to_send):
                     frame_bytes = model.frame_to_bytes(frame)
                     frame_b64 = base64.b64encode(frame_bytes).decode()
-                    global_frame_idx = block_idx * len(frames) + frame_idx + 1
+                    global_frame_idx = block_idx * 3 + frame_idx + 1
                     
                     event_data = json.dumps({
                         "type": "frame",
