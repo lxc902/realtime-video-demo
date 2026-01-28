@@ -346,6 +346,10 @@ if [ "$NEED_INSTALL" = true ]; then
         fi
         
         if [ "$NEED_PYTORCH_INSTALL" = true ]; then
+            # 先卸载旧版本的 PyTorch（否则 pip 会跳过安装）
+            echo "  - 卸载旧版本 PyTorch..."
+            $PIP uninstall torch torchvision torchaudio -y -q 2>/dev/null || true
+            
             # 中国镜像：从 COS 下载所有 PyTorch nightly 需要的 NVIDIA 依赖
             if [ "$USE_CHINA_MIRROR" = true ]; then
                 COS_WHEELS_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/pypi/wheels"
