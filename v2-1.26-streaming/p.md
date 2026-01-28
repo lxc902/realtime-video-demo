@@ -26,3 +26,7 @@ webcam模式下，v2怎么还是general了固定的frames。应该是实时根�
 还有一个思路：前后端的所有图片传输带上时间戳，这样后端播放的时候根据时间戳来选择怎么播放间隔，这样整体看起来只是延迟了几秒，而不是 突然快-突然慢-突然快 这样？
 
 
+
+======== 2026.1.28
+ TODO: WORKING v2+mobile+goodQuality: real-realtime 1 FPS (Pro6000)
+
