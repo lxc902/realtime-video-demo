@@ -84,6 +84,24 @@ echo ""
 PYTHON="$VENV_DIR/bin/python3"
 PIP="$PYTHON -m pip"
 
+# 检测并处理系统 Python 的 torch 冲突
+# venv 的 python3 可能是符号链接到系统 Python (如 miniconda)
+# 这会导致系统的 site-packages 被优先搜索，覆盖 venv 里安装的包
+SYSTEM_PYTHON=$(readlink -f "$VENV_DIR/bin/python3" 2>/dev/null || echo "")
+if [ -n "$SYSTEM_PYTHON" ] && [[ "$SYSTEM_PYTHON" == *"miniconda"* || "$SYSTEM_PYTHON" == *"anaconda"* ]]; then
+    SYSTEM_PIP="${SYSTEM_PYTHON%/bin/python*}/bin/pip"
+    if [ -x "$SYSTEM_PIP" ]; then
+        # 检查系统 Python 中是否有 torch
+        if $SYSTEM_PIP show torch &>/dev/null; then
+            echo "⚠️  检测到系统 Python (miniconda/anaconda) 中有 torch"
+            echo "   这会与 venv 中的 torch 冲突，正在卸载系统 torch..."
+            $SYSTEM_PIP uninstall torch torchvision torchaudio -y -q 2>/dev/null || true
+            echo "✅ 系统 torch 已卸载"
+            echo ""
+        fi
+    fi
+fi
+
 # Function to check if a Python package is installed
 check_package() {
     $PYTHON -c "import $1" 2>/dev/null
