@@ -310,20 +310,24 @@ if [ "$NEED_INSTALL" = true ]; then
     
     # Install or upgrade PyTorch
     if [ "$USE_NIGHTLY" = true ]; then
-        # Blackwell GPU: 检查是否需要升级 PyTorch
+        # Blackwell GPU: 检查是否需要升级/安装 PyTorch
+        NEED_PYTORCH_INSTALL=false
         if check_package torch; then
             # 检查已安装的 PyTorch 是否支持 sm_120
             TORCH_ARCH_LIST=$($PYTHON -c "import torch; print(' '.join(torch.cuda.get_arch_list()))" 2>/dev/null || echo "")
             if echo "$TORCH_ARCH_LIST" | grep -q "sm_12"; then
                 echo "  ✓ PyTorch 已支持 Blackwell (sm_120)"
             else
-                echo "  ⚠️  当前 PyTorch 不支持 Blackwell，正在升级到 nightly..."
+                echo "  ⚠️  当前 PyTorch 不支持 Blackwell，需要升级到 nightly..."
                 echo "      当前支持的架构: $TORCH_ARCH_LIST"
-                $PIP install --pre torch torchvision torchaudio --index-url $PYTORCH_INDEX_URL --force-reinstall
+                NEED_PYTORCH_INSTALL=true
             fi
         else
             echo "  - Installing PyTorch nightly (for Blackwell GPU)..."
-            
+            NEED_PYTORCH_INSTALL=true
+        fi
+        
+        if [ "$NEED_PYTORCH_INSTALL" = true ]; then
             # 中国镜像：从 COS 下载所有 PyTorch nightly 需要的 NVIDIA 依赖
             if [ "$USE_CHINA_MIRROR" = true ]; then
                 COS_WHEELS_URL="https://rtcos-1394285684.cos.ap-nanjing.myqcloud.com/pypi/wheels"
