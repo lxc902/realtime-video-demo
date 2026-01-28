@@ -89,7 +89,7 @@ def load_model_on_startup():
     print("")
     print("=" * 60)
     print("✅ Model loaded successfully!")
-    print("🌐 Server ready at http://localhost:7860")
+    print("🌐 Server ready at http://localhost:6006")
     print("=" * 60)
     print("")
 
@@ -349,4 +349,4 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, force_exit)
     signal.signal(signal.SIGTERM, force_exit)
     
-    uvicorn.run(app, host="0.0.0.0", port=7860)
+    uvicorn.run(app, host="0.0.0.0", port=6006)
