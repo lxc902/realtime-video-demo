@@ -101,7 +101,7 @@ if [ -n "$SYSTEM_PYTHON" ] && [[ "$SYSTEM_PYTHON" == *"miniconda"* || "$SYSTEM_P
         fi
     fi
 fi
-
+ 
 # Function to check if a Python package is installed
 check_package() {
     $PYTHON -c "import $1" 2>/dev/null
